@@ -1,17 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Nav } from '@/components/Nav';
 import { slugify } from '@/lib/skill';
 
 type Mode = 'from-skills' | 'from-scratch';
 
+interface Quota {
+  used: number;
+  remaining: number;
+  limit: number;
+  resetsAt: string;
+}
+
+interface GenerateResponse {
+  markdown?: string;
+  error?: string;
+  quota?: Quota;
+}
+
 export default function CreatePage({ mode }: { mode: Mode }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [quota, setQuota] = useState<Quota | null>(null);
+
+  useEffect(() => {
+    fetch('/api/generate')
+      .then((r) => (r.ok ? (r.json() as Promise<Quota>) : null))
+      .then((d) => d && setQuota(d))
+      .catch(() => {});
+  }, []);
 
   // campi modalità "da skill esistenti"
   const [files, setFiles] = useState<{ name: string; text: string }[]>([]);
@@ -59,7 +80,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
             : { mode, name, domain, goal, tone, constraints, examples },
         ),
       });
-      const data = await res.json();
+      const data = (await res.json()) as GenerateResponse;
+      if (data.quota) setQuota(data.quota);
       if (!res.ok) throw new Error(data.error ?? 'Errore nella generazione');
       setResult(data.markdown as string);
     } catch (e) {
@@ -225,12 +247,27 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         <div className="mt-10">
           <button
             type="button"
-            disabled={!ready || busy}
+            disabled={!ready || busy || quota?.remaining === 0}
             onClick={generate}
             className="w-full rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? 'Generazione in corso...' : 'Genera la skill'}
           </button>
+
+          {quota && (
+            <p
+              className={`mt-3 text-center text-sm ${
+                quota.remaining === 0 ? 'text-[oklch(45%_0.14_28)]' : 'text-[--ink-muted]'
+              }`}
+            >
+              {quota.remaining > 0
+                ? `Ti restano ${quota.remaining} generazioni su ${quota.limit} per oggi.`
+                : `Hai usato tutte le ${quota.limit} generazioni di oggi. La quota si azzera il ${new Date(
+                    quota.resetsAt,
+                  ).toLocaleString('it-IT', { timeZone: 'UTC' })} UTC.`}
+            </p>
+          )}
+
           {!ready && (
             <p className="mt-3 text-center text-sm text-[--ink-muted]">
               {mode === 'from-skills'
@@ -304,9 +341,13 @@ function ResultPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markdown, repo }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        fileUrl?: string;
+        repoUrl?: string;
+      };
       if (!res.ok) throw new Error(data.error ?? 'Pubblicazione fallita');
-      setPub(data);
+      setPub({ fileUrl: data.fileUrl, repoUrl: data.repoUrl });
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Errore sconosciuto');
     } finally {

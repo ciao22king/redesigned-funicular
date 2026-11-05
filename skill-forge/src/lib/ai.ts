@@ -22,6 +22,7 @@ export async function chatCompletion(
   model: string,
   messages: ChatMessage[],
   temperature = 0.4,
+  maxTokens?: number,
 ): Promise<ChatResult> {
   const base = (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
   const res = await fetch(`${base}/chat/completions`, {
@@ -34,7 +35,12 @@ export async function chatCompletion(
         process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
       'X-Title': 'Skill Forge',
     },
-    body: JSON.stringify({ model, temperature, messages }),
+    body: JSON.stringify({
+      model,
+      temperature,
+      messages,
+      ...(maxTokens ? { max_tokens: maxTokens } : {}),
+    }),
   });
 
   const text = await res.text();

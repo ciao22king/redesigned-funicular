@@ -47,10 +47,15 @@ export const authOptions: NextAuthOptions = {
 };
 
 /**
- * Legge l'access token GitHub dal JWT cifrato, lato server.
+ * Legge l'access token GitHub e il login dal JWT cifrato, lato server.
  * Va usata solo nelle route API: il token non e' mai disponibile nel client.
  */
-export async function getServerToken(req: NextRequest): Promise<string | undefined> {
+export async function getServerAuth(
+  req: NextRequest,
+): Promise<{ token?: string; login?: string }> {
   const jwt = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  return (jwt?.accessToken as string | undefined) || undefined;
+  return {
+    token: (jwt?.accessToken as string | undefined) || undefined,
+    login: (jwt?.login as string | undefined) || undefined,
+  };
 }

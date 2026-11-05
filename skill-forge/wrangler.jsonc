@@ -14,6 +14,13 @@
   },
   // Non cancellare le variabili impostate dalla dashboard a ogni deploy CLI.
   "keep_vars": true,
+  // Contatore delle generazioni giornaliere per utente (3/giorno).
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      "id": "eeb827ee94054a5fb7691ce305b001ad"
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
