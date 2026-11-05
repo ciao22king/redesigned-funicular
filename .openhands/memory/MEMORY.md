@@ -373,3 +373,50 @@ autorevole. Esiste un secondo profilo `edgepassport` (solo tiktok).
 
 Chiave salvata come secret Cloudflare `UPLOAD_POST_API_KEY` (mai nel repo;
 `wrangler secret put`, non compare in wrangler.jsonc ne' in cloudflare-env.d.ts).
+
+### Marketplace delle skill (2026-11-05)
+
+Feature grossa aggiunta su richiesta dell'utente: un marketplace pubblico dove
+ogni utente GitHub pubblica le proprie skill, le scarica e mette una stella.
+Deployata (Worker Version `4d384434-c649-4c7e-8b89-6c10ca56acea`, commit
+`581bf7d` sul branch `cloudflare-workers`).
+
+**Storage: Cloudflare D1**, database `skill-forge-marketplace`
+(id `8d40d0e8-7f54-442c-b55a-6e6285e37fba`), binding **`MARKETPLACE`**,
+migrazioni in `skill-forge/migrations/` (`wrangler d1 migrations apply ...
+--remote`). Due tabelle: `skills` e `stars`.
+
+**Decisione chiave: l'id pubblico e' `owner/slug`, non lo slug.** Lo slug da
+solo non e' univoco — due autori diversi possono avere una skill omonima — e
+l'id composto rende impossibile a un utente sovrascrivere la skill di un altro
+(l'upsert e' limitato all'owner, e l'id risultante sarebbe diverso). Un dettaglio
+che sarebbe stato un bug sottile: la prima stesura usava `slug` come chiave.
+
+**Sicurezza**: l'identita' dell'autore viene SEMPRE dal token GitHub lato server
+(`getServerAuth`), mai dal corpo della richiesta. `toggleStar` ricalcola il
+conteggio da `COUNT(*)` sui fatti invece di incrementare a mano, cosi' non puo'
+divergere; la PK `(skill_id, user_login)` impedisce il doppio voto a livello DB.
+
+**localStorage** (`src/lib/localstore.ts`): ogni skill generata si salva subito
+in locale, anche senza download/commit. Le funzioni accettano uno `Storage`
+iniettabile, quindi la logica e' testabile senza browser. Le voci corrotte
+vengono scartate invece di far cadere la pagina.
+
+**Struttura**: logica pura in `src/lib/marketplace.ts`, query D1 in
+`src/lib/marketplace-db.ts` (D1 iniettabile per i test). API sotto
+`src/app/api/marketplace/` (`route.ts` lista, `publish/`, `star/`, `detail/`).
+Pagina `src/app/marketplace/page.tsx`; dashboard riscritta come "Le mie
+creazioni".
+
+**Harness di test vero, finalmente.** `npm test` = `node --import tsx --test
+tests/*.test.ts` (`tsx` aggiunto come devDependency). 34 test verdi. I test
+"7/7" delle sessioni precedenti erano ad hoc e non versionati.
+
+**Trappola Next 16**: `next lint` e' stato rimosso (`Invalid project directory
+provided, no such directory: .../lint`). E non esiste una config ESLint nel
+repo. `npx eslint` senza config si pianta. Quindi: niente lint, ci si affida a
+`tsc --noEmit` + `next build`, che fanno gia' il type-check.
+
+**Trappola `npm run preview`**: `opennextjs-cloudflare preview` fa la build E
+avvia un server locale bloccante: non usarlo per la sola build, va in timeout.
+Per la build: `opennextjs-cloudflare build` (o `npm run build` per Next).
