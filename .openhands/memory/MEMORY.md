@@ -350,3 +350,26 @@ Fatto importante: quei pacchetti NON finiscono nel Worker distribuito.
 Verifica: `wrangler deploy --dry-run --outdir` + grep di minimatch/node-minify
 nel bundle finale -> 0 occorrenze. Le occorrenze di "glob" erano
 globalThis/globstar (falsi positivi), non il pacchetto glob.
+
+### Upload-Post (social posting) — 2026-11-05
+
+Servizio **upload-post.com**: API unificata per pubblicare su X, YouTube, TikTok,
+IG, LinkedIn e altri. Base `https://api.upload-post.com/api`.
+**Autenticazione: header `Authorization: Apikey <KEY>`** (attenzione: NON
+`Bearer`). Verificato: con `Apikey` -> 200 "Token is valid"; con `Bearer` -> 401.
+La chiave dell'utente e' un **JWT HS256** (payload: email, exp 2126, jti), ma va
+passata con lo schema `Apikey`. Endpoint di prova sicuro: `GET /uploadposts/me`.
+
+Endpoint utili: `POST /upload` (video), `/upload_photos`, `/upload_text`
+(X/LinkedIn/Facebook/Threads/Reddit/Bluesky/... crea thread automatici),
+`/upload_document` (solo LinkedIn), `/uploadposts/status`, `/history`,
+`/schedule`. Tutti accettano una lista `platforms`.
+
+**Stato account (profilo `default`)**: X = @ImADev22 ("Devme"),
+YouTube = @drixedits-h2m ("EditByDrix"), entrambi `reauth_required: false`.
+**Trappola**: il campo `platforms` del profilo vale `["tiktok"]` ma gli account
+X e YouTube sono presenti in `social_accounts` — quel campo non e' l'elenco
+autorevole. Esiste un secondo profilo `edgepassport` (solo tiktok).
+
+Chiave salvata come secret Cloudflare `UPLOAD_POST_API_KEY` (mai nel repo;
+`wrangler secret put`, non compare in wrangler.jsonc ne' in cloudflare-env.d.ts).
