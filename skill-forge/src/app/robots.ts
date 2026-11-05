@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next';
-import { legal } from '@/lib/legal';
+import { siteBase } from '@/lib/site-url';
 
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const base = await siteBase();
   return {
     rules: [
       {
@@ -11,7 +12,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/dashboard', '/create/'],
       },
     ],
-    sitemap: `${legal.siteUrl}/sitemap.xml`,
-    host: legal.siteUrl,
+    sitemap: `${base}/sitemap.xml`,
+    host: base,
   };
 }

@@ -1,8 +1,8 @@
 import type { MetadataRoute } from 'next';
-import { legal } from '@/lib/legal';
+import { siteBase } from '@/lib/site-url';
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const base = legal.siteUrl;
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const base = await siteBase();
   const lastModified = new Date();
   const routes = ['', '/marketplace', '/termini', '/privacy', '/cookie'];
   return routes.map((path) => ({
