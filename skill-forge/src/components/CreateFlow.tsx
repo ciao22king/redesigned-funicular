@@ -17,6 +17,7 @@ interface Quota {
   remaining: number;
   limit: number;
   resetsAt: string;
+  unlimited?: boolean;
 }
 
 interface GenerateResponse {
@@ -263,7 +264,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         <div className="mt-10">
           <button
             type="button"
-            disabled={!ready || busy || quota?.remaining === 0}
+            disabled={!ready || busy || (!!quota && !quota.unlimited && quota.remaining === 0)}
             onClick={generate}
             className="w-full rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -273,14 +274,18 @@ export default function CreatePage({ mode }: { mode: Mode }) {
           {quota && (
             <p
               className={`mt-3 text-center text-sm ${
-                quota.remaining === 0 ? 'text-[oklch(45%_0.14_28)]' : 'text-[--ink-muted]'
+                !quota.unlimited && quota.remaining === 0
+                  ? 'text-[oklch(45%_0.14_28)]'
+                  : 'text-[--ink-muted]'
               }`}
             >
-              {quota.remaining > 0
-                ? `Ti restano ${quota.remaining} generazioni su ${quota.limit} per oggi.`
-                : `Hai usato tutte le ${quota.limit} generazioni di oggi. La quota si azzera il ${new Date(
-                    quota.resetsAt,
-                  ).toLocaleString('it-IT', { timeZone: 'UTC' })} UTC.`}
+              {quota.unlimited
+                ? 'Generazioni illimitate.'
+                : quota.remaining > 0
+                  ? `Ti restano ${quota.remaining} generazioni su ${quota.limit} per oggi.`
+                  : `Hai usato tutte le ${quota.limit} generazioni di oggi. La quota si azzera il ${new Date(
+                      quota.resetsAt,
+                    ).toLocaleString('it-IT', { timeZone: 'UTC' })} UTC.`}
             </p>
           )}
 

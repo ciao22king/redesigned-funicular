@@ -18,30 +18,55 @@ export interface ChatResult {
   usage: unknown;
 }
 
+/** Timeout per singolo tentativo: un modello lento non deve bloccare la richiesta. */
+export const ATTEMPT_TIMEOUT_MS = 25_000;
+
 export async function chatCompletion(
   model: string,
   messages: ChatMessage[],
   temperature = 0.4,
   maxTokens?: number,
+  timeoutMs = ATTEMPT_TIMEOUT_MS,
 ): Promise<ChatResult> {
   const base = (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
-  const res = await fetch(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
-      // OpenRouter li usa per attribuire l'app nella dashboard.
-      'HTTP-Referer':
-        process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
-      'X-Title': 'Skill Forge',
-    },
-    body: JSON.stringify({
-      model,
-      temperature,
-      messages,
-      ...(maxTokens ? { max_tokens: maxTokens } : {}),
-    }),
-  });
+
+  // AbortController: se il modello non risponde entro il timeout, la richiesta
+  // si annulla e la generazione passa al modello successivo invece di restare
+  // appesa fino al limite della funzione.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}/chat/completions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
+        // OpenRouter li usa per attribuire l'app nella dashboard.
+        'HTTP-Referer':
+          process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
+        'X-Title': 'Skill Forge',
+      },
+      body: JSON.stringify({
+        model,
+        temperature,
+        messages,
+        // `sort: throughput` fa scegliere a OpenRouter il provider che serve il
+        // modello con la latenza piu' bassa, invece del default (prezzo).
+        provider: { sort: 'throughput', allow_fallbacks: true },
+        ...(maxTokens ? { max_tokens: maxTokens } : {}),
+      }),
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`timeout dopo ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw err;
+  }
+  clearTimeout(timer);
 
   const text = await res.text();
   if (!res.ok) {
@@ -62,25 +87,26 @@ export async function chatCompletion(
 }
 
 /**
- * Modelli free di OpenRouter, dal più potente al meno.
- * Se un modello risponde con errore o risposta vuota, la generazione passa al
- * successivo. La lista si può sostituire con OPENROUTER_MODELS (id separati da
- * virgola) senza toccare il codice.
+ * Modelli free di OpenRouter, dal piu' veloce al piu' capace.
+ * L'ordine e' la leva principale sulla latenza: si prova prima il modello
+ * piccolo, che risponde subito, e solo se fallisce si sale di dimensione.
+ * La lista si puo' sostituire con OPENROUTER_MODELS (id separati da virgola)
+ * senza toccare il codice.
  */
 export const MODELS: string[] = (
   process.env.OPENROUTER_MODELS ??
   [
-    'nvidia/nemotron-3-ultra-550b-a55b:free', // 550B, il più grande
-    'nvidia/nemotron-3.5-super-vl:free',
-    'nvidia/nemotron-3.5-lightning:free',
-    'dots-studio/dots-3-note-preview:free',
-    'google/gemma-4-31b-it:free',
-    'recursive/flint-v1.0:free',
+    'liquid/lfm-2.5-2.6b:free', // il piu' piccolo: risposta quasi immediata
     'google/gemma-4-26b-a4b-it:free',
-    'xingchen-agi/xing4.0-29b-a4b:free',
     'cohere/north-mini-code:free',
+    'xingchen-agi/xing4.0-29b-a4b:free',
+    'recursive/flint-v1.0:free',
+    'nvidia/nemotron-3.5-lightning:free',
+    'google/gemma-4-31b-it:free',
     'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-    'liquid/lfm-2.5-2.6b:free', // il più piccolo, ultima spiaggia
+    'nvidia/nemotron-3.5-super-vl:free',
+    'dots-studio/dots-3-note-preview:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free', // 550B, il piu' capace, ultima spiaggia
   ].join(',')
 )
   .split(',')
@@ -90,54 +116,56 @@ export const MODELS: string[] = (
 /** Primo modello della scala: usato come etichetta quando il fallback non parte. */
 export const MODEL = MODELS[0];
 
-export const SYSTEM_PROMPT = `Sei Skill Forge, un motore che trasforma materiale grezzo in skill complete per agenti AI.
+export const SYSTEM_PROMPT = `You are Skill Forge, an engine that turns raw material into complete skills for AI agents.
 
-Una "skill" è un documento Markdown operativo, scritto per essere eseguito da un agente. Deve contenere istruzioni verificabili, non consigli generici.
+A "skill" is an operational Markdown document, written to be executed by an agent. It must contain verifiable instructions, not generic advice.
 
-## Struttura obbligatoria dell'output
+## Required output structure
 
-Produci SEMPRE un documento Markdown con questa struttura esatta, senza preamboli, senza commenti tuoi:
+ALWAYS produce a Markdown document with this exact structure, with no preamble and no commentary of your own:
 
 ---
-name: <slug-kebab-case>
-description: <una frase, max 30 parole, che dice quando usare la skill>
+name: <kebab-case-slug>
+description: <one sentence, max 30 words, saying when to use the skill>
 ---
 
-# <Titolo della skill>
+# <Skill title>
 
-## Quando usarla
-Trigger espliciti: frasi, contesti, richieste dell'utente che attivano la skill.
+## When to use it
+Explicit triggers: phrases, contexts, user requests that activate the skill.
 
-## Quando NON usarla
-Casi limite, richieste che sembrano simili ma appartengono a un'altra skill.
+## When NOT to use it
+Edge cases, requests that look similar but belong to another skill.
 
-## Prerequisiti
-Strumenti, accessi, conoscenze necessari. Se non serve nulla, scrivi "Nessuno".
+## Prerequisites
+Tools, access, knowledge required. If nothing is needed, write "None".
 
-## Procedura
-Passi numerati. Ogni passo deve essere azionabile e verificabile. Niente "considera di...".
+## Procedure
+Numbered steps. Every step must be actionable and verifiable. No "consider doing...".
 
-## Regole e vincoli
-Cosa è obbligatorio, cosa è vietato. Sii netto.
+## Rules and constraints
+What is mandatory, what is forbidden. Be blunt.
 
-## Esempi
+## Examples
 
 ### Input
-<un input realistico>
+<a realistic input>
 
-### Output atteso
-<l'output corretto, concreto>
+### Expected output
+<the correct, concrete output>
 
-## Errori comuni
-Cosa sbagliano tipicamente gli agenti su questo compito, e come evitarlo.
+## Common mistakes
+What agents typically get wrong on this task, and how to avoid it.
 
-## Checklist finale
-- [ ] voce verificabile
-- [ ] voce verificabile
+## Final checklist
+- [ ] verifiable item
+- [ ] verifiable item
 
-## Regole di scrittura
-- Nessun em dash. Usa virgole, due punti, parentesi.
-- Niente riempitivi: "elevate", "seamless", "unleash", "delve", "robusto" senza contenuto.
-- Ogni affermazione deve poter essere verificata da chi legge.
-- Lunghezza: abbastanza dettagliata da essere eseguibile senza contesto esterno. Non abbreiviare la procedura.
-- Scrivi in italiano, salvo che il materiale sorgente sia in un'altra lingua: in quel caso usa la lingua del materiale.`;
+## Writing rules
+- No em dashes. Use commas, colons, parentheses.
+- No filler words: "elevate", "seamless", "unleash", "delve", "robust" without substance.
+- Every claim must be verifiable by the reader.
+- Length: detailed enough to be executed with no external context. Do not shorten the procedure.
+- Write the skill in English, always, whatever the language of the source material.`;
+
+

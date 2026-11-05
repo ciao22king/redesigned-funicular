@@ -12,12 +12,30 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 export const DAILY_LIMIT = 3;
 
+/**
+ * Login esenti dal limite (di norma il solo proprietario). Si configura con
+ * UNLIMITED_LOGINS, id separati da virgola, senza toccare il codice.
+ */
+const UNLIMITED_LOGINS = new Set(
+  (process.env.UNLIMITED_LOGINS ?? 'ciao22king')
+    .split(',')
+    .map((l) => l.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+/** Vero se il login e' esente dal limite giornaliero. */
+export function isUnlimited(login: string): boolean {
+  return UNLIMITED_LOGINS.has(login.toLowerCase());
+}
+
 export interface Quota {
   used: number;
   remaining: number;
   limit: number;
   /** ISO: quando il contatore scade e la quota torna piena. */
   resetsAt: string;
+  /** Vero quando l'utente non e' soggetto al limite. */
+  unlimited: boolean;
 }
 
 interface Counter {
@@ -48,9 +66,22 @@ async function store(): Promise<KVNamespace | undefined> {
 /** Legge la quota senza consumarla. */
 export async function readQuota(login: string, kv?: KVNamespace): Promise<Quota> {
   const { key, resetsAt } = dayKey();
+
+  // Un utente illimitato non ha un contatore: non serve leggere KV, e la UI
+  // non mostra un numero che non lo riguarda.
+  if (isUnlimited(login)) {
+    return { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true };
+  }
+
   const ns = kv ?? (await store());
   const used = ns ? Number((await ns.get<Counter>(`rl:${login}:${key}`, 'json'))?.count ?? 0) : 0;
-  return { used, remaining: Math.max(0, DAILY_LIMIT - used), limit: DAILY_LIMIT, resetsAt };
+  return {
+    used,
+    remaining: Math.max(0, DAILY_LIMIT - used),
+    limit: DAILY_LIMIT,
+    resetsAt,
+    unlimited: false,
+  };
 }
 
 /**
@@ -62,12 +93,21 @@ export async function consumeQuota(
   kv?: KVNamespace,
 ): Promise<{ allowed: boolean; quota: Quota }> {
   const { key, resetsAt } = dayKey();
+
+  // Nessun contatore da toccare: l'esenzione non consuma ne' scrive su KV.
+  if (isUnlimited(login)) {
+    return {
+      allowed: true,
+      quota: { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true },
+    };
+  }
+
   const ns = kv ?? (await store());
 
   if (!ns) {
     return {
       allowed: true,
-      quota: { used: 0, remaining: DAILY_LIMIT, limit: DAILY_LIMIT, resetsAt },
+      quota: { used: 0, remaining: DAILY_LIMIT, limit: DAILY_LIMIT, resetsAt, unlimited: false },
     };
   }
 
@@ -77,7 +117,7 @@ export async function consumeQuota(
   if (current >= DAILY_LIMIT) {
     return {
       allowed: false,
-      quota: { used: current, remaining: 0, limit: DAILY_LIMIT, resetsAt },
+      quota: { used: current, remaining: 0, limit: DAILY_LIMIT, resetsAt, unlimited: false },
     };
   }
 
@@ -88,6 +128,12 @@ export async function consumeQuota(
 
   return {
     allowed: true,
-    quota: { used: count, remaining: Math.max(0, DAILY_LIMIT - count), limit: DAILY_LIMIT, resetsAt },
+    quota: {
+      used: count,
+      remaining: Math.max(0, DAILY_LIMIT - count),
+      limit: DAILY_LIMIT,
+      resetsAt,
+      unlimited: false,
+    },
   };
 }

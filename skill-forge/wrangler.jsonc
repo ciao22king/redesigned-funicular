@@ -10,7 +10,10 @@
   // GITHUB_SECRET, NEXTAUTH_SECRET e OPENROUTER_API_KEY sono secret e si
   // impostano con `wrangler secret put` o dalla dashboard, mai in questo file.
   "vars": {
-    "GITHUB_ID": "Ov23li3WNZ0SwllP72tP"
+    "GITHUB_ID": "Ov23li3WNZ0SwllP72tP",
+    // Login esenti dal limite giornaliero, separati da virgola. Il proprietario
+    // non ha quota; gli altri restano a DAILY_LIMIT generazioni al giorno.
+    "UNLIMITED_LOGINS": "ciao22king"
   },
   // Non cancellare le variabili impostate dalla dashboard a ogni deploy CLI.
   "keep_vars": true,
