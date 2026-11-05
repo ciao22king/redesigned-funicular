@@ -29,6 +29,12 @@ export const metadata: Metadata = {
   applicationName: 'Skill Forge',
   keywords: ['skill', 'AI', 'agenti', 'prompt', 'documentazione', 'GitHub'],
   alternates: { canonical: '/' },
+  // Verifica Google Search Console. Il record TXT omonimo vive nella zona
+  // skillforge.eu.org, ma finche' la delega NS da eu.org non e' attiva quel
+  // dominio non risolve: il meta tag copre intanto il dominio workers.dev.
+  verification: {
+    google: 'hg9z_CJS5ZLTdubmXqF8Mpae1XwhXgDqjpXOJ5PXJ14',
+  },
   openGraph: {
     type: 'website',
     siteName: 'Skill Forge',

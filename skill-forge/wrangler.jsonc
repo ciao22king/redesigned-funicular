@@ -32,7 +32,11 @@
   ],
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // "none": Cloudflare di default reindirizza /file.html verso /file, e
+    // Google vuole il file di verifica al percorso esatto. Le pagine di Next
+    // sono generate al volo, non servite come .html da questa cartella.
+    "html_handling": "none"
   },
   "observability": {
     "enabled": true
