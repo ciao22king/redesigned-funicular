@@ -420,3 +420,28 @@ repo. `npx eslint` senza config si pianta. Quindi: niente lint, ci si affida a
 **Trappola `npm run preview`**: `opennextjs-cloudflare preview` fa la build E
 avvia un server locale bloccante: non usarlo per la sola build, va in timeout.
 Per la build: `opennextjs-cloudflare build` (o `npm run build` per Next).
+
+### Cloudflare agent setup (2026-11-05)
+
+`https://developers.cloudflare.com/agent-setup/prompt.md` e' il prompt ufficiale
+di setup. L'ho eseguito (era stato saltato nei turni precedenti, nonostante il
+primo messaggio lo chiedesse).
+
+**Skills: fatte.** `npx -y skills add cloudflare/skills --skill '*' --yes
+--global` installa 19 skill in `~/.agents/skills/` e le collega a OpenHands con
+symlink in `~/.openhands/skills/` (`cloudflare`, `wrangler`, `cf-cli`,
+`workers-best-practices`, `nextjs-on-cloudflare`, `durable-objects`,
+`agents-sdk`, `turnstile-spin`, `web-perf`, `sandbox-*`, ...). Diventano
+visibili all'agente solo dalla sessione successiva (l'elenco delle skill e'
+calcolato all'avvio).
+
+**MCP: NON registrato, e non e' registrabile da dentro il container.** Non
+esiste un file di config MCP scopribile per questo agente: niente
+`~/.openhands/settings.json`, `~/.openhands/profiles/` contiene solo un lock
+vuoto, e il server MCP di Cloudflare (`https://mcp.cloudflare.com/mcp`, OAuth
+al primo uso) si configura dalle impostazioni dell'app OpenHands, non da qui.
+Non ho inventato un file di config in un percorso arbitrario.
+
+**CLI `cf`: non installata di proposito.** Il prompt la segna come opzionale e
+dice di chiedere prima. Il progetto ha `wrangler.jsonc`, quindi la skill
+`cloudflare` dice comunque di usare Wrangler (non `cf`) finche' resta cosi'.
