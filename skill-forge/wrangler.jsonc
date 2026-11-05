@@ -21,6 +21,15 @@
       "id": "eeb827ee94054a5fb7691ce305b001ad"
     }
   ],
+  // Marketplace delle skill pubblicate: elenco, stelle, ricerca.
+  "d1_databases": [
+    {
+      "binding": "MARKETPLACE",
+      "database_name": "skill-forge-marketplace",
+      "database_id": "8d40d0e8-7f54-442c-b55a-6e6285e37fba",
+      "migrations_dir": "migrations"
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

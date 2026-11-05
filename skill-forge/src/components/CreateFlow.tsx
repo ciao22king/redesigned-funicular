@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Nav } from '@/components/Nav';
-import { slugify } from '@/lib/skill';
+import {
+  readFrontmatterDescription,
+  readFrontmatterName,
+  slugify,
+} from '@/lib/skill';
+import { markPublished, saveLocalSkill } from '@/lib/localstore';
 
 type Mode = 'from-skills' | 'from-scratch';
 
@@ -83,7 +88,18 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       const data = (await res.json()) as GenerateResponse;
       if (data.quota) setQuota(data.quota);
       if (!res.ok) throw new Error(data.error ?? 'Errore nella generazione');
-      setResult(data.markdown as string);
+      const markdown = data.markdown as string;
+      setResult(markdown);
+
+      // Ogni skill generata entra subito nell'archivio locale: resta
+      // ritrovabile anche se non viene scaricata ne' committata.
+      const skillName = readFrontmatterName(markdown) ?? name.trim() ?? 'Skill senza nome';
+      saveLocalSkill({
+        markdown,
+        name: skillName,
+        description: readFrontmatterDescription(markdown) ?? '',
+        source: mode,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Errore sconosciuto');
     } finally {
@@ -331,6 +347,34 @@ function ResultPanel({
   const [pub, setPub] = useState<{ fileUrl?: string; repoUrl?: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [repo, setRepo] = useState('my-skills');
+  const [marketBusy, setMarketBusy] = useState(false);
+  const [market, setMarket] = useState<string | null>(null);
+
+  async function publishToMarketplace() {
+    setMarketBusy(true);
+    setMarket(null);
+    try {
+      const res = await fetch('/api/marketplace/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        skill?: { id: string; name: string };
+      };
+      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Pubblicazione fallita');
+
+      // Anche la copia locale ricorda di essere pubblicata.
+      const localName = readFrontmatterName(markdown) ?? name.trim() ?? 'Skill senza nome';
+      markPublished(slugify(localName), data.skill.id);
+      setMarket(`Pubblicata sul marketplace come "${data.skill.name}".`);
+    } catch (e) {
+      setMarket(e instanceof Error ? e.message : 'Errore sconosciuto');
+    } finally {
+      setMarketBusy(false);
+    }
+  }
 
   async function publish() {
     setPublishing(true);
@@ -396,6 +440,24 @@ function ResultPanel({
           </button>
         </div>
       </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={marketBusy}
+          onClick={() => void publishToMarketplace()}
+          className="rounded-xl border border-[--accent] bg-[--accent-soft] px-5 py-3 text-sm font-medium text-[--accent] transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {marketBusy ? 'Pubblico...' : 'Pubblica sul marketplace'}
+        </button>
+        <span className="text-xs text-[--ink-muted]">
+          Le altre persone potranno scaricarla e metterle una stella.
+        </span>
+      </div>
+
+      {market && (
+        <p className="mt-4 text-sm text-[--ink]">{market}</p>
+      )}
 
       {err && (
         <p className="mt-4 text-sm text-[oklch(45%_0.14_28)]">{err}</p>

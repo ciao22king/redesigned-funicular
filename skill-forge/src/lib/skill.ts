@@ -17,12 +17,26 @@ export function stripFences(md: string): string {
   return match ? match[1].trim() : trimmed;
 }
 
-/** Estrae il campo `name:` dal frontmatter, se presente. */
-export function readFrontmatterName(md: string): string | undefined {
+/** Legge un campo scalare dal frontmatter YAML, se presente. */
+export function readFrontmatterField(md: string, field: string): string | undefined {
   const match = md.match(/^---\s*\n([\s\S]*?)\n---/);
   if (!match) return undefined;
-  const nameLine = match[1].split('\n').find((l) => l.trim().startsWith('name:'));
-  return nameLine?.split(':').slice(1).join(':').trim().replace(/^["']|["']$/g, '');
+  const prefix = `${field}:`;
+  const line = match[1].split('\n').find((l) => l.trim().startsWith(prefix));
+  return line
+    ?.slice(line.indexOf(prefix) + prefix.length)
+    .trim()
+    .replace(/^["']|["']$/g, '');
+}
+
+/** Estrae il campo `name:` dal frontmatter, se presente. */
+export function readFrontmatterName(md: string): string | undefined {
+  return readFrontmatterField(md, 'name');
+}
+
+/** Estrae il campo `description:` dal frontmatter, se presente. */
+export function readFrontmatterDescription(md: string): string | undefined {
+  return readFrontmatterField(md, 'description');
 }
 
 export function countWords(md: string): number {

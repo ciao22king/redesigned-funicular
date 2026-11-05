@@ -22,6 +22,12 @@ export function Nav() {
         </Link>
 
         <div className="flex items-center gap-1">
+          <Link
+            href="/marketplace"
+            className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+          >
+            Marketplace
+          </Link>
           {status === 'authenticated' ? (
             <>
               <Link
