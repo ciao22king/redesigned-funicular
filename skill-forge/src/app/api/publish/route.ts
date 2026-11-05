@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import type { NextRequest } from 'next/server';
+import { getServerToken } from '@/lib/auth';
 import {
   commitFile,
   createRepo,
@@ -22,9 +22,8 @@ interface Body {
   createIfMissing?: boolean;
 }
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const token = session?.accessToken;
+export async function POST(req: NextRequest) {
+  const token = await getServerToken(req);
 
   if (!token) {
     return NextResponse.json({ error: 'Devi accedere con GitHub.' }, { status: 401 });

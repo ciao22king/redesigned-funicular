@@ -1,5 +1,7 @@
 import type { NextAuthOptions } from 'next-auth';
+import { getToken } from 'next-auth/jwt';
 import GitHubProvider from 'next-auth/providers/github';
+import type { NextRequest } from 'next/server';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -26,7 +28,10 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken as string | undefined;
+      // Il token OAuth resta solo nel JWT cifrato: il corpo restituito da
+      // /api/auth/session e' visibile a qualunque script in pagina, quindi qui
+      // NON deve comparire nessun segreto. Le route API leggono il token dal
+      // JWT con getServerToken().
       if (session.user) {
         session.user.login = token.login as string | undefined;
       }
@@ -40,3 +45,12 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
 };
+
+/**
+ * Legge l'access token GitHub dal JWT cifrato, lato server.
+ * Va usata solo nelle route API: il token non e' mai disponibile nel client.
+ */
+export async function getServerToken(req: NextRequest): Promise<string | undefined> {
+  const jwt = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  return (jwt?.accessToken as string | undefined) || undefined;
+}

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import type { NextRequest } from 'next/server';
+import { getServerToken } from '@/lib/auth';
 import { chatCompletion, MODELS, SYSTEM_PROMPT } from '@/lib/ai';
 import { stripFences } from '@/lib/skill';
 
@@ -50,9 +50,9 @@ ${body.sourceMaterial?.slice(0, 60_000) ?? ''}
 La procedura deve essere abbastanza dettagliata da essere eseguita senza contesto esterno.`;
 }
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.accessToken) {
+export async function POST(req: NextRequest) {
+  const token = await getServerToken(req);
+  if (!token) {
     return NextResponse.json({ error: 'Devi accedere con GitHub.' }, { status: 401 });
   }
 
