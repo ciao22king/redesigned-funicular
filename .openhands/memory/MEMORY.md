@@ -278,3 +278,20 @@ nosniff, Referrer-Policy, Permissions-Policy).
 Ancora aperti (non corretti): nessun rate limit su `/api/generate`
 (quota OpenRouter esauribile); 5 vulnerabilita' npm nella catena
 `@opennextjs/cloudflare` da verificare se finiscono nel bundle del Worker.
+
+## Skill Forge — rate limit e guardrail (2026-11-05)
+
+- KV `RATE_LIMIT` (id `eeb827ee94054a5fb7691ce305b001ad`) in `wrangler.jsonc`;
+  dopo aver aggiunto un binding va rigenerato `npm run cf-typegen` (crea
+  `cloudflare-env.d.ts` con `KVNamespace`).
+- `src/lib/ratelimit.ts`: 3 generazioni/giorno, chiave `rl:<login>:<YYYY-MM-DD>`
+  (giorno UTC), contatore con TTL 48h. `consumeQuota`/`readQuota` accettano un
+  KV opzionale come 2o argomento, cosi' si testano con un KV in memoria.
+- `src/lib/guardrails.ts`: tetti input/output, `wrapUntrusted` (rimuove i tag
+  di confine iniettati), `GUARDRAIL_PROMPT` anti-prompt-injection,
+  `validateSkillOutput` (frontmatter + name + description + titolo).
+- `src/lib/ai.ts`: `chatCompletion(model, messages, temperature, maxTokens)`.
+- La quota si consuma DOPO la validazione dell'input, prima di chiamare il
+  modello: input rifiutato non costa una generazione.
+- Test eseguiti con `npx tsx <file>.mts` (i file `.mts` fuori dal progetto non
+  risolvono i path relativi; metterli nella root di skill-forge e cancellarli).
