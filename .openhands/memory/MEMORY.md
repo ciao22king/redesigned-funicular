@@ -445,3 +445,24 @@ Non ho inventato un file di config in un percorso arbitrario.
 **CLI `cf`: non installata di proposito.** Il prompt la segna come opzionale e
 dice di chiedere prima. Il progetto ha `wrangler.jsonc`, quindi la skill
 `cloudflare` dice comunque di usare Wrangler (non `cf`) finche' resta cosi'.
+
+### Verifica Google e workers.dev (2026-11-05)
+
+**`workers.dev` non e' una zona dell'account**: l'account ha solo
+`skillforge.eu.org` ed `edgepassport.eu.org`. Non ci si possono creare record
+DNS, quindi il TXT di verifica Google va per forza nella zona eu.org (che non
+risolve finche' manca la delega NS). Per verificare il dominio workers.dev
+l'utente deve usare il **meta tag** o il **file HTML**, non il TXT.
+
+Soluzione adottata: entrambi i metodi senza DNS.
+- `verification.google` in `src/app/layout.tsx` -> `<meta name="google-site-verification">`
+  presente su ogni pagina.
+- `public/googlehg9z_...html` con la riga `google-site-verification: google....html`.
+
+**Trappola Cloudflare**: i file `.html` negli asset statici vengono serviti con
+un **307** verso il percorso senza estensione (comportamento di default di
+"html_handling"). Google vuole il file al percorso esatto. Fix: in
+`wrangler.jsonc`, sotto `assets`, `"html_handling": "none"`. Verificato: dopo il
+cambio il file risponde 200 con `content-type: text/html` al percorso esatto, e
+tutte le pagine Next (generate al volo, non servite come .html da quella
+cartella) restano 200.
