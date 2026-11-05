@@ -324,3 +324,14 @@ Il token dei deploy NON puo' creare custom domains (errore 10405 su
 `accounts/*/workers/domains`), ma PUO' creare route su
 `zones/*/workers/routes`. Quando eu.org deleghera' i NS e la zona andra'
 `active`, non serve altro: il sito si servira' su https://skillforge.eu.org.
+
+### www (2026-11-05)
+
+Apex canonico, quindi `www` fa 301 -> apex (middleware `src/middleware.ts`,
+testato). In Cloudflare: CNAME `www` -> `skillforge.eu.org` (proxato) + route
+`www.skillforge.eu.org/*` -> `skill-forge`. In Next/OpenNext il middleware
+compare nel build come "Proxy (Middleware)".
+
+Trucco per testare il middleware senza deploy: importarlo in un file `.mts`
+eseguito con `npx tsx` e chiamarlo con `new NextRequest(url, {headers:{host}})`.
+Spoofare l'header Host verso il worker NON funziona: Cloudflare risponde 403.
