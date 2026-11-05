@@ -66,9 +66,9 @@ Settings → Secrets and variables → Actions → New repository secret
 | `NEXTAUTH_URL` | `https://<worker>.<sottodominio>.workers.dev` |
 | `GH_OAUTH_ID` | Client ID della OAuth App GitHub |
 | `GH_OAUTH_SECRET` | Client Secret della OAuth App GitHub |
-| `TOKENHARBOR_BASE_URL` | `https://tokenharbor.ai/v1` |
-| `TOKENHARBOR_API_KEY` | `thk_live_...` |
-| `TOKENHARBOR_MODEL` | `deepseek-v4.1-flash:free` |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
+| `OPENROUTER_API_KEY` | chiave OpenRouter `sk-or-v1-...` |
+| `OPENROUTER_MODELS` | lista di modelli free, dal più potente al meno |
 
 **d.** Push su `main`.
 
@@ -79,7 +79,7 @@ Worker, non nel repository. Due modi:
 
 - Dashboard: **Workers & Pages → il tuo Worker → Settings → Variables and
   Secrets**. Le variabili `NEXTAUTH_SECRET`, `GITHUB_SECRET` e
-  `TOKENHARBOR_API_KEY` vanno marcate come **secret** (cifrate).
+  `OPENROUTER_API_KEY` vanno marcate come **secret** (cifrate).
 - CLI: `wrangler secret put NEXTAUTH_SECRET` per ognuna di quelle sensibili.
 
 ## Perché i secret si chiamano `GH_OAUTH_ID` e non `GITHUB_ID`

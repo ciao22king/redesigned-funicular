@@ -138,7 +138,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-[--ink-muted]">
           <p>Skill Forge · costruito con Next.js</p>
           <p className="font-mono text-xs">
-            Modello: deepseek-v4.1-flash via Token Harbor
+            Modello: modelli free di OpenRouter, con fallback automatico
           </p>
         </div>
       </footer>

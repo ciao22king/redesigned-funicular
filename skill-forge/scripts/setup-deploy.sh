@@ -70,8 +70,8 @@ read -r -p "  Token GitHub con scope 'repo' (ghp_... o github_pat_...): " GH_TOK
 read -r -p "  Cloudflare API token (Workers Scripts: Edit): " CF_TOKEN
 [ -n "$CF_TOKEN" ] || die "Token Cloudflare obbligatorio."
 
-read -r -p "  Token Harbor API key (thk_live_...): " TH_KEY
-[ -n "$TH_KEY" ] || die "Chiave Token Harbor obbligatoria."
+read -r -p "  Chiave OpenRouter (sk-or-v1-...): " TH_KEY
+[ -n "$TH_KEY" ] || die "Chiave OpenRouter obbligatoria."
 
 read -r -p "  Nome del repository e del Worker [skill-forge]: " REPO_NAME
 REPO_NAME=${REPO_NAME:-skill-forge}
@@ -145,9 +145,9 @@ put_secret CLOUDFLARE_ACCOUNT_ID  "$CF_ACCOUNT"
 put_secret NEXTAUTH_SECRET        "$NEXTAUTH_SECRET"
 put_secret GH_OAUTH_ID            ""
 put_secret GH_OAUTH_SECRET        ""
-put_secret TOKENHARBOR_BASE_URL   "https://tokenharbor.ai/v1"
-put_secret TOKENHARBOR_API_KEY    "$TH_KEY"
-put_secret TOKENHARBOR_MODEL      "deepseek-v4.1-flash:free"
+put_secret OPENROUTER_BASE_URL   "https://openrouter.ai/api/v1"
+put_secret OPENROUTER_API_KEY    "$TH_KEY"
+put_secret OPENROUTER_MODELS      "nvidia/nemotron-3-ultra-550b-a55b:free,nvidia/nemotron-3.5-super-vl:free,nvidia/nemotron-3.5-lightning:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free,recursive/flint-v1.0:free,google/gemma-4-26b-a4b-it:free,xingchen-agi/xing4.0-29b-a4b:free,cohere/north-mini-code:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,liquid/lfm-2.5-2.6b:free"
 
 ok "Secret caricati."
 

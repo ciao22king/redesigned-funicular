@@ -41,9 +41,9 @@ jobs:
           NEXTAUTH_URL: http://localhost:3000
           GITHUB_ID: ci-placeholder
           GITHUB_SECRET: ci-placeholder
-          TOKENHARBOR_BASE_URL: https://tokenharbor.ai/v1
-          TOKENHARBOR_API_KEY: ci-placeholder
-          TOKENHARBOR_MODEL: deepseek-v4.1-flash:free
+          OPENROUTER_BASE_URL: https://openrouter.ai/api/v1
+          OPENROUTER_API_KEY: ci-placeholder
+          OPENROUTER_MODELS: nvidia/nemotron-3-ultra-550b-a55b:free,nvidia/nemotron-3.5-super-vl:free,nvidia/nemotron-3.5-lightning:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free,recursive/flint-v1.0:free,google/gemma-4-26b-a4b-it:free,xingchen-agi/xing4.0-29b-a4b:free,cohere/north-mini-code:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,liquid/lfm-2.5-2.6b:free
 
   deploy:
     name: Deploy Cloudflare
@@ -77,6 +77,6 @@ jobs:
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
           GITHUB_ID: ${{ secrets.GH_OAUTH_ID }}
           GITHUB_SECRET: ${{ secrets.GH_OAUTH_SECRET }}
-          TOKENHARBOR_BASE_URL: ${{ secrets.TOKENHARBOR_BASE_URL }}
-          TOKENHARBOR_API_KEY: ${{ secrets.TOKENHARBOR_API_KEY }}
-          TOKENHARBOR_MODEL: ${{ secrets.TOKENHARBOR_MODEL }}
+          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODELS: ${{ secrets.OPENROUTER_MODELS }}

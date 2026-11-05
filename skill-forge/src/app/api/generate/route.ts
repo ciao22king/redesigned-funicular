@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { ai, MODEL, SYSTEM_PROMPT } from '@/lib/ai';
+import { ai, MODELS, SYSTEM_PROMPT } from '@/lib/ai';
 import { stripFences } from '@/lib/skill';
 
 export const runtime = 'nodejs';
@@ -56,9 +56,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Devi accedere con GitHub.' }, { status: 401 });
   }
 
-  if (!process.env.TOKENHARBOR_API_KEY) {
+  if (!process.env.OPENROUTER_API_KEY) {
     return NextResponse.json(
-      { error: 'TOKENHARBOR_API_KEY non configurata sul server.' },
+      { error: 'OPENROUTER_API_KEY non configurata sul server.' },
       { status: 500 },
     );
   }
@@ -80,36 +80,41 @@ export async function POST(req: Request) {
     );
   }
 
-  try {
-    const completion = await ai.chat.completions.create({
-      model: MODEL,
-      temperature: 0.4,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(body) },
-      ],
-    });
+  const errors: string[] = [];
+  for (const model of MODELS) {
+    try {
+      const completion = await ai.chat.completions.create({
+        model,
+        temperature: 0.4,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: buildUserPrompt(body) },
+        ],
+      });
 
-    const raw = completion.choices[0]?.message?.content ?? '';
-    const markdown = stripFences(raw);
+      const raw = completion.choices[0]?.message?.content ?? '';
+      const markdown = stripFences(raw);
+      if (!markdown) {
+        errors.push(`${model}: risposta vuota`);
+        continue;
+      }
 
-    if (!markdown) {
-      return NextResponse.json(
-        { error: 'Il modello ha restituito una risposta vuota. Riprova.' },
-        { status: 502 },
-      );
+      return NextResponse.json({
+        markdown,
+        usage: completion.usage ?? null,
+        model,
+        fallbacks: errors,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'errore sconosciuto';
+      errors.push(`${model}: ${message}`);
     }
-
-    return NextResponse.json({
-      markdown,
-      usage: completion.usage ?? null,
-      model: MODEL,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Errore sconosciuto';
-    return NextResponse.json(
-      { error: `Generazione fallita: ${message}` },
-      { status: 502 },
-    );
   }
+
+  return NextResponse.json(
+    {
+      error: `Nessun modello free ha risposto. Dettagli: ${errors.join('; ')}`,
+    },
+    { status: 502 },
+  );
 }

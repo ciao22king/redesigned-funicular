@@ -14,7 +14,7 @@ const required = [
   ['GITHUB_SECRET', 'Client Secret della OAuth App GitHub'],
   ['NEXTAUTH_SECRET', 'openssl rand -base64 32'],
   ['NEXTAUTH_URL', 'http://localhost:3000 oppure l\'URL del Worker'],
-  ['TOKENHARBOR_API_KEY', 'Universal Key thk_live_...'],
+  ['OPENROUTER_API_KEY', 'Chiave OpenRouter sk-or-v1-...'],
 ];
 
 let env = { ...process.env };

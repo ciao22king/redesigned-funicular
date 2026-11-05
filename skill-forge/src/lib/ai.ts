@@ -1,18 +1,50 @@
 import OpenAI from 'openai';
 
 /**
- * Client AI su Token Harbor (gateway OpenAI-compatibile).
- * Base URL: https://tokenharbor.ai/v1
- * Auth: Bearer thk_live_...
+ * Client AI su OpenRouter (gateway OpenAI-compatibile).
+ * Base URL: https://openrouter.ai/api/v1
+ * Auth: Bearer sk-or-v1-...
  *
  * La chiave vive solo lato server (route handler), mai nel bundle client.
  */
 export const ai = new OpenAI({
-  apiKey: process.env.TOKENHARBOR_API_KEY ?? '',
-  baseURL: process.env.TOKENHARBOR_BASE_URL ?? 'https://tokenharbor.ai/v1',
+  apiKey: process.env.OPENROUTER_API_KEY ?? '',
+  baseURL: process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
+  defaultHeaders: {
+    // OpenRouter li usa per attribuire l'app nella dashboard.
+    'HTTP-Referer': process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
+    'X-Title': 'Skill Forge',
+  },
 });
 
-export const MODEL = process.env.TOKENHARBOR_MODEL ?? 'deepseek-v4.1-flash:free';
+/**
+ * Modelli free di OpenRouter, dal più potente al meno.
+ * Se un modello risponde con errore o risposta vuota, la generazione passa al
+ * successivo. La lista si può sostituire con OPENROUTER_MODELS (id separati da
+ * virgola) senza toccare il codice.
+ */
+export const MODELS: string[] = (
+  process.env.OPENROUTER_MODELS ??
+  [
+    'nvidia/nemotron-3-ultra-550b-a55b:free', // 550B, il più grande
+    'nvidia/nemotron-3.5-super-vl:free',
+    'nvidia/nemotron-3.5-lightning:free',
+    'dots-studio/dots-3-note-preview:free',
+    'google/gemma-4-31b-it:free',
+    'recursive/flint-v1.0:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'xingchen-agi/xing4.0-29b-a4b:free',
+    'cohere/north-mini-code:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    'liquid/lfm-2.5-2.6b:free', // il più piccolo, ultima spiaggia
+  ].join(',')
+)
+  .split(',')
+  .map((m) => m.trim())
+  .filter(Boolean);
+
+/** Primo modello della scala: usato come etichetta quando il fallback non parte. */
+export const MODEL = MODELS[0];
 
 export const SYSTEM_PROMPT = `Sei Skill Forge, un motore che trasforma materiale grezzo in skill complete per agenti AI.
 

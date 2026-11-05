@@ -28,7 +28,7 @@ Checklist finale
 
 - **Next.js 16** (App Router, TypeScript)
 - **NextAuth 4** con provider GitHub, scope `repo`
-- **Token Harbor** come gateway AI, OpenAI-compatibile
+- **OpenRouter** come gateway AI, OpenAI-compatibile, con fallback tra i modelli free
 - **Tailwind CSS 3** con palette calda in OKLCH
 - Deploy su **Cloudflare Workers** tramite l'adapter `@opennextjs/cloudflare`
 
@@ -51,9 +51,9 @@ Apri `http://localhost:3000`.
 | `GITHUB_SECRET` | Stessa pagina, dopo aver creato l'app |
 | `NEXTAUTH_SECRET` | `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | `http://localhost:3000` in locale, l'URL del Worker in produzione |
-| `TOKENHARBOR_BASE_URL` | `https://tokenharbor.ai/v1` |
-| `TOKENHARBOR_API_KEY` | Dashboard Token Harbor, Universal Key `thk_live_...` |
-| `TOKENHARBOR_MODEL` | `deepseek-v4.1-flash:free` |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
+| `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys), chiave `sk-or-v1-...` |
+| `OPENROUTER_MODELS` | Lista di modelli free in ordine di potenza (vedi `.env.example`) |
 
 ### Creare la GitHub OAuth App
 
@@ -92,7 +92,7 @@ wrangler login
 wrangler secret put NEXTAUTH_SECRET
 wrangler secret put GITHUB_ID
 wrangler secret put GITHUB_SECRET
-wrangler secret put TOKENHARBOR_API_KEY
+wrangler secret put OPENROUTER_API_KEY
 npm run deploy
 ```
 
@@ -149,7 +149,7 @@ src/
 │   ├── CreateFlow.tsx               Form, risultato, download, publish
 │   └── Providers.tsx                SessionProvider
 └── lib/
-    ├── ai.ts                        Client Token Harbor e system prompt
+    ├── ai.ts                        Client OpenRouter, scala di modelli e system prompt
     ├── auth.ts                      Configurazione NextAuth
     ├── github.ts                    Wrapper API GitHub
     └── skill.ts                     Slug, fences, frontmatter
