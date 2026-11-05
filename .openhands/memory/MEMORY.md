@@ -335,3 +335,18 @@ compare nel build come "Proxy (Middleware)".
 Trucco per testare il middleware senza deploy: importarlo in un file `.mts`
 eseguito con `npx tsx` e chiamarlo con `new NextRequest(url, {headers:{host}})`.
 Spoofare l'header Host verso il worker NON funziona: Cloudflare risponde 403.
+
+### npm audit (2026-11-05)
+
+`npm audit` segnalava 5 vuln (glob/minimatch) via
+`@opennextjs/cloudflare` -> `@opennextjs/aws` -> `@node-minify/core`. Sia
+`@opennextjs/cloudflare` sia `@opennextjs/aws` sono all'ultima versione:
+il fix upstream non c'e'. Chiuse con `overrides` in package.json
+(`glob ^14.0.2`, `minimatch ^11.0.4`). `@node-minify/core` bloccava
+`glob@10.3.3` esatto, ma usa solo `globSync` e glob@14 mantiene l'export CJS:
+la minificazione continua a funzionare (verificato con build OpenNext completa).
+
+Fatto importante: quei pacchetti NON finiscono nel Worker distribuito.
+Verifica: `wrangler deploy --dry-run --outdir` + grep di minimatch/node-minify
+nel bundle finale -> 0 occorrenze. Le occorrenze di "glob" erano
+globalThis/globstar (falsi positivi), non il pacchetto glob.
