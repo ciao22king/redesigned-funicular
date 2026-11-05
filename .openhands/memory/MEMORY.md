@@ -311,3 +311,16 @@ vanno proxati). Esempi reali in k8s.io e asuc.org.
 
 Il secret `$Cloudflare` NON e' un token API valido (74 char con spazi, inizia
 per "CLOUDF..."); per l'API usare il token dei deploy. Non stamparlo mai.
+
+### DNS: cosa e' gia' pronto (2026-11-05)
+
+Tutto predisposto in attesa della delega NS da eu.org:
+- CNAME `6dnhtnuiibnq` -> `gv-ci3wdrc3s6wqfh.dv.googlehosted.com` (proxied=false)
+- AAAA `skillforge.eu.org` -> `100::` (proxied=true) + route
+  `skillforge.eu.org/*` -> `skill-forge` (la route Workers richiede un record
+  proxato sull'hostname; 100:: e' il segnaposto standard).
+
+Il token dei deploy NON puo' creare custom domains (errore 10405 su
+`accounts/*/workers/domains`), ma PUO' creare route su
+`zones/*/workers/routes`. Quando eu.org deleghera' i NS e la zona andra'
+`active`, non serve altro: il sito si servira' su https://skillforge.eu.org.
