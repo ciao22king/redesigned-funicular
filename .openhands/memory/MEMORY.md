@@ -466,3 +466,22 @@ un **307** verso il percorso senza estensione (comportamento di default di
 cambio il file risponde 200 con `content-type: text/html` al percorso esatto, e
 tutte le pagine Next (generate al volo, non servite come .html da quella
 cartella) restano 200.
+
+### Sitemap, robots e l'host giusto (2026-11-05)
+
+`sitemap.xml` e `robots.txt` erano costruiti su `legal.siteUrl`
+(`https://skillforge.eu.org`), che non risolve finche' manca la delega NS.
+Serviti da `workers.dev`, Google li avrebbe scartati: gli indirizzi elencati
+appartenevano a un host diverso da quello che li serve.
+
+Fix: `src/lib/site-url.ts`, helper `siteBase()` che legge l'origine della
+richiesta (`x-forwarded-host` poi `host`, `x-forwarded-proto` poi `https`), con
+`legal.siteUrl` come ripiego quando non c'e' una richiesta (build time).
+`sitemap.ts` e `robots.ts` sono ora `async` e usano `siteBase()`.
+
+Conseguenza voluta: la **stessa** sitemap e' corretta su `workers.dev` oggi e su
+`eu.org` dopo la delega NS, senza toccare nulla. `legal.siteUrl` resta il canone
+per `metadataBase`/OpenGraph in `layout.tsx`.
+
+Da non confondere con la verifica Google: quella ha i suoi token (meta + file +
+TXT) ed e' indipendente da dove punta la sitemap.
