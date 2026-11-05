@@ -32,8 +32,13 @@ export const metadata: Metadata = {
   // Verifica Google Search Console. Il record TXT omonimo vive nella zona
   // skillforge.eu.org, ma finche' la delega NS da eu.org non e' attiva quel
   // dominio non risolve: il meta tag copre intanto il dominio workers.dev.
+  // Due token: ognuno verifica la sua proprieta' in Search Console, e Google
+  // ignora quelli che non gli servono.
   verification: {
-    google: 'hg9z_CJS5ZLTdubmXqF8Mpae1XwhXgDqjpXOJ5PXJ14',
+    google: [
+      'hg9z_CJS5ZLTdubmXqF8Mpae1XwhXgDqjpXOJ5PXJ14',
+      'WcvnFbGkas_gCmkPeSXXrEoYusWceo4fWNDxkWT1dVE',
+    ],
   },
   openGraph: {
     type: 'website',
