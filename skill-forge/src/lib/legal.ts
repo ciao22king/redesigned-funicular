@@ -2,7 +2,8 @@
  * Unica fonte dei dati legali. Compila qui una volta e tutte le pagine
  * (note legali, privacy, cookie, termini, footer) si aggiornano da sole.
  *
- * I valori tra parentesi quadre sono segnaposto: sostituiscili con i tuoi.
+ * Per un progetto personale bastano `name` ed `email`: i campi aziendali
+ * (legalForm, address, vat, taxCode, pec) restano vuoti e non compaiono.
  */
 export const legal = {
   siteName: 'Skill Forge',
@@ -12,15 +13,17 @@ export const legal = {
   since: 2026,
 
   owner: {
-    // Se sei una persona fisica: nome e cognome. Se una societa': ragione sociale.
-    name: '[Nome e cognome o ragione sociale]',
-    // Vuoto se persona fisica.
-    legalForm: '[es. ditta individuale / S.r.l. / S.a.s.]',
-    address: '[Via e numero civico, CAP, Citta, Provincia, Paese]',
-    vat: '[Partita IVA]',
-    taxCode: '[Codice fiscale]',
+    // Nome del gestore. Se pubblichi a titolo personale, va bene il tuo nome
+    // o il nome del progetto. Compare nel footer e nelle note legali.
+    name: 'Skill Forge',
     email: 'ciao22king@gmail.com',
-    pec: '[indirizzo PEC]',
+    // Campi per aziende o professionisti. Lasciali vuoti se pubblichi a
+    // titolo personale: se vuoti, non compaiono da nessuna parte.
+    legalForm: '',
+    address: '',
+    vat: '',
+    taxCode: '',
+    pec: '',
   },
 
   // Chi ospita e chi tratta i dati per noi (responsabili ex art. 28 GDPR).

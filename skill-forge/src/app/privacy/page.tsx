@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { LegalShell } from '@/components/LegalShell';
+import { legal } from '@/lib/legal';
 
 export const metadata: Metadata = {
   title: 'Informativa privacy · Skill Forge',
@@ -12,7 +13,7 @@ export default function PrivacyPage() {
       <section>
         <h2>1. Titolare del trattamento</h2>
         <p>
-          Il titolare del trattamento è il gestore di Skill Forge, contattabile a{' '}
+          Il titolare del trattamento è il gestore di {legal.siteName}, un progetto personale, contattabile a{' '}
           <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>.
         </p>
       </section>

@@ -30,7 +30,7 @@ export function Footer() {
         <div className="hairline my-5" />
         <div className="flex flex-col gap-2 text-sm text-[--ink-muted] sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {range} {legal.owner.name === '[Nome e cognome o ragione sociale]' ? legal.siteName : legal.owner.name}. Tutti i diritti riservati.
+            © {range} {legal.owner.name}. Progetto personale.
           </p>
           <p className="font-mono text-xs">Skill Forge · costruito con Next.js</p>
         </div>

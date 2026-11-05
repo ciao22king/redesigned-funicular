@@ -35,16 +35,6 @@ export default function ContattiPage() {
           indicazioni nella pagina <a href="/sicurezza">sicurezza</a>.
         </p>
       </section>
-
-      <section>
-        <h2>Dati del gestore</h2>
-        <ul>
-          <li><strong>Denominazione:</strong> {o.name}</li>
-          <li><strong>Sede:</strong> {o.address}</li>
-          {o.vat && <li><strong>Partita IVA:</strong> {o.vat}</li>}
-          {o.pec && <li><strong>PEC:</strong> {o.pec}</li>}
-        </ul>
-      </section>
     </LegalShell>
   );
 }

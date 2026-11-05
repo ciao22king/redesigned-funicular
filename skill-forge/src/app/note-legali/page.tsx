@@ -4,25 +4,33 @@ import { legal } from '@/lib/legal';
 
 export const metadata: Metadata = {
   title: 'Note legali · Skill Forge',
-  description: 'Informazioni sul titolare del sito e sulla proprietà intellettuale.',
+  description: 'Chi gestisce Skill Forge e informazioni sulla proprietà intellettuale.',
 };
 
 export default function NoteLegaliPage() {
   const o = legal.owner;
+  const hasBusinessInfo = Boolean(o.legalForm || o.address || o.vat || o.taxCode || o.pec);
   return (
     <LegalShell title="Note legali" updated={legal.lastUpdated}>
       <section>
-        <h2>1. Informazioni sul gestore del sito</h2>
-        <p>Ai sensi degli articoli 7 e 12 del D.Lgs. 70/2003 (commercio elettronico):</p>
+        <h2>1. Chi gestisce il sito</h2>
+        <p>
+          {legal.siteName} è un progetto personale, gestito a titolo individuale.
+        </p>
         <ul>
-          <li><strong>Denominazione:</strong> {o.name}</li>
+          <li><strong>Gestore:</strong> {o.name}</li>
+          <li><strong>Email:</strong> <a href={`mailto:${o.email}`}>{o.email}</a></li>
           {o.legalForm && <li><strong>Forma giuridica:</strong> {o.legalForm}</li>}
-          <li><strong>Sede:</strong> {o.address}</li>
+          {o.address && <li><strong>Sede:</strong> {o.address}</li>}
           {o.vat && <li><strong>Partita IVA:</strong> {o.vat}</li>}
           {o.taxCode && <li><strong>Codice fiscale:</strong> {o.taxCode}</li>}
-          <li><strong>Email:</strong> <a href={`mailto:${o.email}`}>{o.email}</a></li>
           {o.pec && <li><strong>PEC:</strong> {o.pec}</li>}
         </ul>
+        {!hasBusinessInfo && (
+          <p className="text-sm text-[--ink-muted]">
+            Il servizio non è un'attività commerciale: non sono richiesti i dati di impresa.
+          </p>
+        )}
       </section>
 
       <section>
