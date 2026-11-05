@@ -88,7 +88,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-3xl px-6 py-14">
+      <main id="contenuto" className="mx-auto max-w-3xl px-6 py-14">
         <button
           type="button"
           onClick={() => router.push('/')}

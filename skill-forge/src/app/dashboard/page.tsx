@@ -11,7 +11,7 @@ export default function Dashboard() {
     return (
       <>
         <Nav />
-        <main className="mx-auto max-w-3xl px-6 py-24">
+        <main id="contenuto" className="mx-auto max-w-3xl px-6 py-24">
           <p className="text-[--ink-muted]">Caricamento...</p>
         </main>
       </>
@@ -22,7 +22,7 @@ export default function Dashboard() {
     return (
       <>
         <Nav />
-        <main className="mx-auto max-w-3xl px-6 py-24">
+        <main id="contenuto" className="mx-auto max-w-3xl px-6 py-24">
           <h1 className="font-display text-3xl font-semibold text-[--ink]">
             Accedi per vedere le tue skill
           </h1>
@@ -40,7 +40,7 @@ export default function Dashboard() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-3xl px-6 py-14">
+      <main id="contenuto" className="mx-auto max-w-3xl px-6 py-14">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-[--ink]">
           Le mie skill
         </h1>

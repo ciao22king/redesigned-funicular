@@ -13,7 +13,7 @@ export function LegalShell({
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-3xl px-6 py-14">
+      <main id="contenuto" className="mx-auto max-w-3xl px-6 py-14">
         <header className="mb-10">
           <p className="mb-2 font-mono text-xs uppercase tracking-widest text-[--ink-muted]">
             Documento legale

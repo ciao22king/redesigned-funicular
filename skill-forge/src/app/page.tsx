@@ -12,7 +12,7 @@ export default function Home() {
     <>
       <Nav />
 
-      <main className="mx-auto max-w-6xl px-6">
+      <main id="contenuto" className="mx-auto max-w-6xl px-6">
         {/* Hero: asimmetrico, non tutto centrato */}
         <section className="grid items-start gap-14 py-20 lg:grid-cols-[1.35fr_1fr] lg:py-28">
           <div className="animate-fade-up">
