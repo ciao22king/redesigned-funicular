@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { ai, MODELS, SYSTEM_PROMPT } from '@/lib/ai';
+import { chatCompletion, MODELS, SYSTEM_PROMPT } from '@/lib/ai';
 import { stripFences } from '@/lib/skill';
 
 export const runtime = 'nodejs';
@@ -83,28 +83,18 @@ export async function POST(req: Request) {
   const errors: string[] = [];
   for (const model of MODELS) {
     try {
-      const completion = await ai.chat.completions.create({
-        model,
-        temperature: 0.4,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserPrompt(body) },
-        ],
-      });
+      const { content: raw, usage } = await chatCompletion(model, [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserPrompt(body) },
+      ]);
 
-      const raw = completion.choices[0]?.message?.content ?? '';
       const markdown = stripFences(raw);
       if (!markdown) {
         errors.push(`${model}: risposta vuota`);
         continue;
       }
 
-      return NextResponse.json({
-        markdown,
-        usage: completion.usage ?? null,
-        model,
-        fallbacks: errors,
-      });
+      return NextResponse.json({ markdown, usage, model, fallbacks: errors });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'errore sconosciuto';
       errors.push(`${model}: ${message}`);

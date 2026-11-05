@@ -1,21 +1,59 @@
-import OpenAI from 'openai';
-
 /**
  * Client AI su OpenRouter (gateway OpenAI-compatibile).
  * Base URL: https://openrouter.ai/api/v1
  * Auth: Bearer sk-or-v1-...
  *
- * La chiave vive solo lato server (route handler), mai nel bundle client.
+ * Chiamiamo la REST API con la fetch nativa di Workers invece dell'SDK OpenAI:
+ * su workerd l'SDK sceglie il runtime "node" (node-fetch + agentkeepalive) e
+ * gli http.Agent non esistono, quindi ogni chiamata finisce in "Connection
+ * error". La chiave resta solo lato server, mai nel bundle client.
  */
-export const ai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY ?? '',
-  baseURL: process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
-  defaultHeaders: {
-    // OpenRouter li usa per attribuire l'app nella dashboard.
-    'HTTP-Referer': process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
-    'X-Title': 'Skill Forge',
-  },
-});
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatResult {
+  content: string;
+  usage: unknown;
+}
+
+export async function chatCompletion(
+  model: string,
+  messages: ChatMessage[],
+  temperature = 0.4,
+): Promise<ChatResult> {
+  const base = (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
+  const res = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
+      // OpenRouter li usa per attribuire l'app nella dashboard.
+      'HTTP-Referer':
+        process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
+      'X-Title': 'Skill Forge',
+    },
+    body: JSON.stringify({ model, temperature, messages }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
+  }
+
+  let data: { choices?: { message?: { content?: string } }[]; usage?: unknown };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`risposta non JSON: ${text.slice(0, 200)}`);
+  }
+
+  return {
+    content: data.choices?.[0]?.message?.content ?? '',
+    usage: data.usage ?? null,
+  };
+}
 
 /**
  * Modelli free di OpenRouter, dal più potente al meno.

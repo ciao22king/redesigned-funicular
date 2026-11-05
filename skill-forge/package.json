@@ -15,7 +15,6 @@
     "@opennextjs/cloudflare": "^1.20.16",
     "next": "^16.4.5",
     "next-auth": "^4.24.7",
-    "openai": "^4.67.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
