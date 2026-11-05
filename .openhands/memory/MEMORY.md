@@ -295,3 +295,19 @@ Ancora aperti (non corretti): nessun rate limit su `/api/generate`
   modello: input rifiutato non costa una generazione.
 - Test eseguiti con `npx tsx <file>.mts` (i file `.mts` fuori dal progetto non
   risolvono i path relativi; metterli nella root di skill-forge e cancellarli).
+
+## Skill Forge — DNS (2026-11-05)
+
+Zona Cloudflare `skillforge.eu.org` (id `718aec9161dfa10022c6f3b8bd16ec28`)
+esiste ma e' **pending**: `eu.org` non ha delegato nessun NS al sottodominio,
+quindi il dominio e' NXDOMAIN e la zona e' vuota. NS attesi da Cloudflare:
+`achiel.ns.cloudflare.com`, `chloe.ns.cloudflare.com`. Senza quella delega
+(da chiedere a eu.org) nessun record nella zona risolve e nessuna verifica
+Google puo' passare.
+
+Formato record di verifica Google (CNAME): nome = codice corto, valore =
+`gv-<codice>.dv.googlehosted.com`, `proxied=false` (i CNAME di verifica non
+vanno proxati). Esempi reali in k8s.io e asuc.org.
+
+Il secret `$Cloudflare` NON e' un token API valido (74 char con spazi, inizia
+per "CLOUDF..."); per l'API usare il token dei deploy. Non stamparlo mai.
