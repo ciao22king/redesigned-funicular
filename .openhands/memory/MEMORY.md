@@ -485,3 +485,45 @@ per `metadataBase`/OpenGraph in `layout.tsx`.
 
 Da non confondere con la verifica Google: quella ha i suoi token (meta + file +
 TXT) ed e' indipendente da dove punta la sitemap.
+
+### Quota illimitata, velocita' e inglese (2026-11-05)
+
+Tre richieste in un colpo (commit `e0870fa`, deploy Version `e5296282`).
+
+**Quota illimitata.** `UNLIMITED_LOGINS` (vars in wrangler.jsonc, default
+`ciao22king`) elenca i login esenti, separati da virgola. In `ratelimit.ts`,
+`isUnlimited(login)` decide; per un esente `consumeQuota` **non tocca KV** e
+restituisce `{ allowed: true, quota: { unlimited: true, remaining: Infinity } }`.
+`Quota` ha ora il campo `unlimited`. La UI in CreateFlow mostra "Generazioni
+illimitate" e non disabilita mai il pulsante. Aggiungere un altro esente = solo
+una voce in `UNLIMITED_LOGINS`, nessun codice.
+
+**Velocita' dei modelli.** Tre leve indipendenti:
+1. Scala `MODELS` **invertita**: prima il modello piccolo (`liquid/lfm-2.5-2.6b`),
+   che risponde subito, e solo se fallisce si sale fino al 550B. Prima era il
+   contrario: si pagava sempre la latenza del modello enorme.
+2. `provider: { sort: 'throughput', allow_fallbacks: true }` nel corpo della
+   richiesta: OpenRouter sceglie il provider piu' veloce invece del piu'
+   economico.
+3. `ATTEMPT_TIMEOUT_MS = 25s` per tentativo via AbortController, piu' un
+   `TOTAL_BUDGET_MS = 50s` nel loop di fallback (sotto `maxDuration = 60`). Il
+   timeout di ogni tentativo e' `min(25s, tempo rimasto)`, cosi' nessun modello
+   mangia il budget degli altri e la risposta parte sempre.
+
+Tutti e 11 gli id modello sono stati verificati contro `GET
+https://openrouter.ai/api/v1/models` (endpoint **pubblico**, nessuna chiave):
+esistono tutti.
+
+**Skill in inglese.** `SYSTEM_PROMPT`, `GUARDRAIL_PROMPT` e i prompt utente in
+`generate/route.ts` sono ora in inglese, con l'istruzione esplicita "Write the
+skill in English, always, whatever the language of the source material". La UI
+resta in italiano.
+
+**Test: 53** (erano 34). Nuovi file `tests/ratelimit.test.ts` (esenzione, KV non
+toccato, blocco degli altri utenti), `tests/ai.test.ts` (scala, prompt) e
+`tests/ai-client.test.ts` (forma della richiesta con `fetch` sostituito, errore
+HTTP, interruzione del timeout).
+
+**Nota per verificare l'output reale**: `OPENROUTER_API_KEY` e' un secret del
+worker, non e' nello shell del container. Per provare una generazione end-to-end
+serve una richiesta autenticata (cookie di sessione GitHub), non basta curl.
