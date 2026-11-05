@@ -2,13 +2,9 @@ import Link from 'next/link';
 import { legal } from '@/lib/legal';
 
 const legalLinks = [
-  { href: '/note-legali', label: 'Note legali' },
-  { href: '/termini', label: 'Termini' },
+  { href: '/termini', label: 'Termini di servizio' },
   { href: '/privacy', label: 'Privacy' },
   { href: '/cookie', label: 'Cookie' },
-  { href: '/accessibilita', label: 'Accessibilità' },
-  { href: '/sicurezza', label: 'Sicurezza' },
-  { href: '/contatti', label: 'Contatti' },
 ];
 
 export function Footer() {

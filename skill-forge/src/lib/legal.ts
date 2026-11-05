@@ -1,9 +1,9 @@
 /**
- * Unica fonte dei dati legali. Compila qui una volta e tutte le pagine
- * (note legali, privacy, cookie, termini, footer) si aggiornano da sole.
+ * Unica fonte dei dati legali. Compila qui una volta e le pagine
+ * (termini, privacy, cookie) e il footer si aggiornano da soli.
  *
- * Per un progetto personale bastano `name` ed `email`: i campi aziendali
- * (legalForm, address, vat, taxCode, pec) restano vuoti e non compaiono.
+ * Il gestore è un singolo sviluppatore: non servono dati di impresa
+ * (P.IVA, sede, PEC). Bastano `name` ed `email`.
  */
 export const legal = {
   siteName: 'Skill Forge',
@@ -13,25 +13,7 @@ export const legal = {
   since: 2026,
 
   owner: {
-    // Nome del gestore. Se pubblichi a titolo personale, va bene il tuo nome
-    // o il nome del progetto. Compare nel footer e nelle note legali.
     name: 'Skill Forge',
     email: 'ciao22king@gmail.com',
-    // Campi per aziende o professionisti. Lasciali vuoti se pubblichi a
-    // titolo personale: se vuoti, non compaiono da nessuna parte.
-    legalForm: '',
-    address: '',
-    vat: '',
-    taxCode: '',
-    pec: '',
   },
-
-  // Chi ospita e chi tratta i dati per noi (responsabili ex art. 28 GDPR).
-  providers: [
-    { name: 'Cloudflare, Inc.', role: 'Hosting, rete e distribuzione', country: 'Stati Uniti' },
-    { name: 'GitHub, Inc.', role: 'Autenticazione e pubblicazione su repository', country: 'Stati Uniti' },
-    { name: 'OpenRouter, Inc.', role: 'Erogazione del modello linguistico', country: 'Stati Uniti' },
-  ],
 } as const;
-
-export type Legal = typeof legal;
