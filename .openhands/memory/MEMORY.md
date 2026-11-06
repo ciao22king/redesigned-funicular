@@ -561,10 +561,13 @@ TypeScript compilato in `dist/` con `tsc`. Binari `skill-forge` e `sf`.
   token viene verificato contro `api.github.com/user` a ogni richiesta. Il
   percorso del browser e' invariato. Nuovo endpoint `src/app/api/me/route.ts`
   (login + quota in una chiamata).
-- **Il Device Flow di GitHub e' DISATTIVATO** su questa OAuth App
-  (`device_flow_disabled`): la CLI prende il token da `--token`,
-  `$SKILL_FORGE_TOKEN`, `gh auth token` o input interattivo. Non perdere tempo a
-  riprovare il device flow.
+- **Il Device Flow di GitHub e' ora ABILITATO** su questa OAuth App (spuntato
+  il 2026-11-05; prima rispondeva `device_flow_disabled`). `login` lo usa come
+  percorso principale: codice a schermo, l'utente lo digita su
+  `github.com/login/device`. Client ID pubblico `Ov23li3WNZ0SwllP72tP`
+  (`cli/src/device-flow.ts`); il device flow non usa il client secret, quindi
+  puo' stare nel pacchetto. Fallback non interattivo: `--token`,
+  `$SKILL_FORGE_TOKEN`, `gh auth token`. `--no-device-flow` lo salta.
 - Config CLI: `~/.config/skill-forge/config.json`, permessi **600** (contiene un
   token). `SKILL_FORGE_URL` / `SKILL_FORGE_TOKEN` vincono sul file.
 - Comandi: login, logout, whoami, generate, publish, list/search, show, pull,
@@ -572,7 +575,7 @@ TypeScript compilato in `dist/` con `tsc`. Binari `skill-forge` e `sf`.
   stdout, messaggi su stderr).
 - `skill-forge/tsconfig.json` **esclude `cli/`**: la build web non deve
   compilare il pacchetto CLI. `cli/` ha il proprio `tsconfig.json`.
-- Test: **43 nella CLI** (`cd cli && npm test`, node:test + tsx) + 53 dell'app.
+- Test: **51 nella CLI** (`cd cli && npm test`, node:test + tsx) + 53 dell'app.
   L'e2e usa un server HTTP locale vero, non mock.
 
 Verificato in produzione: `whoami` con token reale -> `ciao22king` illimitato;
