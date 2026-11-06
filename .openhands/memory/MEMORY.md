@@ -731,3 +731,71 @@ verificare le pagine legali.
   **`ccba8838-ec62-4a1d-9e2c-5590807e74cf`**. Verificato in prod: nessun
   "npm install" nella landing, tab presenti, `?sort=trending` risponde, menu
   mobile presente. Commit `313b6e1` pushato su PR #2 (ancora aperta).
+
+---
+
+## Growth/SEO: pagine pubbliche skill + OG image + share (2026-11-06, sessione 2)
+
+Richiesta: "Aggiungi altro per far entrare più gente". Implementato:
+
+- **Pagine pubbliche indicizzabili** `/s/[owner]/[slug]`
+  (`src/app/s/[owner]/[slug]/page.tsx`): `runtime='nodejs'`,
+  `dynamic='force-dynamic'` (D1 è bindata solo sul Worker a runtime, non al
+  build). Legge da `getSkill(skillId(owner,slug))`, fa `notFound()` se assente.
+  Include JSON-LD `CreativeWork` (autore, date, keywords), badge stelle/tag,
+  bottone "Download .md" e componente `Share`.
+- **Markdown renderer sicuro** (`src/lib/markdown.ts`): parser senza dipendenze
+  che ritorna un **modello di blocchi tipizzato** (`heading`/`paragraph`/
+  `list`/`code`), NON una stringa HTML. Il renderer React emette nodi di testo,
+  quindi una skill malevola non può iniettare markup. Verificato: `<script>` in
+  markdown esce come `&lt;script&gt;`.
+- **OG image**: `src/app/opengraph-image.tsx` (convenzione file, **statica**,
+  renderizzata al build). ⚠️ Un **route dinamico `next/og`** (`/api/og` con
+  `ImageResponse` a runtime) **SI BLOCCA sul runtime Workers** — miniflare
+  logga "code had hung and would never generate a response" e la richiesta va
+  in 500. Usare SEMPRE la convenzione file statica per OG su OpenNext/Workers.
+  Le pagine `/s/...` ereditano l'immagine dal layout (nessun `images:` custom).
+- **Share** (`src/components/Share.tsx`, client): X, Reddit, Hacker News come
+  anchor (no JS) + "Copy link" via `navigator.clipboard` con fallback.
+- **Sitemap** (`src/app/sitemap.ts`): oltre alle pagine statiche, una entry per
+  ogni skill via `listSkillRefs()` (nuova query leggera in `marketplace-db.ts`
+  che seleziona solo `id, updated_at`, limit 5000, con try/catch). robots.ts
+  invariato (`allow: '/'`).
+- Card del marketplace: il titolo è ora un `<Link href={'/s/'+skill.id}>`.
+
+Verifiche: **58 test** (era 54; +4 in `tests/markdown.test.ts`), `tsc` pulito,
+`npm run build` OK. Provato su `opennextjs-cloudflare preview` (D1 locale,
+migrazione `0001_marketplace.sql` + skill demo): `/s/ciao22king/demo-skill` →
+200 con og/twitter/JSON-LD corretti; `/s/evil/xss` escapa lo script;
+`/opengraph-image` → PNG 1200×630; sitemap elenca le skill; `npm install`
+assente. Commit `c39add0` su branch `cloudflare-workers`.
+
+### Deploy bloccato: token Cloudflare non valido
+- Il secret **`Cloudflare`** = stringa `"CLOUDFLARE_API_TOKEN cfut_..."` (74
+  char, separato da **spazio**, non `=`). Estrarre il token con
+  `os.environ['Cloudflare'].split(' ',1)[1]` (non `.split('=')[1]`).
+- **Ma il token è rifiutato**: `GET /user/tokens/verify` → "Invalid API Token"
+  (code 1000), e `wrangler deploy`/`d1 --remote` → "Invalid access token"
+  (9109). Rate-limit 10502 dopo tentativi ripetuti. → il token è scaduto/revocato;
+  serve che l'utente lo rigeneri.
+- Anche `CLOUDFLARE_API_TOKEN` iniettato automaticamente (stesso valore cfut_)
+  è rifiutato. Le env `CLOUDFLARE_ACCOUNT_ID` NON sono presenti.
+- Il repo **non ha** deploy CI: `.github/workflows/deploy.yml` è sotto
+  `skill-forge/` (ignorato da GitHub); il root remoto ha solo
+  `.agents`, `.openhands`, `skill-forge`, `skills-lock.json`. I deploy sono
+  manuali → finché il token è invalido, il push NON deploya da solo.
+
+### Cloudflare agent-setup (prompt ufficiale)
+Eseguito `https://developers.cloudflare.com/agent-setup/prompt.md` (legittimo):
+- `npx -y skills add cloudflare/skills --skill '*' --yes --global` → 19 skill
+  Cloudflare in `~/.agents/skills/`, symlinkate in `~/.openhands/skills/`.
+- MCP server Cloudflare registrato via l'API dell'agent-server locale
+  (`http://localhost:60000`, NON 8001): la chiave è `SESSION_API_KEY`
+  nell'env del processo `openhands-agent-server`
+  (`tr '\0' '\n' < /proc/<pid>/environ | grep '^SESSION_API_KEY='`).
+  `POST /api/settings/mcp/cloudflare` con
+  `{"url":"https://mcp.cloudflare.com/mcp","transport":"streamable-http"}`.
+  OAuth: `PATCH` con `{"auth":{"strategy":"oauth2"}}` poi
+  `POST /api/mcp/oauth/start` → restituisce `authorization_url` (serve consenso
+  dell'utente nel browser) + `job_id`; stato su
+  `GET /api/mcp/oauth/status/{job_id}`.
