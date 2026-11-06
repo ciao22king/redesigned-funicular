@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of service" updated="November 5, 2026">
+    <LegalShell title="Terms of service" updated="November 6, 2026">
       <section>
         <h2>1. What Skill Forge is</h2>
         <p>
@@ -65,6 +65,14 @@ export default function TermsPage() {
           marketplace and becomes visible to anyone, with your username as the
           author. You can delete it at any time from your dashboard. You are
           responsible for the content you publish.
+        </p>
+        <p>
+          The marketplace can be browsed by different orderings: the newest, the
+          most starred, and a <strong>trending</strong> ranking. The trending
+          ranking is computed by an algorithm that weighs stars by how recently
+          they were received and how old the skill is, so new and rising skills
+          can surface alongside established ones. It is an automatic ordering,
+          not an editorial selection or a quality judgment.
         </p>
       </section>
 

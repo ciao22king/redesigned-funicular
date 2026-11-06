@@ -26,10 +26,11 @@ interface ListResponse {
   error?: string;
 }
 
-type Sort = 'recent' | 'stars' | 'name';
+type Sort = 'recent' | 'trending' | 'stars' | 'name';
 
 const SORTS: { key: Sort; label: string }[] = [
-  { key: 'recent', label: 'Recent' },
+  { key: 'trending', label: 'Trending' },
+  { key: 'recent', label: 'New' },
   { key: 'stars', label: 'Most starred' },
   { key: 'name', label: 'Name' },
 ];
@@ -41,7 +42,7 @@ export default function MarketplacePage() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<Sort>('recent');
+  const [sort, setSort] = useState<Sort>('trending');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -167,21 +168,27 @@ export default function MarketplacePage() {
           )}
         </header>
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name, description, tag or author..."
             aria-label="Search the marketplace"
-            className="min-w-[240px] flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
+            className="w-full min-w-0 flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
           />
-          <div className="flex items-center gap-1 rounded-xl border border-[--line] bg-[--surface-raised] p-1">
+          <div
+            role="tablist"
+            aria-label="Sort skills"
+            className="-mx-6 flex items-center gap-1 overflow-x-auto px-6 pb-1 sm:mx-0 sm:shrink-0 sm:rounded-xl sm:border sm:border-[--line] sm:bg-[--surface-raised] sm:p-1"
+          >
             {SORTS.map((s) => (
               <button
                 key={s.key}
                 type="button"
+                role="tab"
+                aria-selected={sort === s.key}
                 onClick={() => setSort(s.key)}
-                className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`shrink-0 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm transition-colors ${
                   sort === s.key
                     ? 'bg-[--accent] text-white'
                     : 'text-[--ink-muted] hover:text-[--ink]'
@@ -192,6 +199,13 @@ export default function MarketplacePage() {
             ))}
           </div>
         </div>
+
+        {sort === 'trending' && (
+          <p className="mt-3 text-xs text-[--ink-muted]">
+            Trending ranks skills by stars gained recently, not only by the total,
+            so new and rising skills surface first.
+          </p>
+        )}
 
         {notice && (
           <p className="mt-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink]">

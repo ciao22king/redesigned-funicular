@@ -8,7 +8,7 @@
 export const legal = {
   siteName: 'Skill Forge',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://skillforge.eu.org',
-  lastUpdated: 'November 5, 2026',
+  lastUpdated: 'November 6, 2026',
   // First publication year, for the copyright in the footer.
   since: 2026,
 

@@ -12,6 +12,7 @@ import {
   toDetail,
   toSummary,
   validateSkillInput,
+  TRENDING,
   type SkillRow,
 } from '../src/lib/marketplace';
 
@@ -113,15 +114,28 @@ test('serializeTags e deserializeTags sono inverse', () => {
   assert.deepEqual(deserializeTags(''), []);
 });
 
-test('orderClause mappa i tre ordinamenti', () => {
+test('orderClause mappa i quattro ordinamenti', () => {
   assert.match(orderClause('stars'), /stars DESC/);
   assert.match(orderClause('name'), /COLLATE NOCASE/);
   assert.match(orderClause('recent'), /created_at DESC/);
+  assert.match(orderClause('trending'), /pow\(/);
+  assert.match(orderClause('trending'), /stars DESC/);
+});
+
+test('orderClause trending pesa le stelle recenti e decresce col tempo', () => {
+  const clause = orderClause('trending');
+  // Recent stars come from the `stars` table, limited to the window.
+  assert.match(clause, /FROM stars/);
+  assert.match(clause, new RegExp(`-${TRENDING.RECENT_WINDOW_DAYS} days`));
+  // The decay exponent is the configured one, not a magic number.
+  assert.ok(clause.includes(String(TRENDING.GRAVITY)));
+  assert.ok(clause.includes(String(TRENDING.VELOCITY_WEIGHT)));
 });
 
 test('parseSort accetta solo valori noti', () => {
   assert.equal(parseSort('stars'), 'stars');
   assert.equal(parseSort('name'), 'name');
+  assert.equal(parseSort('trending'), 'trending');
   assert.equal(parseSort('boh'), 'recent');
   assert.equal(parseSort(null), 'recent');
 });

@@ -17,7 +17,34 @@ export const MAX_TAG_CHARS = 24;
 export const MAX_NAME_CHARS = 120;
 export const MAX_DESCRIPTION_CHARS = 400;
 
-export type SortKey = 'recent' | 'stars' | 'name';
+export type SortKey = 'recent' | 'trending' | 'stars' | 'name';
+
+/**
+ * Trending score, computed in SQL.
+ *
+ * It is a "velocity" ranking, not a plain star count: a skill that is gaining
+ * stars right now beats one that collected the same stars months ago. The
+ * score is `(base + stars + VELOCITY_WEIGHT * recentStars) / (ageHours + 2)^GRAVITY`.
+ *
+ * - `recentStars`: stars gained in the last RECENT_WINDOW_DAYS.
+ * - `base` (1) gives a brand-new skill with zero stars a small but non-zero
+ *   score, so it can still surface instead of being buried forever.
+ * - `ageHours + 2` avoids dividing by zero and tames the first minutes.
+ * - `GRAVITY` > 1 makes older skills fall off faster than linearly.
+ *
+ * The constants live here so the UI and any future client cannot drift from
+ * the server-side ordering: both read the same numbers.
+ */
+export const TRENDING = {
+  /** Stars gained in this many days count as "recent". */
+  RECENT_WINDOW_DAYS: 7,
+  /** Weight of a recent star relative to an older one. */
+  VELOCITY_WEIGHT: 5,
+  /** Time-decay exponent. Higher = newer items dominate more. */
+  GRAVITY: 1.5,
+  /** Flat bonus so a zero-star skill still has a score. */
+  BASE: 1,
+} as const;
 
 export interface SkillInput {
   name?: string;
@@ -196,8 +223,23 @@ export function searchClause(query: string): { sql: string; params: string[] } {
   };
 }
 
-/** ORDER BY clause for the three sort modes. */
+/**
+ * ORDER BY clause for the sort modes.
+ *
+ * `trending` is the only one that is not a plain column: it weighs stars by how
+ * recently they were cast (see `TRENDING`). `pow` and the `stars` subquery are
+ * supported by D1's SQLite build.
+ */
 export function orderClause(sort: SortKey): string {
+  if (sort === 'trending') {
+    const { BASE, VELOCITY_WEIGHT, GRAVITY, RECENT_WINDOW_DAYS } = TRENDING;
+    const recentStars =
+      `(SELECT COUNT(*) FROM stars WHERE stars.skill_id = skills.id ` +
+      `AND stars.created_at >= datetime('now', '-${RECENT_WINDOW_DAYS} days'))`;
+    const ageHours = `(julianday('now') - julianday(skills.created_at)) * 24`;
+    const score = `((${BASE} + skills.stars + ${VELOCITY_WEIGHT} * ${recentStars}) / pow(${ageHours} + 2.0, ${GRAVITY}))`;
+    return `${score} DESC, skills.stars DESC, skills.created_at DESC`;
+  }
   switch (sort) {
     case 'stars':
       return 'stars DESC, created_at DESC';
@@ -210,5 +252,5 @@ export function orderClause(sort: SortKey): string {
 
 /** Converts the `sort` query parameter into a known key. */
 export function parseSort(value: string | null | undefined): SortKey {
-  return value === 'stars' || value === 'name' ? value : 'recent';
+  return value === 'trending' || value === 'stars' || value === 'name' ? value : 'recent';
 }

@@ -3,7 +3,6 @@
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
 import Link from 'next/link';
-import { useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 
 export default function Home() {
@@ -137,17 +136,18 @@ export default function Home() {
 
         <div className="hairline" />
 
-        {/* CLI: a copyable install command, not just a link */}
+        {/* Marketplace: the community showcase, with an algorithmic ranking */}
         <section className="py-20">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
             <div>
               <h2 className="font-display text-3xl font-semibold tracking-tight text-[--ink]">
-                Or use it from the terminal
+                Browse the marketplace
               </h2>
               <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
-                The same service, as a CLI. Generate, publish and pull skills
-                without leaving the shell. No runtime dependencies, just Node 18
-                or later.
+                Skills published by the community, ranked by an algorithm: the
+                newest, the rising ones (trending) and the most starred.
+                Download any skill as a <code className="font-mono text-[14px]">.md</code>{' '}
+                file in one click.
               </p>
               <Link
                 href="/marketplace"
@@ -156,7 +156,7 @@ export default function Home() {
                 Browse the marketplace →
               </Link>
             </div>
-            <InstallCommand />
+            <RankingPreview />
           </div>
         </section>
       </main>
@@ -222,48 +222,41 @@ function Step({
   );
 }
 
-const INSTALL_COMMAND = 'npm install -g @ciao22/skill-forge-cli';
-
 /**
- * CLI install command, with a copy button.
- * The command lives in one place (`INSTALL_COMMAND`): if the npm package name
- * changes, it is updated here and not in three different spots.
+ * A small, static illustration of the three marketplace rankings.
+ * It is not live data: it only shows, at a glance, what the tabs mean.
  */
-function InstallCommand() {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(INSTALL_COMMAND);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard denied (insecure context or permission refused): the command
-      // is still selectable by hand, so no warning is needed.
-    }
-  }
+function RankingPreview() {
+  const rows: { tab: string; name: string; stars: number; hint: string }[] = [
+    { tab: 'Trending', name: 'pull-request-review', stars: 12, hint: '+8 this week' },
+    { tab: 'New', name: 'changelog-writer', stars: 1, hint: 'published today' },
+    { tab: 'Most starred', name: 'incident-postmortem', stars: 240, hint: 'all-time top' },
+  ];
 
   return (
     <div className="rounded-2xl border border-[--line] bg-[--surface-raised] p-5">
-      <div className="flex items-center justify-between gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[--ink-muted]">
-          Install
-        </p>
-        <button
-          type="button"
-          onClick={() => void copy()}
-          className="rounded-lg border border-[--line] px-3 py-1.5 text-xs font-medium text-[--ink-muted] transition-colors hover:text-[--ink]"
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-      <pre className="mt-4 overflow-x-auto rounded-xl bg-[oklch(20%_0.02_50)] px-4 py-3 font-mono text-[13px] leading-relaxed text-[oklch(91%_0.03_70)]">
-        <code>$ {INSTALL_COMMAND}</code>
-      </pre>
-      <div className="mt-4 space-y-1.5 font-mono text-[12.5px] leading-relaxed text-[--ink-muted]">
-        <p>$ skill-forge login</p>
-        <p>$ skill-forge generate -f notes.md -o skill.md</p>
-      </div>
+      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[--ink-muted]">
+        Rankings
+      </p>
+      <ul className="mt-4 space-y-2">
+        {rows.map((r) => (
+          <li
+            key={r.tab}
+            className="flex items-center justify-between gap-3 rounded-xl bg-[--surface-sunken] px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="font-mono text-[11px] uppercase tracking-wider text-[--accent]">
+                {r.tab}
+              </p>
+              <p className="truncate font-mono text-[13px] text-[--ink]">{r.name}</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-mono text-[13px] text-[--ink]">★ {r.stars}</p>
+              <p className="text-[11px] text-[--ink-muted]">{r.hint}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
