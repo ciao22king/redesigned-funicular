@@ -799,3 +799,16 @@ Eseguito `https://developers.cloudflare.com/agent-setup/prompt.md` (legittimo):
   `POST /api/mcp/oauth/start` → restituisce `authorization_url` (serve consenso
   dell'utente nel browser) + `job_id`; stato su
   `GET /api/mcp/oauth/status/{job_id}`.
+
+### Token Cloudflare nuovo (2026-11-06 sera) — valido ma NON ancora attivo
+L'utente ha fornito `cfat_HMzyIu1fU9xWhADriGebGqEDzWPH4G32chSOzyxybdcf9537`
+(53 char). **Importante**: per i token **account-scoped** (`cfat_`) NON usare
+`/user/tokens/verify` (→ "Invalid API Token", fuorviante). Usare l'endpoint
+**scoped all'account**:
+`GET /accounts/<ACCOUNT_ID>/tokens/verify` (con `ACCOUNT_ID` =
+`69e8820212c184a7fb5ed2f0b913d551`). Risposta: `success:true`, token `active`,
+ma `not_before = 2026-11-06T23:00:00Z` → **utilizzabile solo dalle 23:00 UTC**
+(~4,7 h dopo la consegna). `expires_on = 2026-11-07T22:59:59Z`. Prima di
+`not_before` ogni altra chiamata (D1 list, wrangler) → "Authentication error".
+Deploy (quando attivo):
+`CLOUDFLARE_API_TOKEN=<cfat_> CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551 npx opennextjs-cloudflare deploy`.
