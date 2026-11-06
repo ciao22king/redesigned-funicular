@@ -4,7 +4,7 @@ import { siteBase } from '@/lib/site-url';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = await siteBase();
   const lastModified = new Date();
-  const routes = ['', '/marketplace', '/termini', '/privacy', '/cookie'];
+  const routes = ['', '/marketplace', '/terms', '/privacy', '/cookie'];
   return routes.map((path) => ({
     url: `${base}${path}`,
     lastModified,

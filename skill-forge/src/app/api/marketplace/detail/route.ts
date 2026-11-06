@@ -8,14 +8,14 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 /**
- * Dettaglio di una skill, con il markdown, per il download e l'anteprima.
- * L'id arriva come `?id=owner/slug` per non dover codificare lo slash nel path.
+ * Detail of a skill, with the markdown, for download and preview.
+ * The id comes as `?id=owner/slug` so we do not have to encode the slash in the path.
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const id = url.searchParams.get('id')?.trim();
   if (!id) {
-    return NextResponse.json({ error: 'Manca l\'id della skill.' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing skill id.' }, { status: 400 });
   }
 
   const { login } = await getServerAuth(req);
@@ -23,12 +23,12 @@ export async function GET(req: NextRequest) {
   try {
     const row = await getSkill(id);
     if (!row) {
-      return NextResponse.json({ error: 'Skill non trovata.' }, { status: 404 });
+      return NextResponse.json({ error: 'Skill not found.' }, { status: 404 });
     }
     const starred = login ? await hasStar(id, login) : false;
     return NextResponse.json({ skill: toDetail(row, starred) });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Errore sconosciuto';
+    const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

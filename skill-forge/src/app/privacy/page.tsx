@@ -3,120 +3,126 @@ import { LegalShell } from '@/components/LegalShell';
 import { legal } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Informativa privacy · Skill Forge',
-  description: 'Come Skill Forge tratta i dati personali.',
+  title: 'Privacy policy · Skill Forge',
+  description: 'How Skill Forge handles personal data.',
 };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Informativa privacy" updated="5 novembre 2026">
+    <LegalShell title="Privacy policy" updated="November 5, 2026">
       <section>
-        <h2>1. Titolare del trattamento</h2>
+        <h2>1. Data controller</h2>
         <p>
-          Il titolare del trattamento è il gestore di {legal.siteName}, un progetto personale, contattabile a{' '}
+          The data controller is the operator of {legal.siteName}, a personal
+          project, reachable at{' '}
           <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>.
         </p>
       </section>
 
       <section>
-        <h2>2. Quali dati trattiamo</h2>
+        <h2>2. What data we process</h2>
         <ul>
           <li>
-            <strong>Dati di accesso GitHub</strong>: identificativo, nome utente, nome e
-            immagine del profilo, indirizzo email (se reso disponibile). Li riceviamo tramite
-            l’autenticazione OAuth quando accedi.
+            <strong>GitHub sign-in data</strong>: identifier, username, name and
+            profile image, email address (if made available). We receive them
+            through OAuth authentication when you sign in.
           </li>
           <li>
-            <strong>Materiale che invii</strong>: il testo o i documenti che carichi per
-            generare una skill, e le risposte alle sei domande della modalità «da zero».
+            <strong>Material you submit</strong>: the text or documents you
+            upload to generate a skill, and the answers to the six questions in
+            the &quot;from scratch&quot; mode.
           </li>
           <li>
-            <strong>Skill pubblicate</strong>: se scegli di pubblicare sul marketplace, la
-            skill e il tuo nome utente GitHub vengono salvati e resi visibili a chiunque. Le
-            puoi eliminare in qualsiasi momento dalla tua dashboard.
+            <strong>Published skills</strong>: if you choose to publish to the
+            marketplace, the skill and your GitHub username are stored and made
+            visible to anyone. You can delete them at any time from your
+            dashboard.
           </li>
           <li>
-            <strong>Dati tecnici</strong>: indirizzo IP, dati di richiesta e log, gestiti dal
-            nostro fornitore di infrastruttura per sicurezza e funzionamento.
+            <strong>Technical data</strong>: IP address, request data and logs,
+            handled by our infrastructure provider for security and operation.
           </li>
           <li>
-            <strong>Cookie</strong>: un cookie di sessione necessario per tenerti connesso
-            (vedi la <a href="/cookie">cookie policy</a>).
+            <strong>Cookies</strong>: one session cookie required to keep you
+            signed in (see the <a href="/cookie">cookie policy</a>).
           </li>
         </ul>
       </section>
 
       <section>
-        <h2>3. Perché li trattiamo (finalità e basi giuridiche)</h2>
+        <h2>3. Why we process it (purposes and legal bases)</h2>
         <ul>
           <li>
-            <strong>Erogare il servizio</strong> (generare e pubblicare la skill): esecuzione
-            del contratto.
+            <strong>Providing the service</strong> (generating and publishing the
+            skill): performance of a contract.
           </li>
           <li>
-            <strong>Sicurezza e prevenzione degli abusi</strong>: legittimo interesse.
+            <strong>Security and abuse prevention</strong>: legitimate interest.
           </li>
           <li>
-            <strong>Adempimenti di legge</strong>, se richiesti: obbligo legale.
+            <strong>Legal obligations</strong>, if required: legal obligation.
           </li>
         </ul>
       </section>
 
       <section>
-        <h2>4. A chi sono comunicati</h2>
-        <p>Ci appoggiamo a fornitori che trattano i dati come responsabili:</p>
+        <h2>4. Who it is shared with</h2>
+        <p>We rely on providers that process data as processors:</p>
         <ul>
           <li>
-            <strong>Cloudflare</strong> — hosting e distribuzione (Workers, rete).
+            <strong>Cloudflare</strong> — hosting and delivery (Workers,
+            network).
           </li>
           <li>
-            <strong>GitHub</strong> — autenticazione e lettura del tuo profilo.
+            <strong>GitHub</strong> — authentication and reading your profile.
           </li>
           <li>
-            <strong>OpenRouter</strong> — il testo che invii viene trasmesso al modello
-            linguistico per produrre la skill. OpenRouter può instradare la richiesta a uno
-            dei modelli disponibili.
+            <strong>OpenRouter</strong> — the text you submit is transmitted to
+            the language model to produce the skill. OpenRouter may route the
+            request to one of the available models.
           </li>
         </ul>
         <p>
-          Non vendiamo i tuoi dati e non li usiamo per pubblicità o profilazione.
+          We do not sell your data and we do not use it for advertising or
+          profiling.
         </p>
       </section>
 
       <section>
-        <h2>5. Trasferimenti fuori dall’UE</h2>
+        <h2>5. Transfers outside the EU</h2>
         <p>
-          Alcuni fornitori hanno sede negli Stati Uniti. I trasferimenti avvengono sulla base
-          delle clausole contrattuali standard della Commissione europea o di altre garanzie
-          previste dal GDPR.
+          Some providers are based in the United States. Transfers take place
+          under the European Commission&apos;s standard contractual clauses or
+          other safeguards provided by the GDPR.
         </p>
       </section>
 
       <section>
-        <h2>6. Per quanto tempo</h2>
+        <h2>6. For how long</h2>
         <p>
-          Il cookie di sessione dura fino alla scadenza della sessione o al logout. Il
-          materiale inviato è elaborato per generare la skill e non è conservato in modo
-          permanente da noi oltre il tempo necessario; i log tecnici seguono i tempi del
-          fornitore di infrastruttura.
+          The session cookie lasts until the session expires or you sign out. The
+          material you submit is processed to generate the skill and is not kept
+          permanently by us beyond the time required; technical logs follow the
+          infrastructure provider&apos;s retention periods.
         </p>
       </section>
 
       <section>
-        <h2>7. I tuoi diritti</h2>
+        <h2>7. Your rights</h2>
         <p>
-          Puoi esercitare i diritti previsti dagli articoli 15-22 del GDPR: accesso,
-          rettifica, cancellazione, limitazione, opposizione e portabilità. Scrivi a{' '}
-          <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>. Puoi anche
-          rivolgerti al Garante per la protezione dei dati personali.
+          You can exercise the rights set out in articles 15-22 of the GDPR:
+          access, rectification, erasure, restriction, objection and
+          portability. Write to{' '}
+          <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>. You may
+          also lodge a complaint with your local data protection authority.
         </p>
       </section>
 
       <section>
-        <h2>8. Modifiche</h2>
+        <h2>8. Changes</h2>
         <p>
-          Possiamo aggiornare questa informativa; la data in alto indica la versione in
-          vigore.
+          We may update this policy; the date at the top indicates the version in
+          force.
         </p>
       </section>
     </LegalShell>

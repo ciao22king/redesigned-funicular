@@ -5,26 +5,26 @@
   "upload_source_maps": true,
   "compatibility_date": "2026-11-05",
   "compatibility_flags": ["nodejs_compat"],
-  // Solo valori pubblici qui: questo file è versionato su git.
-  // GITHUB_ID è il client ID OAuth, visibile a chiunque nell'URL di login.
-  // GITHUB_SECRET, NEXTAUTH_SECRET e OPENROUTER_API_KEY sono secret e si
-  // impostano con `wrangler secret put` o dalla dashboard, mai in questo file.
+  // Public values only here: this file is versioned on git.
+  // GITHUB_ID is the OAuth client ID, visible to anyone in the login URL.
+  // GITHUB_SECRET, NEXTAUTH_SECRET and OPENROUTER_API_KEY are secrets and are
+  // set with `wrangler secret put` or from the dashboard, never in this file.
   "vars": {
     "GITHUB_ID": "Ov23li3WNZ0SwllP72tP",
-    // Login esenti dal limite giornaliero, separati da virgola. Il proprietario
-    // non ha quota; gli altri restano a DAILY_LIMIT generazioni al giorno.
+    // Logins exempt from the daily limit, comma-separated. The owner has no
+    // quota; the others stay at DAILY_LIMIT generations per day.
     "UNLIMITED_LOGINS": "ciao22king"
   },
-  // Non cancellare le variabili impostate dalla dashboard a ogni deploy CLI.
+  // Do not clear the variables set from the dashboard on every CLI deploy.
   "keep_vars": true,
-  // Contatore delle generazioni giornaliere per utente (3/giorno).
+  // Daily generation counter per user (3/day).
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT",
       "id": "eeb827ee94054a5fb7691ce305b001ad"
     }
   ],
-  // Marketplace delle skill pubblicate: elenco, stelle, ricerca.
+  // Marketplace of the published skills: list, stars, search.
   "d1_databases": [
     {
       "binding": "MARKETPLACE",
@@ -36,9 +36,9 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
-    // "none": Cloudflare di default reindirizza /file.html verso /file, e
-    // Google vuole il file di verifica al percorso esatto. Le pagine di Next
-    // sono generate al volo, non servite come .html da questa cartella.
+    // "none": by default Cloudflare redirects /file.html to /file, and Google
+    // wants the verification file at the exact path. Next pages are generated
+    // on the fly, not served as .html from this folder.
     "html_handling": "none"
   },
   "observability": {

@@ -29,9 +29,9 @@ interface ListResponse {
 type Sort = 'recent' | 'stars' | 'name';
 
 const SORTS: { key: Sort; label: string }[] = [
-  { key: 'recent', label: 'Recenti' },
-  { key: 'stars', label: 'Più stellati' },
-  { key: 'name', label: 'Nome' },
+  { key: 'recent', label: 'Recent' },
+  { key: 'stars', label: 'Most starred' },
+  { key: 'name', label: 'Name' },
 ];
 
 export default function MarketplacePage() {
@@ -56,13 +56,13 @@ export default function MarketplacePage() {
         if (opts.q.trim()) params.set('q', opts.q.trim());
         const res = await fetch(`/api/marketplace?${params.toString()}`);
         const data = (await res.json()) as ListResponse;
-        if (!res.ok) throw new Error(data.error ?? 'Caricamento fallito');
+        if (!res.ok) throw new Error(data.error ?? 'Loading failed');
         setSkills(data.skills ?? []);
         setTotal(data.total ?? 0);
         setPages(data.pages ?? 1);
         setPage(data.page ?? 1);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Errore sconosciuto');
+        setError(e instanceof Error ? e.message : 'Unknown error');
       } finally {
         setLoading(false);
       }
@@ -71,16 +71,16 @@ export default function MarketplacePage() {
   );
 
   useEffect(() => {
-    // La ricerca parte quando l'utente smette di scrivere.
+    // The search starts when the user stops typing.
     const timer = setTimeout(() => void load({ q: query, sort, page: 1 }), 250);
     return () => clearTimeout(timer);
-    // `page` volutamente escluso: il cambio pagina si gestisce a mano.
+    // `page` deliberately excluded: page changes are handled by hand.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, sort, load]);
 
   async function toggleStar(skill: SkillSummary) {
     if (status !== 'authenticated') {
-      setNotice('Accedi con GitHub per mettere una stella.');
+      setNotice('Sign in with GitHub to star a skill.');
       return;
     }
     setBusyId(skill.id);
@@ -92,14 +92,14 @@ export default function MarketplacePage() {
         body: JSON.stringify({ id: skill.id }),
       });
       const data = (await res.json()) as { error?: string; starred?: boolean; stars?: number };
-      if (!res.ok) throw new Error(data.error ?? 'Operazione fallita');
+      if (!res.ok) throw new Error(data.error ?? 'Operation failed');
       setSkills((prev) =>
         prev.map((s) =>
           s.id === skill.id ? { ...s, starred: !!data.starred, stars: data.stars ?? s.stars } : s,
         ),
       );
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setNotice(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusyId(null);
     }
@@ -114,9 +114,9 @@ export default function MarketplacePage() {
         skill?: { markdown: string; name: string; description: string };
         error?: string;
       };
-      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Download fallito');
+      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Download failed');
 
-      // La skill scaricata entra anche nell'archivio locale.
+      // The downloaded skill also enters the local archive.
       saveLocalSkill({
         markdown: data.skill.markdown,
         name: data.skill.name,
@@ -131,9 +131,9 @@ export default function MarketplacePage() {
       a.download = `${skill.id.split('/')[1]}.md`;
       a.click();
       URL.revokeObjectURL(url);
-      setNotice(`"${skill.name}" scaricata e salvata in locale.`);
+      setNotice(`"${skill.name}" downloaded and saved locally.`);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setNotice(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusyId(null);
     }
@@ -142,17 +142,17 @@ export default function MarketplacePage() {
   return (
     <>
       <Nav />
-      <main id="contenuto" className="mx-auto max-w-5xl px-6 py-14">
+      <main id="content" className="mx-auto max-w-5xl px-6 py-14">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <h1 className="font-display text-4xl font-semibold tracking-tight text-[--ink]">
               Marketplace
             </h1>
             <p className="mt-3 max-w-prose text-[15px] text-[--ink-muted]">
-              Skill pubblicate dalla community. Scaricale, metti una stella, o
-              pubblica le tue da{' '}
+              Skills published by the community. Download them, star them, or
+              publish your own from{' '}
               <Link href="/dashboard" className="text-[--accent] underline underline-offset-2">
-                Le mie creazioni
+                My creations
               </Link>
               .
             </p>
@@ -162,7 +162,7 @@ export default function MarketplacePage() {
               href="/create/from-skills"
               className="rounded-xl bg-[--accent] px-5 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
             >
-              Crea una skill
+              Create a skill
             </Link>
           )}
         </header>
@@ -171,8 +171,8 @@ export default function MarketplacePage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca per nome, descrizione, tag o autore..."
-            aria-label="Cerca nel marketplace"
+            placeholder="Search by name, description, tag or author..."
+            aria-label="Search the marketplace"
             className="min-w-[240px] flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
           />
           <div className="flex items-center gap-1 rounded-xl border border-[--line] bg-[--surface-raised] p-1">
@@ -202,16 +202,16 @@ export default function MarketplacePage() {
         {error && <p className="mt-5 text-sm text-[oklch(45%_0.14_28)]">{error}</p>}
 
         {loading ? (
-          <p className="mt-12 text-[--ink-muted]">Caricamento...</p>
+          <p className="mt-12 text-[--ink-muted]">Loading...</p>
         ) : skills.length === 0 ? (
           <div className="mt-12 rounded-2xl border border-[--line] bg-[--surface-raised] p-8 text-center">
             <p className="font-display text-lg font-semibold text-[--ink]">
-              {query ? 'Nessun risultato' : 'Il marketplace è ancora vuoto'}
+              {query ? 'No results' : 'The marketplace is still empty'}
             </p>
             <p className="mt-2 text-sm text-[--ink-muted]">
               {query
-                ? 'Prova con un altro termine.'
-                : 'Pubblica la prima skill dalla tua dashboard.'}
+                ? 'Try another term.'
+                : 'Publish the first skill from your dashboard.'}
             </p>
           </div>
         ) : (
@@ -231,7 +231,7 @@ export default function MarketplacePage() {
                       disabled={busyId === skill.id}
                       onClick={() => void toggleStar(skill)}
                       aria-pressed={skill.starred}
-                      aria-label={skill.starred ? 'Togli la stella' : 'Metti la stella'}
+                      aria-label={skill.starred ? 'Remove star' : 'Add star'}
                       className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
                         skill.starred
                           ? 'border-[--accent] bg-[--accent-soft] text-[--accent]'
@@ -270,7 +270,7 @@ export default function MarketplacePage() {
                       onClick={() => void download(skill)}
                       className="shrink-0 rounded-lg border border-[--line] bg-[--surface-raised] px-3.5 py-2 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-50"
                     >
-                      Scarica .md
+                      Download .md
                     </button>
                   </div>
                 </li>
@@ -285,7 +285,7 @@ export default function MarketplacePage() {
                   onClick={() => void load({ q: query, sort, page: page - 1 })}
                   className="rounded-lg border border-[--line] px-4 py-2 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-40"
                 >
-                  Precedente
+                  Previous
                 </button>
                 <span className="text-sm text-[--ink-muted]">
                   {page} / {pages}
@@ -296,7 +296,7 @@ export default function MarketplacePage() {
                   onClick={() => void load({ q: query, sort, page: page + 1 })}
                   className="rounded-lg border border-[--line] px-4 py-2 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-40"
                 >
-                  Successiva
+                  Next
                 </button>
               </div>
             )}

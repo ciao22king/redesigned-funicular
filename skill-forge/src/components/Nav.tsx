@@ -34,13 +34,13 @@ export function Nav() {
                 href="/dashboard"
                 className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
               >
-                Le mie skill
+                My skills
               </Link>
               <Link
                 href="/create/from-skills"
                 className="rounded-lg bg-[--accent] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
               >
-                Crea una skill
+                Create a skill
               </Link>
 
               <div className="relative ml-2">
@@ -72,7 +72,7 @@ export function Nav() {
                   >
                     <div className="px-3 py-2">
                       <p className="truncate text-sm font-medium text-[--ink]">
-                        {session?.user?.name ?? 'Utente'}
+                        {session?.user?.name ?? 'User'}
                       </p>
                       <p className="truncate text-xs text-[--ink-muted]">
                         @{session?.user?.login ?? 'github'}
@@ -85,7 +85,7 @@ export function Nav() {
                       onClick={() => setMenu(false)}
                       className="block rounded-md px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
                     >
-                      Le mie skill
+                      My skills
                     </Link>
                     <button
                       type="button"
@@ -93,7 +93,7 @@ export function Nav() {
                       onClick={() => signOut({ callbackUrl: '/' })}
                       className="block w-full rounded-md px-3 py-2 text-left text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
                     >
-                      Esci
+                      Sign out
                     </button>
                   </div>
                 )}
@@ -106,7 +106,7 @@ export function Nav() {
               className="flex items-center gap-2 rounded-lg border border-[--line] bg-[--surface-raised] px-4 py-2 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
             >
               <GitHubMark />
-              Accedi con GitHub
+              Sign in with GitHub
             </button>
           )}
         </div>

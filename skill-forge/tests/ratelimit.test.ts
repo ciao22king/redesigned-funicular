@@ -8,7 +8,7 @@ import {
   readQuota,
 } from '../src/lib/ratelimit';
 
-/** KV in memoria: la logica non dipende da Cloudflare per essere testata. */
+/** In-memory KV: the logic does not depend on Cloudflare to be tested. */
 function fakeKV() {
   const map = new Map<string, string>();
   const writes: string[] = [];

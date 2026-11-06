@@ -40,11 +40,11 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       .catch(() => {});
   }, []);
 
-  // campi modalità "da skill esistenti"
+  // "from existing skills" mode fields
   const [files, setFiles] = useState<{ name: string; text: string }[]>([]);
   const [pasted, setPasted] = useState('');
 
-  // campi modalità "da zero"
+  // "from scratch" mode fields
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
   const [goal, setGoal] = useState('');
@@ -88,13 +88,13 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       });
       const data = (await res.json()) as GenerateResponse;
       if (data.quota) setQuota(data.quota);
-      if (!res.ok) throw new Error(data.error ?? 'Errore nella generazione');
+      if (!res.ok) throw new Error(data.error ?? 'Generation failed');
       const markdown = data.markdown as string;
       setResult(markdown);
 
-      // Ogni skill generata entra subito nell'archivio locale: resta
-      // ritrovabile anche se non viene scaricata ne' committata.
-      const skillName = readFrontmatterName(markdown) ?? name.trim() ?? 'Skill senza nome';
+      // Every generated skill enters the local archive right away: it stays
+      // findable even if it is not downloaded or committed.
+      const skillName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';
       saveLocalSkill({
         markdown,
         name: skillName,
@@ -102,7 +102,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         source: mode,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
     }
@@ -127,29 +127,29 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   return (
     <>
       <Nav />
-      <main id="contenuto" className="mx-auto max-w-3xl px-6 py-14">
+      <main id="content" className="mx-auto max-w-3xl px-6 py-14">
         <button
           type="button"
           onClick={() => router.push('/')}
           className="mb-8 text-sm text-[--ink-muted] transition-colors hover:text-[--ink]"
         >
-          ← Torna alla scelta
+          ← Back to the choice
         </button>
 
         <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-[--accent]">
-          Modalità {mode === 'from-skills' ? 'A · Da materiale esistente' : 'B · Da zero'}
+          {mode === 'from-skills' ? 'Mode A · From existing material' : 'Mode B · From scratch'}
         </p>
 
         <h1 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight text-[--ink]">
           {mode === 'from-skills'
-            ? 'Da appunti sparsi a skill completa'
-            : 'Costruisci una skill da zero'}
+            ? 'From scattered notes to a complete skill'
+            : 'Build a skill from scratch'}
         </h1>
 
         <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
           {mode === 'from-skills'
-            ? 'Carica documenti, appunti o skill abbozzate. Il modello le fonde in un unico documento dettagliato, colmando i buchi e conservando ogni dettaglio tecnico.'
-            : 'Rispondi a sei domande. Il modello scrive la procedura completa, con esempi, errori comuni e checklist di verifica.'}
+            ? 'Upload documents, notes or draft skills. The model merges them into one detailed document, filling the gaps and keeping every technical detail.'
+            : 'Answer six questions. The model writes the full procedure, with examples, common mistakes and a verification checklist.'}
         </p>
 
         <div className="hairline my-10" />
@@ -158,10 +158,10 @@ export default function CreatePage({ mode }: { mode: Mode }) {
           <div className="space-y-7">
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-[--ink]">
-                File sorgente
+                Source files
               </span>
               <span className="mb-3 block text-sm text-[--ink-muted]">
-                Markdown, testo, JSON, codice. Fino a 20 file.
+                Markdown, text, JSON, code. Up to 20 files.
               </span>
               <input
                 type="file"
@@ -185,7 +185,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                       onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}
                       className="ml-3 shrink-0 text-xs text-[--ink-muted] transition-colors hover:text-[--accent]"
                     >
-                      rimuovi
+                      remove
                     </button>
                   </li>
                 ))}
@@ -194,67 +194,67 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-[--ink]">
-                Oppure incolla il testo
+                Or paste the text
               </span>
               <textarea
                 value={pasted}
                 onChange={(e) => setPasted(e.target.value)}
                 rows={9}
-                placeholder="Incolla qui note, una trascrizione, una skill abbozzata..."
+                placeholder="Paste notes, a transcript, a draft skill here..."
                 className="w-full resize-y rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
               />
             </label>
           </div>
         ) : (
           <div className="space-y-6">
-            <Field label="Nome della skill" hint="Come si chiamerà il documento">
+            <Field label="Skill name" hint="What the document will be called">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="es. Revisione di pull request"
+                placeholder="e.g. Pull request review"
                 className={inputClass}
               />
             </Field>
-            <Field label="Dominio" hint="Ambito in cui opera">
+            <Field label="Domain" hint="The field it operates in">
               <input
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                placeholder="es. sviluppo software, analisi dati, scrittura tecnica"
+                placeholder="e.g. software development, data analysis, technical writing"
                 className={inputClass}
               />
             </Field>
-            <Field label="Obiettivo" hint="Cosa deve far raggiungere, in modo misurabile">
+            <Field label="Goal" hint="What it must achieve, measurably">
               <textarea
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 rows={3}
-                placeholder="es. analizzare una PR e produrre un report con problemi bloccanti, suggerimenti e rischi di regressione"
+                placeholder="e.g. analyze a PR and produce a report with blocking issues, suggestions and regression risks"
                 className={`${inputClass} resize-y`}
               />
             </Field>
-            <Field label="Tono" hint="Opzionale">
+            <Field label="Tone" hint="Optional">
               <input
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
-                placeholder="es. diretto, tecnico, senza giri di parole"
+                placeholder="e.g. direct, technical, no fluff"
                 className={inputClass}
               />
             </Field>
-            <Field label="Vincoli" hint="Opzionale, ma utile">
+            <Field label="Constraints" hint="Optional, but useful">
               <textarea
                 value={constraints}
                 onChange={(e) => setConstraints(e.target.value)}
                 rows={3}
-                placeholder="es. non commentare lo stile, solo correttezza e sicurezza"
+                placeholder="e.g. do not comment on style, only correctness and security"
                 className={`${inputClass} resize-y`}
               />
             </Field>
-            <Field label="Esempi o casi d'uso" hint="Opzionale">
+            <Field label="Examples or use cases" hint="Optional">
               <textarea
                 value={examples}
                 onChange={(e) => setExamples(e.target.value)}
                 rows={3}
-                placeholder="es. una PR da 400 righe che tocca autenticazione e cache"
+                placeholder="e.g. a 400-line PR touching authentication and caching"
                 className={`${inputClass} resize-y`}
               />
             </Field>
@@ -268,7 +268,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
             onClick={generate}
             className="w-full rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {busy ? 'Generazione in corso...' : 'Genera la skill'}
+            {busy ? 'Generating...' : 'Generate the skill'}
           </button>
 
           {quota && (
@@ -280,20 +280,20 @@ export default function CreatePage({ mode }: { mode: Mode }) {
               }`}
             >
               {quota.unlimited
-                ? 'Generazioni illimitate.'
+                ? 'Unlimited generations.'
                 : quota.remaining > 0
-                  ? `Ti restano ${quota.remaining} generazioni su ${quota.limit} per oggi.`
-                  : `Hai usato tutte le ${quota.limit} generazioni di oggi. La quota si azzera il ${new Date(
+                  ? `${quota.remaining} of ${quota.limit} generations left today.`
+                  : `You have used all ${quota.limit} generations today. The quota resets on ${new Date(
                       quota.resetsAt,
-                    ).toLocaleString('it-IT', { timeZone: 'UTC' })} UTC.`}
+                    ).toLocaleString('en-US', { timeZone: 'UTC' })} UTC.`}
             </p>
           )}
 
           {!ready && (
             <p className="mt-3 text-center text-sm text-[--ink-muted]">
               {mode === 'from-skills'
-                ? 'Aggiungi almeno un file o incolla del testo.'
-                : 'Compila nome, dominio e obiettivo.'}
+                ? 'Add at least one file or paste some text.'
+                : 'Fill in name, domain and goal.'}
             </p>
           )}
         </div>
@@ -364,14 +364,14 @@ function ResultPanel({
         error?: string;
         skill?: { id: string; name: string };
       };
-      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Pubblicazione fallita');
+      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Publishing failed');
 
-      // Anche la copia locale ricorda di essere pubblicata.
-      const localName = readFrontmatterName(markdown) ?? name.trim() ?? 'Skill senza nome';
+      // The local copy also remembers it was published.
+      const localName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';
       markPublished(slugify(localName), data.skill.id);
-      setMarket(`Pubblicata sul marketplace come "${data.skill.name}".`);
+      setMarket(`Published to the marketplace as "${data.skill.name}".`);
     } catch (e) {
-      setMarket(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setMarket(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setMarketBusy(false);
     }
@@ -381,10 +381,10 @@ function ResultPanel({
     <section className="mt-14 animate-fade-up">
       <div className="mb-5 flex items-baseline justify-between">
         <h2 className="font-display text-2xl font-semibold text-[--ink]">
-          Skill generata
+          Generated skill
         </h2>
         <span className="font-mono text-xs text-[--ink-muted]">
-          {markdown.split(/\s+/).filter(Boolean).length} parole
+          {markdown.split(/\s+/).filter(Boolean).length} words
         </span>
       </div>
 
@@ -398,7 +398,7 @@ function ResultPanel({
           onClick={onDownload}
           className="rounded-xl bg-[--accent] px-5 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
-          Scarica il file .md
+          Download the .md file
         </button>
       </div>
 
@@ -409,10 +409,10 @@ function ResultPanel({
           onClick={() => void publishToMarketplace()}
           className="rounded-xl border border-[--accent] bg-[--accent-soft] px-5 py-3 text-sm font-medium text-[--accent] transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {marketBusy ? 'Pubblico...' : 'Pubblica sul marketplace'}
+          {marketBusy ? 'Publishing...' : 'Publish to the marketplace'}
         </button>
         <span className="text-xs text-[--ink-muted]">
-          Le altre persone potranno scaricarla e metterle una stella.
+          Other people will be able to download it and star it.
         </span>
       </div>
 

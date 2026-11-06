@@ -1,12 +1,12 @@
 /**
- * Client AI su OpenRouter (gateway OpenAI-compatibile).
+ * AI client on OpenRouter (OpenAI-compatible gateway).
  * Base URL: https://openrouter.ai/api/v1
  * Auth: Bearer sk-or-v1-...
  *
- * Chiamiamo la REST API con la fetch nativa di Workers invece dell'SDK OpenAI:
- * su workerd l'SDK sceglie il runtime "node" (node-fetch + agentkeepalive) e
- * gli http.Agent non esistono, quindi ogni chiamata finisce in "Connection
- * error". La chiave resta solo lato server, mai nel bundle client.
+ * We call the REST API with the Workers native fetch instead of the OpenAI SDK:
+ * on workerd the SDK picks the "node" runtime (node-fetch + agentkeepalive) and
+ * http.Agent does not exist, so every call ends in "Connection error".
+ * The key stays server-side only, never in the client bundle.
  */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -18,7 +18,7 @@ export interface ChatResult {
   usage: unknown;
 }
 
-/** Timeout per singolo tentativo: un modello lento non deve bloccare la richiesta. */
+/** Timeout per attempt: a slow model must not block the request. */
 export const ATTEMPT_TIMEOUT_MS = 25_000;
 
 export async function chatCompletion(
@@ -30,9 +30,9 @@ export async function chatCompletion(
 ): Promise<ChatResult> {
   const base = (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
 
-  // AbortController: se il modello non risponde entro il timeout, la richiesta
-  // si annulla e la generazione passa al modello successivo invece di restare
-  // appesa fino al limite della funzione.
+  // AbortController: if the model does not answer within the timeout, the request
+  // is aborted and the generation moves to the next model instead of hanging
+  // until the function limit.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -44,7 +44,7 @@ export async function chatCompletion(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
-        // OpenRouter li usa per attribuire l'app nella dashboard.
+        // OpenRouter uses them to attribute the app in the dashboard.
         'HTTP-Referer':
           process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
         'X-Title': 'Skill Forge',
@@ -53,8 +53,8 @@ export async function chatCompletion(
         model,
         temperature,
         messages,
-        // `sort: throughput` fa scegliere a OpenRouter il provider che serve il
-        // modello con la latenza piu' bassa, invece del default (prezzo).
+        // `sort: throughput` makes OpenRouter pick the provider that serves the
+        // model with the lowest latency, instead of the default (price).
         provider: { sort: 'throughput', allow_fallbacks: true },
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
       }),
@@ -62,7 +62,7 @@ export async function chatCompletion(
   } catch (err) {
     clearTimeout(timer);
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error(`timeout dopo ${Math.round(timeoutMs / 1000)}s`);
+      throw new Error(`timeout after ${Math.round(timeoutMs / 1000)}s`);
     }
     throw err;
   }
@@ -77,7 +77,7 @@ export async function chatCompletion(
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(`risposta non JSON: ${text.slice(0, 200)}`);
+    throw new Error(`non-JSON response: ${text.slice(0, 200)}`);
   }
 
   return {
@@ -87,16 +87,16 @@ export async function chatCompletion(
 }
 
 /**
- * Modelli free di OpenRouter, dal piu' veloce al piu' capace.
- * L'ordine e' la leva principale sulla latenza: si prova prima il modello
- * piccolo, che risponde subito, e solo se fallisce si sale di dimensione.
- * La lista si puo' sostituire con OPENROUTER_MODELS (id separati da virgola)
- * senza toccare il codice.
+ * Free OpenRouter models, from fastest to most capable.
+ * The order is the main lever on latency: try the small model first, which
+ * answers right away, and only move up in size if it fails.
+ * The list can be replaced with OPENROUTER_MODELS (comma-separated ids)
+ * without touching the code.
  */
 export const MODELS: string[] = (
   process.env.OPENROUTER_MODELS ??
   [
-    'liquid/lfm-2.5-2.6b:free', // il piu' piccolo: risposta quasi immediata
+    'liquid/lfm-2.5-2.6b:free', // the smallest: near-immediate answer
     'google/gemma-4-26b-a4b-it:free',
     'cohere/north-mini-code:free',
     'xingchen-agi/xing4.0-29b-a4b:free',
@@ -106,14 +106,14 @@ export const MODELS: string[] = (
     'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
     'nvidia/nemotron-3.5-super-vl:free',
     'dots-studio/dots-3-note-preview:free',
-    'nvidia/nemotron-3-ultra-550b-a55b:free', // 550B, il piu' capace, ultima spiaggia
+    'nvidia/nemotron-3-ultra-550b-a55b:free', // 550B, the most capable, last resort
   ].join(',')
 )
   .split(',')
   .map((m) => m.trim())
   .filter(Boolean);
 
-/** Primo modello della scala: usato come etichetta quando il fallback non parte. */
+/** First model of the ladder: used as a label when the fallback does not start. */
 export const MODEL = MODELS[0];
 
 export const SYSTEM_PROMPT = `You are Skill Forge, an engine that turns raw material into complete skills for AI agents.

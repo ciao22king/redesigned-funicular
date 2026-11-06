@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  Setup automazione deploy — Skill Forge (Cloudflare Workers)
+#  Deploy automation setup — Skill Forge (Cloudflare Workers)
 #
-#  Esegui questo script UNA VOLTA dal terminale, dentro il progetto:
+#  Run this script ONCE from the terminal, inside the project:
 #
 #      bash scripts/setup-deploy.sh
 #
-#  Fa tutto quello che GitHub e Cloudflare non possono fare da soli:
-#    1. verifica i prerequisiti (git, node, gh)
-#    2. crea il repository GitHub se non esiste e fa il primo push
-#    3. crea il Worker Cloudflare e stampa il suo URL
-#    4. carica i secret del repository su GitHub per il workflow di deploy
+#  It does everything GitHub and Cloudflare cannot do on their own:
+#    1. checks the prerequisites (git, node, gh)
+#    2. creates the GitHub repository if missing and does the first push
+#    3. creates the Cloudflare Worker and prints its URL
+#    4. uploads the repository secrets to GitHub for the deploy workflow
 #
-#  Alla fine l'automazione è attiva: ogni push su main compila e pubblica.
+#  When it finishes, the automation is live: every push to main builds and publishes.
 # ==============================================================================
 
 set -euo pipefail
@@ -31,84 +31,84 @@ die()  { printf '%s\n' "${RED}✖${RESET} $1" >&2; exit 1; }
 head() { printf '\n%s\n' "${BOLD}$1${RESET}"; }
 
 # ---------------------------------------------------------------- prerequisiti
-head "1/6  Prerequisiti"
+head "1/6  Prerequisites"
 
-command -v git >/dev/null 2>&1 || die "git non installato."
-command -v node >/dev/null 2>&1 || die "node non installato."
+command -v git >/dev/null 2>&1 || die "git is not installed."
+command -v node >/dev/null 2>&1 || die "node is not installed."
 
 say "  git   $(git --version | awk '{print $3}')"
 say "  node  $(node --version)"
 
 HAVE_GH=0
-if command -v gh >/dev/null 2>&1; then HAVE_GH=1; say "  gh    $(gh --version | head -1 | awk '{print $3}')"; else warn "gh (GitHub CLI) non trovato: serve per i secret del repository"; fi
+if command -v gh >/dev/null 2>&1; then HAVE_GH=1; say "  gh    $(gh --version | head -1 | awk '{print $3}')"; else warn "gh (GitHub CLI) not found: it is needed for the repository secrets"; fi
 
 if [ ! -d .git ]; then
-  say "  Inizializzo il repository git..."
+  say "  Initializing the git repository..."
   git init -q
   git branch -M main
 fi
 
 # ------------------------------------------------------------ repo git locale
-head "2/6  Commit iniziale"
+head "2/6  Initial commit"
 
 if [ -z "$(git status --porcelain)" ]; then
-  ok "Nessuna modifica da committare, l'albero è pulito."
+  ok "Nothing to commit, the tree is clean."
 else
   git add -A
   git -c user.name="${GIT_AUTHOR_NAME:-Skill Forge}" \
       -c user.email="${GIT_AUTHOR_EMAIL:-noreply@example.com}" \
-      commit -q -m "feat: Skill Forge, generatore di skill per agenti AI"
-  ok "Commit creato."
+      commit -q -m "feat: Skill Forge, a skill generator for AI agents"
+  ok "Commit created."
 fi
 
 # ---------------------------------------------------------------- credenziali
-head "3/6  Credenziali"
+head "3/6  Credentials"
 
-read -r -p "  Token GitHub con scope 'repo' (ghp_... o github_pat_...): " GH_TOKEN
-[ -n "$GH_TOKEN" ] || die "Token GitHub obbligatorio."
+read -r -p "  GitHub token with 'repo' scope (ghp_... or github_pat_...): " GH_TOKEN
+[ -n "$GH_TOKEN" ] || die "GitHub token required."
 
 read -r -p "  Cloudflare API token (Workers Scripts: Edit): " CF_TOKEN
-[ -n "$CF_TOKEN" ] || die "Token Cloudflare obbligatorio."
+[ -n "$CF_TOKEN" ] || die "Cloudflare token required."
 
-read -r -p "  Chiave OpenRouter (sk-or-v1-...): " TH_KEY
-[ -n "$TH_KEY" ] || die "Chiave OpenRouter obbligatoria."
+read -r -p "  OpenRouter key (sk-or-v1-...): " TH_KEY
+[ -n "$TH_KEY" ] || die "OpenRouter key required."
 
-read -r -p "  Nome del repository e del Worker [skill-forge]: " REPO_NAME
+read -r -p "  Repository and Worker name [skill-forge]: " REPO_NAME
 REPO_NAME=${REPO_NAME:-skill-forge}
 
 GH_USER=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
   -H "Accept: application/vnd.github+json" \
   https://api.github.com/user | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).login||'')}catch{console.log('')}})")
 
-[ -n "$GH_USER" ] || die "Token GitHub non valido."
-ok "Account GitHub: $GH_USER"
+[ -n "$GH_USER" ] || die "Invalid GitHub token."
+ok "GitHub account: $GH_USER"
 
 CF_ACCOUNT=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" \
   "https://api.cloudflare.com/client/v4/accounts" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const j=JSON.parse(d);console.log((j.result&&j.result[0]&&j.result[0].id)||'')}catch{console.log('')}})")
 
-[ -n "$CF_ACCOUNT" ] || die "Token Cloudflare non valido (o nessun account visibile)."
-ok "Account Cloudflare: $CF_ACCOUNT"
+[ -n "$CF_ACCOUNT" ] || die "Invalid Cloudflare token (or no account visible)."
+ok "Cloudflare account: $CF_ACCOUNT"
 
 NEXTAUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
 
 # --------------------------------------------------------------- repo remoto
-head "4/6  Repository GitHub"
+head "4/6  GitHub repository"
 
 HTTP_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
   -H "Authorization: Bearer $GH_TOKEN" \
   "https://api.github.com/repos/$GH_USER/$REPO_NAME")
 
 if [ "$HTTP_STATUS" = "200" ]; then
-  ok "Il repository $GH_USER/$REPO_NAME esiste già."
+  ok "The repository $GH_USER/$REPO_NAME already exists."
 else
-  say "  Creo $GH_USER/$REPO_NAME ..."
+  say "  Creating $GH_USER/$REPO_NAME ..."
   curl -sS -X POST \
     -H "Authorization: Bearer $GH_TOKEN" \
     -H "Accept: application/vnd.github+json" \
     https://api.github.com/user/repos \
-    -d "{\"name\":\"$REPO_NAME\",\"auto_init\":false,\"description\":\"Skill Forge, generatore di skill per agenti AI\"}" \
+    -d "{\"name\":\"$REPO_NAME\",\"auto_init\":false,\"description\":\"Skill Forge, a skill generator for AI agents\"}" \
     > /dev/null
-  ok "Repository creato."
+  ok "Repository created."
 fi
 
 REMOTE="https://x-access-token:$GH_TOKEN@github.com/$GH_USER/$REPO_NAME.git"
@@ -119,24 +119,24 @@ else
 fi
 
 git push -q -u origin main --force
-ok "Push su main completato."
+ok "Push to main completed."
 
 # --------------------------------------------------------------- worker CF
-head "5/6  Worker Cloudflare"
+head "5/6  Cloudflare Worker"
 
-say "  Il Worker viene creato al primo deploy (npm run deploy)."
-say "  Nome Worker: $REPO_NAME"
-say "  URL previsto: https://$REPO_NAME.<tuo-sottodominio>.workers.dev"
+say "  The Worker is created on the first deploy (npm run deploy)."
+say "  Worker name: $REPO_NAME"
+say "  Expected URL: https://$REPO_NAME.<your-subdomain>.workers.dev"
 
 # ------------------------------------------------------------- secret GitHub
-head "6/6  Secret del repository GitHub"
+head "6/6  GitHub repository secrets"
 
 put_secret() {
   local name="$1" value="$2"
   if [ "$HAVE_GH" = "1" ] && gh auth status >/dev/null 2>&1; then
     printf '%s' "$value" | gh secret set "$name" --repo "$GH_USER/$REPO_NAME" >/dev/null
   else
-    die "Serve la GitHub CLI autenticata per caricare il secret $name. Esegui: gh auth login"
+    die "An authenticated GitHub CLI is required to upload the secret $name. Run: gh auth login"
   fi
 }
 
@@ -149,27 +149,27 @@ put_secret OPENROUTER_BASE_URL   "https://openrouter.ai/api/v1"
 put_secret OPENROUTER_API_KEY    "$TH_KEY"
 put_secret OPENROUTER_MODELS      "nvidia/nemotron-3-ultra-550b-a55b:free,nvidia/nemotron-3.5-super-vl:free,nvidia/nemotron-3.5-lightning:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free,recursive/flint-v1.0:free,google/gemma-4-26b-a4b-it:free,xingchen-agi/xing4.0-29b-a4b:free,cohere/north-mini-code:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,liquid/lfm-2.5-2.6b:free"
 
-ok "Secret caricati."
+ok "Secrets uploaded."
 
-head "Fatto"
+head "Done"
 say "  Repository:  https://github.com/$GH_USER/$REPO_NAME"
 say ""
-say "  ${BOLD}Passaggi manuali, una volta sola:${RESET}"
-say "  1. Crea l'OAuth App su https://github.com/settings/developers con"
-say "     callback  https://$REPO_NAME.<tuo-sottodominio>.workers.dev/api/auth/callback/github"
-say "     poi carica i valori:"
+say "  ${BOLD}Manual one-time steps:${RESET}"
+say "  1. Create the OAuth App at https://github.com/settings/developers with"
+say "     callback  https://$REPO_NAME.<your-subdomain>.workers.dev/api/auth/callback/github"
+say "     then upload the values:"
 say ""
 say "       gh secret set GH_OAUTH_ID --repo $GH_USER/$REPO_NAME"
 say "       gh secret set GH_OAUTH_SECRET --repo $GH_USER/$REPO_NAME"
 say ""
-say "  2. Imposta NEXTAUTH_URL all'URL del Worker:"
+say "  2. Set NEXTAUTH_URL to the Worker URL:"
 say ""
 say "       gh secret set NEXTAUTH_URL --repo $GH_USER/$REPO_NAME"
 say ""
-say "  3. Imposta i secret sul Worker (npm run deploy li pubblica come vars,"
-say "     oppure usa la dashboard Cloudflare → Workers → Settings → Variables)."
+say "  3. Set the secrets on the Worker (npm run deploy publishes them as vars,"
+say "     or use the Cloudflare dashboard → Workers → Settings → Variables)."
 say ""
-say "  Fatto questo, ogni push su main compila e pubblica automaticamente."
+say "  Once done, every push to main builds and publishes automatically."
 
-# Evita che il token resti in .git/config
+# Keep the token out of .git/config
 git remote set-url origin "https://github.com/$GH_USER/$REPO_NAME.git"

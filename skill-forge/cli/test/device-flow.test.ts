@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { requestDeviceCode, pollForToken, deviceFlowLogin } from '../src/device-flow.js';
 
 /**
- * Il Device Flow si prova con `fetch` e `sleep` finti: la sequenza reale
- * (pending -> pending -> token) viene esercitata senza rete e senza attese.
+ * The Device Flow is tested with fake `fetch` and `sleep`: the real sequence
+ * (pending -> pending -> token) is exercised without network and without waits.
  */
 
-/** fetch che risponde in sequenza con le risposte fornite. */
+/** A fetch that answers in sequence with the provided responses. */
 function sequenceFetch(responses: { status?: number; body: unknown }[], capture?: { bodies: string[] }) {
   let i = 0;
   return (async (_url: string | URL, init?: RequestInit) => {
@@ -63,18 +63,18 @@ describe('device flow', () => {
     ]);
     const token = await pollForToken('DC', { fetchImpl, sleep, interval: 1 });
     assert.equal(token, 'gho_ok');
-    // Primo giro 1000 ms, poi +5000 per slow_down.
+    // First round 1000 ms, then +5000 for slow_down.
     assert.deepEqual(sleeps, [1000, 6000]);
   });
 
   test('pollForToken interrompe su codice scaduto', async () => {
     const fetchImpl = sequenceFetch([{ body: { error: 'expired_token' } }]);
-    await assert.rejects(() => pollForToken('DC', { fetchImpl, sleep: noSleep, interval: 0 }), /scaduto/);
+    await assert.rejects(() => pollForToken('DC', { fetchImpl, sleep: noSleep, interval: 0 }), /expired/);
   });
 
   test('pollForToken interrompe su autorizzazione negata', async () => {
     const fetchImpl = sequenceFetch([{ body: { error: 'access_denied' } }]);
-    await assert.rejects(() => pollForToken('DC', { fetchImpl, sleep: noSleep, interval: 0 }), /negata/);
+    await assert.rejects(() => pollForToken('DC', { fetchImpl, sleep: noSleep, interval: 0 }), /denied/);
   });
 
   test('deviceFlowLogin chiama onPrompt col codice utente', async () => {

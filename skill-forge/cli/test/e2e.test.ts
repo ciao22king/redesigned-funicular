@@ -8,11 +8,11 @@ import { join } from 'node:path';
 import { main } from '../src/index.js';
 
 /**
- * Test end-to-end del dispatcher contro un server HTTP vero (in locale).
+ * End-to-end test of the dispatcher against a real (local) HTTP server.
  *
- * Niente mock del client: la CLI viene eseguita come la eseguirebbe l'utente,
- * `main(argv)` fino alla richiesta HTTP. Il server finto risponde come il
- * worker reale, cosi' si esercita l'intera catena.
+ * No client mock: the CLI is run the way the user would run it, `main(argv)` up
+ * to the HTTP request. The fake server answers like the real worker, so the
+ * whole chain is exercised.
  */
 
 let server: Server;
@@ -45,7 +45,7 @@ before(async () => {
         if (req.headers.authorization === 'Bearer buono') {
           send(200, { login: 'tester', quota: { used: 1, remaining: 2, limit: 3, resetsAt: '2026-11-06', unlimited: false } });
         } else {
-          send(401, { error: 'Token non valido o assente.' });
+          send(401, { error: 'Missing or invalid token.' });
         }
       } else if (url.startsWith('/api/marketplace/publish')) {
         if (req.method === 'POST') {
@@ -146,8 +146,8 @@ describe('CLI end-to-end', () => {
   });
 
   test('--json produce JSON valido su stdout', async () => {
-    // Lanciamo il binario in un processo separato: cosi' catturiamo solo il suo
-    // stdout, senza intercettare anche l'output del test runner.
+    // We launch the binary in a separate process: so we capture only its
+    // stdout, without also intercepting the test runner output.
     const { execFile } = await import('node:child_process');
     const { promisify } = await import('node:util');
     const run = promisify(execFile);

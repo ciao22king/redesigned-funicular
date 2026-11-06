@@ -1,20 +1,20 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 /**
- * Limite giornaliero di generazioni per utente, contato su Cloudflare KV.
+ * Daily generation limit per user, counted on Cloudflare KV.
  *
- * La chiave e' il login GitHub, quindi il limite segue la persona e non
- * l'indirizzo IP: cambiare rete o dispositivo non azzera la quota.
+ * The key is the GitHub login, so the limit follows the person and not the IP
+ * address: changing network or device does not reset the quota.
  *
- * La finestra e' il giorno UTC, non 24 ore scorrevoli: la chiave contiene la
- * data e scade a fine giornata, quindi la quota torna piena a mezzanotte UTC.
+ * The window is the UTC day, not a rolling 24 hours: the key contains the date
+ * and expires at the end of the day, so the quota is full again at midnight UTC.
  */
 
 export const DAILY_LIMIT = 3;
 
 /**
- * Login esenti dal limite (di norma il solo proprietario). Si configura con
- * UNLIMITED_LOGINS, id separati da virgola, senza toccare il codice.
+ * Logins exempt from the limit (normally the owner only). Configured with
+ * UNLIMITED_LOGINS, comma-separated ids, without touching the code.
  */
 const UNLIMITED_LOGINS = new Set(
   (process.env.UNLIMITED_LOGINS ?? 'ciao22king')
@@ -23,7 +23,7 @@ const UNLIMITED_LOGINS = new Set(
     .filter(Boolean),
 );
 
-/** Vero se il login e' esente dal limite giornaliero. */
+/** True if the login is exempt from the daily limit. */
 export function isUnlimited(login: string): boolean {
   return UNLIMITED_LOGINS.has(login.toLowerCase());
 }
@@ -32,9 +32,9 @@ export interface Quota {
   used: number;
   remaining: number;
   limit: number;
-  /** ISO: quando il contatore scade e la quota torna piena. */
+  /** ISO: when the counter expires and the quota is full again. */
   resetsAt: string;
-  /** Vero quando l'utente non e' soggetto al limite. */
+  /** True when the user is not subject to the limit. */
   unlimited: boolean;
 }
 
@@ -42,7 +42,7 @@ interface Counter {
   count: number;
 }
 
-/** Chiave e scadenza del giorno UTC corrente. */
+/** Key and expiry of the current UTC day. */
 export function dayKey(date = new Date()): { key: string; resetsAt: string } {
   const start = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
   const next = start + 24 * 60 * 60 * 1000;
@@ -57,18 +57,18 @@ async function store(): Promise<KVNamespace | undefined> {
     const { env } = await getCloudflareContext({ async: true });
     return env.RATE_LIMIT;
   } catch {
-    // In `next dev` senza binding il limite non e' applicabile: non blocchiamo
-    // lo sviluppo locale, ma in produzione il binding c'e' sempre.
+    // In `next dev` without the binding the limit is not applicable: we do not
+    // block local development, but in production the binding is always there.
     return undefined;
   }
 }
 
-/** Legge la quota senza consumarla. */
+/** Reads the quota without consuming it. */
 export async function readQuota(login: string, kv?: KVNamespace): Promise<Quota> {
   const { key, resetsAt } = dayKey();
 
-  // Un utente illimitato non ha un contatore: non serve leggere KV, e la UI
-  // non mostra un numero che non lo riguarda.
+  // An unlimited user has no counter: no need to read KV, and the UI does not
+  // show a number that does not concern them.
   if (isUnlimited(login)) {
     return { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true };
   }
@@ -85,8 +85,8 @@ export async function readQuota(login: string, kv?: KVNamespace): Promise<Quota>
 }
 
 /**
- * Consuma una generazione se disponibile.
- * Restituisce `allowed: false` con la quota invariata quando il limite e' raggiunto.
+ * Consumes one generation if available.
+ * Returns `allowed: false` with the quota unchanged when the limit is reached.
  */
 export async function consumeQuota(
   login: string,
@@ -94,7 +94,7 @@ export async function consumeQuota(
 ): Promise<{ allowed: boolean; quota: Quota }> {
   const { key, resetsAt } = dayKey();
 
-  // Nessun contatore da toccare: l'esenzione non consuma ne' scrive su KV.
+  // No counter to touch: the exemption neither consumes nor writes to KV.
   if (isUnlimited(login)) {
     return {
       allowed: true,
@@ -122,8 +122,8 @@ export async function consumeQuota(
   }
 
   const count = current + 1;
-  // TTL di 48 ore: copre sempre la giornata UTC in corso con margine, cosi' un
-  // contatore scritto poco prima di mezzanotte non scade in anticipo.
+  // 48-hour TTL: always covers the current UTC day with margin, so a counter
+  // written shortly before midnight does not expire early.
   await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
 
   return {

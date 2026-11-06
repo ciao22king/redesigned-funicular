@@ -1,15 +1,15 @@
 /**
- * Unica fonte dei dati legali. Compila qui una volta e le pagine
- * (termini, privacy, cookie) e il footer si aggiornano da soli.
+ * Single source of legal data. Fill it in once here and the pages
+ * (terms, privacy, cookie) and the footer update themselves.
  *
- * Il gestore è un singolo sviluppatore: non servono dati di impresa
+ * The operator is a single developer: no company data needed
  * (P.IVA, sede, PEC). Bastano `name` ed `email`.
  */
 export const legal = {
   siteName: 'Skill Forge',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://skillforge.eu.org',
-  lastUpdated: '5 novembre 2026',
-  // Anno di prima pubblicazione, per il copyright nel footer.
+  lastUpdated: 'November 5, 2026',
+  // First publication year, for the copyright in the footer.
   since: 2026,
 
   owner: {

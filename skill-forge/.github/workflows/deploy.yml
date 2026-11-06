@@ -1,4 +1,4 @@
-name: Deploy su Cloudflare Workers
+name: Deploy to Cloudflare Workers
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       production:
-        description: 'Deploy in produzione (altrimenti preview draft)'
+        description: 'Deploy to production (otherwise preview draft)'
         type: boolean
         default: true
 
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Build di verifica
+    name: Verification build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,14 +29,14 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Installa dipendenze
+      - name: Install dependencies
         run: npm ci
 
       - name: Build
         run: npm run build
         env:
-          # Valori finti: la build non fa chiamate di rete a questi servizi.
-          # Servono solo a soddisfare il controllo sulle variabili mancanti.
+          # Fake values: the build makes no network calls to these services.
+          # They only satisfy the check for missing variables.
           NEXTAUTH_SECRET: ci-only-not-a-real-secret
           NEXTAUTH_URL: http://localhost:3000
           GITHUB_ID: ci-placeholder
@@ -57,17 +57,17 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Installa dipendenze
+      - name: Install dependencies
         run: npm ci
 
       - name: Deploy
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.production }}" = "false" ]; then
-            echo "Deploy preview (draft)"
+            echo "Preview deploy (draft)"
             npx opennextjs-cloudflare build
             npx wrangler versions upload
           else
-            echo "Deploy in produzione"
+            echo "Production deploy"
             npm run deploy
           fi
         env:

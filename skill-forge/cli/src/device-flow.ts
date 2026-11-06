@@ -1,18 +1,18 @@
 /**
  * Device Flow di GitHub.
  *
- * L'utente vede un codice, lo digita su github.com/login/device, autorizza, e
- * la CLI ottiene il token senza che nessuno lo incolli. Il client ID e' un
- * identificatore pubblico della OAuth App (non un segreto): il device flow non
- * usa il client secret, quindi puo' stare nel pacchetto.
+ * The user sees a code, types it at github.com/login/device, authorizes, and the
+ * CLI gets the token without anyone pasting it. The client ID is a public
+ * identifier of the OAuth App (not a secret): the device flow does not use the
+ * client secret, so it can live in the package.
  *
  * Riferimento: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
  */
 
-/** Client ID della OAuth App di Skill Forge. Pubblico per definizione. */
+/** Client ID of the Skill Forge OAuth App. Public by definition. */
 export const DEFAULT_CLIENT_ID = 'Ov23li3WNZ0SwllP72tP';
 
-/** Scope minimo: leggere il profilo. Non serve altro per usare l'API. */
+/** Minimal scope: read the profile. Nothing else is needed to use the API. */
 export const DEFAULT_SCOPE = 'read:user';
 
 const DEVICE_CODE_URL = 'https://github.com/login/device/code';
@@ -23,28 +23,28 @@ export interface DeviceCode {
   user_code: string;
   verification_uri: string;
   expires_in: number;
-  /** Secondi da attendere tra un tentativo e l'altro. */
+  /** Seconds to wait between one attempt and the next. */
   interval: number;
 }
 
 export interface DeviceFlowOptions {
   clientId?: string;
   scope?: string;
-  /** Iniettabili per i test: nessuna rete e nessuna attesa reale. */
+  /** Injectable for tests: no network and no real wait. */
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
-  /** Chiamata quando il codice e' pronto, per mostrarlo all'utente. */
+  /** Called when the code is ready, to show it to the user. */
   onPrompt?: (info: { userCode: string; verificationUri: string }) => void;
 }
 
 export interface PollOptions extends DeviceFlowOptions {
-  /** Secondi di attesa tra i tentativi (arriva da requestDeviceCode). */
+  /** Seconds of wait between attempts (comes from requestDeviceCode). */
   interval?: number;
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Chiede a GitHub un codice da mostrare all'utente. */
+/** Asks GitHub for a code to show the user. */
 export async function requestDeviceCode(options: DeviceFlowOptions = {}): Promise<DeviceCode> {
   const clientId = options.clientId ?? process.env.SKILL_FORGE_GITHUB_CLIENT_ID ?? DEFAULT_CLIENT_ID;
   const doFetch = options.fetchImpl ?? fetch;
@@ -57,7 +57,7 @@ export async function requestDeviceCode(options: DeviceFlowOptions = {}): Promis
 
   const data = (await res.json()) as Partial<DeviceCode> & { error?: string; error_description?: string };
   if (!res.ok || data.error || !data.device_code) {
-    throw new Error(data.error_description ?? data.error ?? 'GitHub non ha fornito un codice dispositivo.');
+    throw new Error(data.error_description ?? data.error ?? 'GitHub did not provide a device code.');
   }
   return {
     device_code: data.device_code,
@@ -69,11 +69,11 @@ export async function requestDeviceCode(options: DeviceFlowOptions = {}): Promis
 }
 
 /**
- * Attende che l'utente autorizzi, poi restituisce il token.
+ * Waits for the user to authorize, then returns the token.
  *
- * GitHub risponde `authorization_pending` finche' l'utente non conferma, e
- * `slow_down` se chiediamo troppo spesso (in quel caso allunghiamo l'attesa).
- * Ogni altro errore interrompe.
+ * GitHub answers `authorization_pending` until the user confirms, and
+ * `slow_down` if we ask too often (in that case we lengthen the wait).
+ * Any other error stops it.
  */
 export async function pollForToken(
   deviceCode: string,
@@ -110,20 +110,20 @@ export async function pollForToken(
       case 'authorization_pending':
         break;
       case 'slow_down':
-        // GitHub chiede di rallentare: aggiungiamo 5 secondi, come da guida.
+        // GitHub asks us to slow down: we add 5 seconds, as the guide says.
         intervalMs += 5000;
         break;
       case 'expired_token':
-        throw new Error('Il codice e\' scaduto. Riprova con `skill-forge login`.');
+        throw new Error('The code expired. Try again with `skill-forge login`.');
       case 'access_denied':
-        throw new Error('Autorizzazione negata.');
+        throw new Error('Authorization denied.');
       default:
-        throw new Error(data.error_description ?? data.error ?? 'Autorizzazione non riuscita.');
+        throw new Error(data.error_description ?? data.error ?? 'Authorization failed.');
     }
   }
 }
 
-/** Percorso completo: codice, prompt all'utente, attesa del token. */
+/** Full path: code, prompt to the user, wait for the token. */
 export async function deviceFlowLogin(options: DeviceFlowOptions = {}): Promise<string> {
   const code = await requestDeviceCode(options);
   options.onPrompt?.({ userCode: code.user_code, verificationUri: code.verification_uri });

@@ -1,5 +1,5 @@
 /**
- * Tipi delle risposte dell'API di Skill Forge.
+ * Types of the Skill Forge API responses.
  * Rispecchiano `src/lib/marketplace.ts` lato server.
  */
 

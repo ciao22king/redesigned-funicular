@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { table, truncate, shortDate, color } from '../src/output.js';
 
 /**
- * L'output e' testabile perche' le stringhe colorate restano riconoscibili:
- * qui ci interessa che le colonne siano allineate anche in presenza di colori.
+ * The output is testable because the colored strings stay recognizable: here we
+ * care that the columns are aligned even with colors present.
  */
 
 describe('output', () => {
@@ -18,8 +18,8 @@ describe('output', () => {
   });
 
   test('table ignora i codici ANSI nel calcolo della larghezza', () => {
-    // Il colore e' disattivato nei test (stdout non e' un TTY), quindi
-    // verifichiamo solo che non produca righe vuote o disallineate.
+    // Color is off in the tests (stdout is not a TTY), so we only verify that it
+    // does not produce empty or misaligned rows.
     const out = table(['ID'], [[color.cyan('me/x')]]);
     assert.ok(out.includes('me/x'));
   });

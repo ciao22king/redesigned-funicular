@@ -1,9 +1,9 @@
 /**
  * Helper sulle skill, allineati a `src/lib/skill.ts` lato server.
- * Duplicati qui perche' la CLI e' un pacchetto a se', senza dipendenze dal web.
+ * Duplicated here because the CLI is a package of its own, with no dependency on the web.
  */
 
-/** Estrae uno slug kebab-case valido da un titolo qualsiasi. */
+/** Extracts a valid kebab-case slug from any title. */
 export function slugify(input: string): string {
   return (
     input
@@ -12,18 +12,18 @@ export function slugify(input: string): string {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 60) || 'skill-senza-nome'
+      .slice(0, 60) || 'untitled-skill'
   );
 }
 
-/** Rimuove un eventuale blocco di code fence attorno al markdown. */
+/** Removes any code fence block around the markdown. */
 export function stripFences(md: string): string {
   const trimmed = md.trim();
   const match = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/);
   return match ? match[1].trim() : trimmed;
 }
 
-/** Legge un campo scalare dal frontmatter YAML, se presente. */
+/** Reads a scalar field from the YAML frontmatter, if present. */
 export function readFrontmatterField(md: string, field: string): string | undefined {
   const match = md.match(/^---\s*\n([\s\S]*?)\n---/);
   if (!match) return undefined;

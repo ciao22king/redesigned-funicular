@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { chatCompletion } from '../src/lib/ai';
 
 /**
- * Sostituisce `fetch` per osservare la richiesta in uscita senza toccare la
- * rete: qui interessa la forma della richiesta e la gestione del timeout, non
- * la risposta di un modello reale.
+ * Replaces `fetch` to observe the outgoing request without touching the
+ * network: here we care about the shape of the request and the timeout handling,
+ * not the response of a real model.
  */
 function stubFetch(handler: (url: string, init: RequestInit) => Promise<Response>) {
   const original = globalThis.fetch;
@@ -55,8 +55,8 @@ test('una risposta di errore diventa un errore con lo stato', async () => {
 });
 
 test('un modello lento viene interrotto dal timeout', async () => {
-  // Simula un modello che non risponde: la fetch resta appesa finche' il
-  // segnale di abort non la interrompe.
+  // Simulates a model that does not answer: the fetch stays pending until the
+  // abort signal interrupts it.
   const restore = stubFetch(
     (_url, init) =>
       new Promise<Response>((_resolve, reject) => {

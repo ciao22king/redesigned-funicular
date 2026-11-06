@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * L'apex e' l'host canonico (vedi `legal.siteUrl`): `www` gli rimanda con un
- * 301 permanente, cosi' i motori indicizzano un solo indirizzo e non due copie.
+ * The apex is the canonical host (see `legal.siteUrl`): `www` redirects to it
+ * with a permanent 301, so engines index a single address and not two copies.
  */
 const CANONICAL_HOST = 'skillforge.eu.org';
 

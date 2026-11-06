@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { Client, ApiError } from '../src/api.js';
 
 /**
- * Il client si prova con un `fetch` finto: nessuna rete nei test, ma il
- * percorso reale (headers, status, parsing) viene esercitato per intero.
+ * The client is tested with a fake `fetch`: no network in the tests, but the
+ * real path (headers, status, parsing) is exercised in full.
  */
 
-/** Costruisce un fetch finto che registra la richiesta e risponde con `body`. */
+/** Builds a fake fetch that records the request and answers with `body`. */
 function fakeFetch(status: number, body: unknown, capture?: { url?: string; init?: RequestInit }) {
   return (async (input: string | URL, init?: RequestInit) => {
     if (capture) {
@@ -66,11 +66,11 @@ describe('Client', () => {
   });
 
   test('un errore HTTP diventa ApiError con il messaggio del server', async () => {
-    const client = new Client({ url: 'https://api.test', fetchImpl: fakeFetch(401, { error: 'Token non valido' }) });
+    const client = new Client({ url: 'https://api.test', fetchImpl: fakeFetch(401, { error: 'Invalid token' }) });
     await assert.rejects(() => client.me(), (err: unknown) => {
       assert.ok(err instanceof ApiError);
       assert.equal(err.status, 401);
-      assert.equal(err.message, 'Token non valido');
+      assert.equal(err.message, 'Invalid token');
       return true;
     });
   });
@@ -83,7 +83,7 @@ describe('Client', () => {
     await assert.rejects(() => client.list(), (err: unknown) => {
       assert.ok(err instanceof ApiError);
       assert.equal(err.status, 0);
-      assert.match(err.message, /Impossibile contattare/);
+      assert.match(err.message, /Cannot reach/);
       return true;
     });
   });

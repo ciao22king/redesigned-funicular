@@ -11,16 +11,16 @@ interface Body {
 }
 
 /**
- * Mette o toglie la stella a una skill.
+ * Stars or unstars a skill.
  *
- * La chiave primaria (skill_id, user_login) impedisce il doppio voto a livello
- * di database: due richieste in parallelo non possono contare due stelle.
+ * The primary key (skill_id, user_login) prevents double voting at the database
+ * level: two parallel requests cannot count two stars.
  */
 export async function POST(req: NextRequest) {
   const { token, login } = await getServerAuth(req);
   if (!token || !login) {
     return NextResponse.json(
-      { error: 'Devi accedere con GitHub per mettere una stella.' },
+      { error: 'You must sign in with GitHub to star a skill.' },
       { status: 401 },
     );
   }
@@ -29,20 +29,20 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as Body;
   } catch {
-    return NextResponse.json({ error: 'Corpo della richiesta non valido.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
   const id = body.id?.trim();
   if (!id) {
-    return NextResponse.json({ error: 'Manca l\'id della skill.' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing skill id.' }, { status: 400 });
   }
 
   try {
     const result = await toggleStar(id, login);
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Errore sconosciuto';
-    const status = /non trovata/i.test(message) ? 404 : 503;
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const status = /not found/i.test(message) ? 404 : 503;
     return NextResponse.json({ error: message }, { status });
   }
 }

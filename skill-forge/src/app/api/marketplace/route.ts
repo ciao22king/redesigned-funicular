@@ -15,8 +15,8 @@ export const maxDuration = 30;
 const PAGE_SIZE = 24;
 
 /**
- * Vetrina pubblica: chiunque puo' sfogliare senza accedere.
- * Se c'e' una sessione, ogni riga dice anche se l'utente ha messo la stella.
+ * Public storefront: anyone can browse without signing in.
+ * If there is a session, each row also says whether the user has starred it.
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Errore sconosciuto';
+    const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

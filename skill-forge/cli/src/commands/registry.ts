@@ -9,7 +9,7 @@ import { pullCommand } from './pull.js';
 import { starCommand } from './star.js';
 import { deleteCommand } from './delete.js';
 
-/** Elenco dei comandi, nell'ordine in cui appaiono nell'help. */
+/** List of commands, in the order they appear in the help. */
 export const commands: Command[] = [
   loginCommand,
   logoutCommand,

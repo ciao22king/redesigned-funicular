@@ -64,25 +64,25 @@ test('validateSkillInput preferisce i campi espliciti al frontmatter', () => {
 test('validateSkillInput rifiuta una skill vuota', () => {
   const result = validateSkillInput({ markdown: '   ' });
   assert.equal(result.ok, false);
-  assert.match(result.error ?? '', /vuota/i);
+  assert.match(result.error ?? '', /empty/i);
 });
 
 test('validateSkillInput rifiuta un markdown senza nome', () => {
   const result = validateSkillInput({ markdown: '# Solo un titolo\n\nsenza frontmatter' });
   assert.equal(result.ok, false);
-  assert.match(result.error ?? '', /nome/i);
+  assert.match(result.error ?? '', /name/i);
 });
 
 test('validateSkillInput rifiuta nome troppo lungo', () => {
   const result = validateSkillInput({ markdown: SAMPLE, name: 'x'.repeat(200) });
   assert.equal(result.ok, false);
-  assert.match(result.error ?? '', /lungo/i);
+  assert.match(result.error ?? '', /too long/i);
 });
 
 test('validateSkillInput rifiuta descrizione troppo lunga', () => {
   const result = validateSkillInput({ markdown: SAMPLE, description: 'x'.repeat(500) });
   assert.equal(result.ok, false);
-  assert.match(result.error ?? '', /descrizione/i);
+  assert.match(result.error ?? '', /description/i);
 });
 
 test('validateSkillInput rifiuta un markdown oltre il tetto', () => {

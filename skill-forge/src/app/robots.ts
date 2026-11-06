@@ -8,7 +8,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: '*',
         allow: '/',
-        // Le aree personali e le API non hanno senso per i motori di ricerca.
+        // Personal areas and the API make no sense for search engines.
         disallow: ['/api/', '/dashboard', '/create/'],
       },
     ],

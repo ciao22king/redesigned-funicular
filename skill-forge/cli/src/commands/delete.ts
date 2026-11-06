@@ -3,34 +3,33 @@ import { info, error, success, color } from '../output.js';
 import type { Command } from './types.js';
 
 /**
- * `delete` — rimuove una skill dal marketplace.
- * L'endpoint accetta solo lo slug: il proprietario viene dal token, quindi si
- * possono cancellare soltanto le proprie skill. Accettiamo comunque `owner/slug`
- * e teniamo lo slug.
+ * `delete` — removes a skill from the marketplace.
+ * The endpoint accepts only the slug: the owner comes from the token, so you can
+ * delete only your own skills. We still accept `owner/slug` and keep the slug.
  */
 export const deleteCommand: Command = {
   name: 'delete',
   usage: 'delete <owner/slug> [--yes]',
-  summary: 'Cancella una tua skill dal marketplace',
+  summary: 'Delete one of your skills from the marketplace',
   needsAuth: true,
   async run(args, ctx) {
     const id = args.find((a) => !a.startsWith('-'));
     if (!id) {
-      error('Serve l\'id della skill, nella forma owner/slug.');
+      error('Skill id required, in the form owner/slug.');
       return 1;
     }
     const slug = id.includes('/') ? id.slice(id.indexOf('/') + 1) : id;
 
-    // Conferma esplicita: la cancellazione non si annulla.
+    // Explicit confirmation: deletion cannot be undone.
     if (!args.includes('--yes') && process.stdin.isTTY) {
       const { createInterface } = await import('node:readline');
       const rl = createInterface({ input: process.stdin, output: process.stdout });
       const answer = await new Promise<string>((resolve) =>
-        rl.question(`Cancellare definitivamente ${color.bold(id)}? [s/N] `, resolve),
+        rl.question(`Permanently delete ${color.bold(id)}? [y/N] `, resolve),
       );
       rl.close();
-      if (!/^(s|si|y|yes)$/i.test(answer.trim())) {
-        info('Annullato.');
+      if (!/^(y|yes)$/i.test(answer.trim())) {
+        info('Cancelled.');
         return 0;
       }
     }
@@ -38,10 +37,10 @@ export const deleteCommand: Command = {
     const client = requireClient(ctx);
     try {
       await client.remove(slug);
-      success(`Cancellata: ${color.bold(id)}`);
+      success(`Deleted: ${color.bold(id)}`);
       return 0;
     } catch (err) {
-      error(err instanceof Error ? err.message : 'cancellazione fallita');
+      error(err instanceof Error ? err.message : 'deletion failed');
       return 1;
     }
   },

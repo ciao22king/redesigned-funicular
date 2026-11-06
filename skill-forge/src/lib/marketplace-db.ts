@@ -7,11 +7,11 @@ import type {
 import { orderClause, searchClause, skillId } from './marketplace';
 
 /**
- * Accesso a D1 per il marketplace.
+ * D1 access for the marketplace.
  *
- * Le funzioni prendono il database come parametro opzionale per due motivi:
- * i test possono passare un finto D1 senza toccare Cloudflare, e `next dev`
- * senza binding non esplode ma degrada con un errore leggibile.
+ * The functions take the database as an optional parameter for two reasons:
+ * the tests can pass a fake D1 without touching Cloudflare, and `next dev`
+ * without the binding does not blow up but degrades with a readable error.
  */
 
 export interface D1Like {
@@ -34,7 +34,7 @@ async function db(injected?: D1Like): Promise<D1Like> {
     return bound;
   } catch {
     throw new Error(
-      'Marketplace non disponibile: manca il binding D1 `MARKETPLACE`.',
+      'Marketplace unavailable: the D1 binding `MARKETPLACE` is missing.',
     );
   }
 }
@@ -50,7 +50,7 @@ export interface ListOptions {
   offset?: number;
 }
 
-/** Elenco per la vetrina. Senza `markdown`, che e' il campo pesante. */
+/** List for the storefront. Without `markdown`, which is the heavy field. */
 export async function listSkills(
   options: ListOptions = {},
   injected?: D1Like,
@@ -68,8 +68,8 @@ export async function listSkills(
 
   const search = searchClause(query);
   if (search.sql) {
-    // `searchClause` restituisce una clausola che inizia con " AND ": qui la
-    // concateniamo a mano per non dipendere dalla posizione della WHERE.
+    // `searchClause` returns a clause that starts with " AND ": here we
+    // concatenate it by hand so as not to depend on the position of the WHERE.
     conditions.push(search.sql.replace(/^ AND /, ''));
     params.push(...search.params);
   }
@@ -82,7 +82,7 @@ export async function listSkills(
   return result.results ?? [];
 }
 
-/** Conta le skill che soddisfano i filtri, per la paginazione. */
+/** Counts the skills matching the filters, for pagination. */
 export async function countSkills(
   options: Pick<ListOptions, 'query' | 'owner'> = {},
   injected?: D1Like,
@@ -109,7 +109,7 @@ export async function countSkills(
   return Number(row?.n ?? 0);
 }
 
-/** Una singola skill, con il corpo markdown. */
+/** A single skill, with the markdown body. */
 export async function getSkill(
   id: string,
   injected?: D1Like,
@@ -122,10 +122,10 @@ export async function getSkill(
 }
 
 /**
- * Crea o aggiorna la skill di un autore.
+ * Creates or updates an author's skill.
  *
- * L'upsert e' limitato all'autore: ripubblicando la stessa skill si aggiorna,
- * ma l'id contiene l'owner, quindi nessuno puo' sovrascrivere la skill di un
+ * The upsert is scoped to the author: republishing the same skill updates it,
+ * but the id contains the owner, so nobody can overwrite the skill of
  * altro (l'id risultante sarebbe diverso).
  */
 export async function upsertSkill(
@@ -162,11 +162,11 @@ export async function upsertSkill(
     .run();
 
   const row = await getSkill(id, database);
-  if (!row) throw new Error('Salvataggio non riuscito.');
+  if (!row) throw new Error('Save failed.');
   return row;
 }
 
-/** Cancella una skill, ma solo se appartiene all'autore indicato. */
+/** Deletes a skill, but only if it belongs to the given author. */
 export async function deleteSkill(
   id: string,
   owner: string,
@@ -181,7 +181,7 @@ export async function deleteSkill(
   return true;
 }
 
-/** True se l'utente ha gia' messo la stella. */
+/** True if the user has already starred it. */
 export async function hasStar(
   id: string,
   login: string,
@@ -195,7 +195,7 @@ export async function hasStar(
   return Boolean(row);
 }
 
-/** Insieme degli id a cui l'utente ha messo la stella, per la vetrina. */
+/** Set of ids the user has starred, for the storefront. */
 export async function starredIds(
   login: string,
   injected?: D1Like,
@@ -209,9 +209,9 @@ export async function starredIds(
 }
 
 /**
- * Mette o toglie la stella. Il conteggio su `skills.stars` viene ricalcolato
- * dai fatti (le righe in `stars`), non incrementato a mano: cosi' non puo'
- * divergere se una richiesta fallisce a meta'.
+ * Stars or unstars. The count on `skills.stars` is recomputed from the facts
+ * (the rows in `stars`), not incremented by hand: so it cannot diverge if a
+ * request fails halfway.
  */
 export async function toggleStar(
   id: string,
@@ -220,7 +220,7 @@ export async function toggleStar(
 ): Promise<{ starred: boolean; stars: number }> {
   const database = await db(injected);
   const skill = await getSkill(id, database);
-  if (!skill) throw new Error('Skill non trovata.');
+  if (!skill) throw new Error('Skill not found.');
 
   const already = await hasStar(id, login, database);
 

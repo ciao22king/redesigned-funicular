@@ -4,7 +4,7 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 import { legal } from '@/lib/legal';
 
-// Display: serif variabile con carattere, non Inter, non Roboto
+// Display: variable serif with character, not Inter, not Roboto
 const display = Fraunces({
   subsets: ['latin'],
   display: 'swap',
@@ -21,19 +21,19 @@ const body = Public_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL(legal.siteUrl),
   title: {
-    default: 'Skill Forge · Da note sparse a skill complete',
+    default: 'Skill Forge · From scattered notes to complete skills',
     template: '%s',
   },
   description:
-    "Trasforma appunti, documenti o un'idea in una skill completa e dettagliata per agenti AI. Poi scaricala o pubblicala sul marketplace.",
+    'Turn notes, documents or a single idea into a complete, detailed skill for AI agents. Then download it or publish it to the marketplace.',
   applicationName: 'Skill Forge',
-  keywords: ['skill', 'AI', 'agenti', 'prompt', 'documentazione', 'GitHub'],
+  keywords: ['skill', 'AI', 'agents', 'prompt', 'documentation', 'GitHub', 'CLI'],
   alternates: { canonical: '/' },
-  // Verifica Google Search Console. Il record TXT omonimo vive nella zona
-  // skillforge.eu.org, ma finche' la delega NS da eu.org non e' attiva quel
-  // dominio non risolve: il meta tag copre intanto il dominio workers.dev.
-  // Due token: ognuno verifica la sua proprieta' in Search Console, e Google
-  // ignora quelli che non gli servono.
+  // Google Search Console verification. The matching TXT record lives in the
+  // skillforge.eu.org zone, but until the NS delegation from eu.org is active
+  // that domain does not resolve: meanwhile the meta tag covers the workers.dev
+  // domain. Two tokens: each verifies its own property in Search Console, and
+  // Google ignores the ones it does not need.
   verification: {
     google: [
       'hg9z_CJS5ZLTdubmXqF8Mpae1XwhXgDqjpXOJ5PXJ14',
@@ -43,17 +43,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'Skill Forge',
-    locale: 'it_IT',
+    locale: 'en_US',
     url: legal.siteUrl,
-    title: 'Skill Forge · Da note sparse a skill complete',
+    title: 'Skill Forge · From scattered notes to complete skills',
     description:
-      "Trasforma appunti, documenti o un'idea in una skill completa e dettagliata per agenti AI.",
+      'Turn notes, documents or a single idea into a complete, detailed skill for AI agents.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Skill Forge · Da note sparse a skill complete',
+    title: 'Skill Forge · From scattered notes to complete skills',
     description:
-      "Trasforma appunti, documenti o un'idea in una skill completa per agenti AI.",
+      'Turn notes, documents or a single idea into a complete skill for AI agents.',
   },
   robots: {
     index: true,
@@ -72,13 +72,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="font-sans antialiased">
         <a
-          href="#contenuto"
+          href="#content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[--accent] focus:px-4 focus:py-2 focus:text-white"
         >
-          Salta al contenuto
+          Skip to content
         </a>
         <Providers>{children}</Providers>
       </body>

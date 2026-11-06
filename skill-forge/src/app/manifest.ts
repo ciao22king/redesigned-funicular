@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: legal.siteName,
     short_name: 'Skill Forge',
-    description: "Trasforma appunti o un'idea in una skill completa per agenti AI.",
+    description: 'Turn notes or a single idea into a complete skill for AI agents.',
     start_url: '/',
     display: 'standalone',
     background_color: '#f7f1e8',

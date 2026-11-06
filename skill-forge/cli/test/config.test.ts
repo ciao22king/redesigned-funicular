@@ -7,8 +7,8 @@ import { join } from 'node:path';
 import { loadConfig, saveConfig, clearConfig, configPath, configDir } from '../src/config.js';
 
 /**
- * La config contiene un token: oltre ai valori, verifichiamo che i permessi del
- * file siano ristretti (600) e che gli override da ambiente funzionino.
+ * The config holds a token: beyond the values, we verify that the file
+ * permissions are restricted (600) and that the environment overrides work.
  */
 
 let dir: string;
@@ -49,7 +49,7 @@ describe('config', () => {
 
   test('corregge i permessi di un file esistente troppo permissivo', () => {
     saveConfig({ url: 'https://example.test', token: 'a' });
-    // Simula un file creato in precedenza con permessi larghi.
+    // Simulates a file created earlier with broad permissions.
     writeFileSync(configPath(), JSON.stringify({ url: 'x', token: 'b' }), { mode: 0o644 });
     saveConfig({ url: 'https://example.test', token: 'c' });
     assert.equal(statSync(configPath()).mode & 0o777, 0o600);
@@ -81,7 +81,7 @@ describe('config', () => {
     assert.ok(existsSync(configPath()));
     clearConfig();
     assert.ok(!existsSync(configPath()));
-    // Chiamarlo di nuovo non deve fallire.
+    // Calling it again must not fail.
     clearConfig();
   });
 

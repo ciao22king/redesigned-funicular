@@ -17,9 +17,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 /**
- * Budget di tempo per l'intero fallback. Deve restare sotto `maxDuration`:
- * cosi' la risposta (anche un errore) parte sempre, invece di essere troncata
- * dal limite della funzione dopo aver speso tutto il tempo sui modelli.
+ * Time budget for the whole fallback. It must stay below `maxDuration`: so the
+ * response (even an error) always goes out, instead of being cut off by the
+ * function limit after spending all the time on the models.
  */
 const TOTAL_BUDGET_MS = 50_000;
 
@@ -29,7 +29,7 @@ interface Body {
   mode: Mode;
   /** Modalita from-skills: materiale sorgente, gia' concatenato lato client. */
   sourceMaterial?: string;
-  /** Modalita from-scratch: campi del wizard. */
+  /** From-scratch mode: wizard fields. */
   name?: string;
   domain?: string;
   goal?: string;
@@ -38,11 +38,11 @@ interface Body {
   examples?: string;
 }
 
-/** GET: la UI legge la quota residua senza consumarla. */
+/** GET: the UI reads the remaining quota without consuming it. */
 export async function GET(req: NextRequest) {
   const { token, login } = await getServerAuth(req);
   if (!token || !login) {
-    return NextResponse.json({ error: 'Devi accedere con GitHub.' }, { status: 401 });
+    return NextResponse.json({ error: 'You must sign in with GitHub.' }, { status: 401 });
   }
   return NextResponse.json(await readQuota(login));
 }
@@ -85,12 +85,12 @@ Write the skill in English.`;
 export async function POST(req: NextRequest) {
   const { token, login } = await getServerAuth(req);
   if (!token || !login) {
-    return NextResponse.json({ error: 'Devi accedere con GitHub.' }, { status: 401 });
+    return NextResponse.json({ error: 'You must sign in with GitHub.' }, { status: 401 });
   }
 
   if (!process.env.OPENROUTER_API_KEY) {
     return NextResponse.json(
-      { error: 'OPENROUTER_API_KEY non configurata sul server.' },
+      { error: 'OPENROUTER_API_KEY is not configured on the server.' },
       { status: 500 },
     );
   }
@@ -99,38 +99,38 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as Body;
   } catch {
-    return NextResponse.json({ error: 'Corpo della richiesta non valido.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
   if (body.mode !== 'from-skills' && body.mode !== 'from-scratch') {
-    return NextResponse.json({ error: 'Modalita non valida.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid mode.' }, { status: 400 });
   }
   if (body.mode === 'from-skills' && !body.sourceMaterial?.trim()) {
-    return NextResponse.json({ error: 'Nessun materiale fornito.' }, { status: 400 });
+    return NextResponse.json({ error: 'No material provided.' }, { status: 400 });
   }
   if (
     body.mode === 'from-scratch' &&
     (!body.name?.trim() || !body.domain?.trim() || !body.goal?.trim())
   ) {
-    return NextResponse.json({ error: 'Servono nome, dominio e obiettivo.' }, { status: 400 });
+    return NextResponse.json({ error: 'Name, domain and goal are required.' }, { status: 400 });
   }
   if (body.sourceMaterial && body.sourceMaterial.length > MAX_SOURCE_CHARS) {
     return NextResponse.json(
-      { error: `Materiale troppo lungo: massimo ${MAX_SOURCE_CHARS} caratteri.` },
+      { error: `Material too long: maximum ${MAX_SOURCE_CHARS} characters.` },
       { status: 413 },
     );
   }
 
-  // La quota si consuma solo quando la richiesta e' valida e il modello sta per
-  // partire: un input rifiutato non costa una generazione all'utente.
+  // The quota is consumed only when the request is valid and the model is
+  // about to start: a rejected input does not cost the user a generation.
   const { allowed, quota } = await consumeQuota(login);
   if (!allowed) {
     const retryAfter = Math.max(0, Math.ceil((Date.parse(quota.resetsAt) - Date.now()) / 1000));
     return NextResponse.json(
       {
-        error: `Hai esaurito le ${quota.limit} generazioni di oggi. La quota si azzera il ${new Date(
+        error: `You have used all ${quota.limit} generations today. The quota resets on ${new Date(
           quota.resetsAt,
-        ).toLocaleString('it-IT', { timeZone: 'UTC' })} UTC.`,
+        ).toLocaleString('en-US', { timeZone: 'UTC' })} UTC.`,
         quota,
       },
       { status: 429, headers: { 'Retry-After': String(retryAfter) } },
@@ -141,11 +141,11 @@ export async function POST(req: NextRequest) {
   const deadline = Date.now() + TOTAL_BUDGET_MS;
 
   for (const model of MODELS) {
-    // Il timeout del singolo tentativo si accorcia man mano che si avvicina la
-    // scadenza: nessun modello puo' mangiarsi il budget degli altri.
+    // The single-attempt timeout shrinks as the deadline approaches: no model
+    // can eat the budget of the others.
     const left = deadline - Date.now();
     if (left <= 1_000) {
-      errors.push('budget di tempo esaurito');
+      errors.push('time budget exhausted');
       break;
     }
 
@@ -170,14 +170,14 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ markdown, usage, model, fallbacks: errors, quota });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'errore sconosciuto';
+      const message = err instanceof Error ? err.message : 'unknown error';
       errors.push(`${model}: ${message}`);
     }
   }
 
   return NextResponse.json(
     {
-      error: `Nessun modello free ha prodotto una skill valida. Dettagli: ${errors.join('; ')}`,
+      error: `No free model produced a valid skill. Details: ${errors.join('; ')}`,
     },
     { status: 502 },
   );

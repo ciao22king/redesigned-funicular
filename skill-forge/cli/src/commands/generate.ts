@@ -6,14 +6,14 @@ import { info, error, success, color, warn } from '../output.js';
 import type { Command } from './types.js';
 
 /**
- * `generate` — produce una skill, in due modalita':
+ * `generate` — produces a skill, in two modes:
  *
- *   - da materiale: uno o piu' file, oppure testo da stdin
- *   - da zero: i sei campi del wizard
+ *   - from material: one or more files, or text on stdin
+ *   - from scratch: the six wizard fields
  *
- * Il risultato va su stdout (per le pipe) o su file con -o. Su stdout non
- * stampiamo nulla che non sia il markdown, cosi' `skill-forge generate ... > s.md`
- * produce un file pulito.
+ * The result goes to stdout (for pipes) or to a file with -o. On stdout we print
+ * nothing but the markdown, so `skill-forge generate ... > s.md` produces a clean
+ * file.
  */
 
 interface Flags {
@@ -65,7 +65,7 @@ function parseGenerateArgs(args: string[]): Flags {
         flags.quiet = true;
         break;
       default:
-        if (a.startsWith('-')) throw new Error(`Opzione sconosciuta: ${a}`);
+        if (a.startsWith('-')) throw new Error(`Unknown option: ${a}`);
         flags.files.push(a);
     }
   }
@@ -82,7 +82,7 @@ async function readStdin(): Promise<string> {
 export const generateCommand: Command = {
   name: 'generate',
   usage: 'generate [-f <file>...] [-o <file>] | --name ... --domain ... --goal ...',
-  summary: 'Genera una skill da materiale o da zero',
+  summary: 'Generate a skill from material or from scratch',
   needsAuth: true,
   async run(args, ctx) {
     const flags = parseGenerateArgs(args);
@@ -92,7 +92,7 @@ export const generateCommand: Command = {
 
     if (fromScratch) {
       if (!flags.name || !flags.domain || !flags.goal) {
-        error('Servono --name, --domain e --goal per la modalita da zero.');
+        error('--name, --domain and --goal are required for from-scratch mode.');
         return 1;
       }
       body = {
@@ -116,7 +116,7 @@ export const generateCommand: Command = {
       }
       const sourceMaterial = parts.join('\n\n');
       if (!sourceMaterial.trim()) {
-        error('Nessun materiale. Passa dei file con -f, oppure del testo da stdin.');
+        error('No material. Pass files with -f, or text on stdin.');
         return 1;
       }
       body = { mode: 'from-skills', sourceMaterial };
@@ -127,13 +127,13 @@ export const generateCommand: Command = {
     try {
       data = await client.generate(body);
     } catch (err) {
-      error(err instanceof Error ? err.message : 'generazione fallita');
+      error(err instanceof Error ? err.message : 'generation failed');
       return 1;
     }
 
     const markdown = stripFences(data.markdown ?? '');
     if (!markdown) {
-      error('Il server non ha restituito alcuna skill.');
+      error('The server returned no skill.');
       return 1;
     }
 
@@ -141,27 +141,27 @@ export const generateCommand: Command = {
       writeFileSync(flags.out, markdown.endsWith('\n') ? markdown : `${markdown}\n`, 'utf8');
       if (!flags.quiet) {
         const name = readFrontmatterName(markdown) ?? basename(flags.out, extname(flags.out));
-        success(`Skill generata: ${color.bold(name)} -> ${flags.out}`);
-        if (data.model) info(color.dim(`Modello: ${data.model}`));
+        success(`Skill generated: ${color.bold(name)} -> ${flags.out}`);
+        if (data.model) info(color.dim(`Model: ${data.model}`));
         if (data.quota && !data.quota.unlimited) {
-          info(color.dim(`Generazioni rimaste oggi: ${data.quota.remaining}`));
+          info(color.dim(`Generations left today: ${data.quota.remaining}`));
         }
       }
       return 0;
     }
 
-    // Senza -o il markdown va su stdout, pulito: e' l'uso in pipe.
+    // Without -o the markdown goes to stdout, clean: that is the pipe use.
     process.stdout.write(markdown.endsWith('\n') ? markdown : `${markdown}\n`);
     if (!flags.quiet) {
       if (data.quota && !data.quota.unlimited) {
-        warn(`Generazioni rimaste oggi: ${data.quota.remaining}`);
+        warn(`Generations left today: ${data.quota.remaining}`);
       }
     }
     return 0;
   },
 };
 
-/** Esportato per i test: la derivazione del nome non tocca la rete. */
+/** Exported for the tests: the name derivation does not touch the network. */
 export function suggestedSlug(name: string | undefined): string {
   return slugify(name ?? 'skill');
 }
