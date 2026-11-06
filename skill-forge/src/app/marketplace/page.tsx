@@ -238,7 +238,12 @@ export default function MarketplacePage() {
                 <li key={skill.id} className="surface-card flex flex-col p-6">
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="font-display text-lg font-semibold leading-snug text-[--ink]">
-                      {skill.name}
+                      <Link
+                        href={`/s/${skill.id}`}
+                        className="transition-colors hover:text-[--accent]"
+                      >
+                        {skill.name}
+                      </Link>
                     </h2>
                     <button
                       type="button"

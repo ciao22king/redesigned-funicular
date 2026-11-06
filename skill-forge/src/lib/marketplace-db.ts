@@ -82,6 +82,23 @@ export async function listSkills(
   return result.results ?? [];
 }
 
+/**
+ * Light list for the sitemap: only the columns needed to build a URL, without
+ * the heavy `markdown` and `description`. Bounded so a huge marketplace still
+ * produces a reasonable sitemap.
+ */
+export async function listSkillRefs(
+  limit = 5000,
+  injected?: D1Like,
+): Promise<{ id: string; updated_at: string }[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare('SELECT id, updated_at FROM skills ORDER BY created_at DESC LIMIT ?')
+    .bind(Math.min(Math.max(limit, 1), 10000))
+    .all<{ id: string; updated_at: string }>();
+  return result.results ?? [];
+}
+
 /** Counts the skills matching the filters, for pagination. */
 export async function countSkills(
   options: Pick<ListOptions, 'query' | 'owner'> = {},
