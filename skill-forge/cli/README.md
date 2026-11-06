@@ -8,6 +8,15 @@ il database e non ha dipendenze a runtime: solo Node 18 o superiore.
 
 ## Installazione
 
+Da npm:
+
+```bash
+npm install -g @ciao22/skill-forge-cli
+skill-forge login
+```
+
+Da sorgente:
+
 ```bash
 cd cli
 npm install

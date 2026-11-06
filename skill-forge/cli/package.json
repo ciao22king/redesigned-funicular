@@ -1,5 +1,5 @@
 {
-  "name": "skill-forge-cli",
+  "name": "@ciao22/skill-forge-cli",
   "version": "0.1.0",
   "description": "CLI per Skill Forge: genera, pubblica e scarica skill per agenti AI dal terminale.",
   "keywords": [
