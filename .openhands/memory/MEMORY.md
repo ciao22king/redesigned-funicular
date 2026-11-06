@@ -645,3 +645,23 @@ abilitato. La `0.1.0` su npm resta con la descrizione in italiano.
 
 PR #1 era **già mergiata** su `main` (merge commit `50f9d77`): non ci si pusha
 sopra. Nuova PR **#2** aperta da `cloudflare-workers` → `main`.
+
+### CLI "command not found" dopo `npm i -g` (2026-11-06)
+
+L'utente ha segnalato `zsh: command not found: skill-forge` dopo
+`npm install -g @ciao22/skill-forge-cli`. **Non e' un bug del pacchetto**: il
+tarball pubblicato (`0.1.0`) contiene `dist/index.js` col shebang
+`#!/usr/bin/env node`, il campo `bin` mappa `skill-forge` e `sf`, e npm crea i
+symlink in `<prefix>/bin`. Verificato con
+`npm i -g --prefix /tmp/gprefix` → i symlink ci sono e `skill-forge --help`
+funziona mettendo quella dir nel PATH.
+
+Cause tipiche del "command not found": il prefix globale di npm non e' nel
+PATH di zsh (spesso `~/.npm-global/bin`, `~/.local/bin`, o un prefix nvm), o la
+hash cache di zsh. Rimedi: `npm config get prefix`, aggiungere `<prefix>/bin` a
+`PATH` in `~/.zshrc`, poi `hash -r` (zsh: `rehash`). Con sudo installare con
+`sudo npm i -g ... --unsafe-perm` o cambiare prefix.
+
+Nota: la `0.1.0` su npm ha ancora le stringhe in **italiano** (pubblicata prima
+della traduzione). Il fix inglese e' pronto come `0.1.1` ma la pubblicazione
+resta bloccata dalla 2FA (vedi sotto).
