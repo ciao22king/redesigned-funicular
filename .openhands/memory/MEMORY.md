@@ -598,3 +598,25 @@ Nome `skill-forge-cli` **libero** su npm; anche `skill-forge` lo e' (404).
   c'era). Aggiunto anche `*.tgz` a `cli/.gitignore`.
 - Il `bin` punta a `dist/index.js`, che esiste solo dopo `npm run build`; per
   questo `prepublishOnly` compila. Chi installa non ha bisogno di compilare.
+
+### CLI pubblicata su npm (2026-11-05)
+
+**`@ciao22/skill-forge-cli@0.1.0`** — live su npm. Pagina:
+https://www.npmjs.com/package/@ciao22/skill-forge-cli
+`npm install -g @ciao22/skill-forge-cli` -> bin `skill-forge` e `sf`.
+
+- Il nome **`skill-forge-cli` e' stato RIFIUTATO** (E403): "too similar to
+  existing package `skillforge-cli`". npm suggerisce lo scope. Usare sempre
+  **`@ciao22/skill-forge-cli`**. Non ritentare il nome non-scoped.
+- **`npm publish` da' HTTP 202 "being processed"** e il pacchetto resta 404 sul
+  registry per **~5 minuti**. Non e' un errore: aspettare e riprovare con
+  `curl https://registry.npmjs.org/@ciao22%2Fskill-forge-cli`. Ci sono voluti
+  ~5 min (14:07 -> 14:13).
+- L'account npm e' **`ciao22`** (non `ciao22king`), con **2FA attiva**: la
+  pubblicazione richiede OTP (`npm publish --otp=...`) oppure un token con
+  "bypass 2FA". npm ha ristretto i token che aggirano la 2FA.
+- Per pubblicare senza toccare `~/.npmrc`: scrivere il token in un file a parte
+  e usare `npm publish --userconfig /tmp/.npmrc-token`. Cosi' non resta
+  credenziale nella config globale.
+- Versioni successive: alzare `version` in `cli/package.json` e ripetere
+  `npm publish`. `prepublishOnly` compila e testa da solo.
