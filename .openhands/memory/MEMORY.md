@@ -638,10 +638,24 @@ CLI, README/docs, workflow, scripts, `.env.example`, `wrangler.jsonc` e
 
 Pubblicazione npm della CLI (descrizione ora in inglese, `0.1.1`): **bloccata**.
 `npm publish` → **E403 "Two-factor authentication or granular access token with
-bypass 2fa enabled is required"**. Il token `$NPM_TOKEN` e quello in `~/.npmrc`
-non hanno il bypass 2FA, e l'account `ciao22` ha 2FA. Serve o un OTP
-(`npm publish --otp=...`) o un **granular access token con "bypass 2FA"**
-abilitato. La `0.1.0` su npm resta con la descrizione in italiano.
+bypass 2fa enabled is required"**. Diagnosi definitiva via API npm
+(`GET /-/npm/v1/tokens` col token): il token `ccc` (`npm_…9009k`) ha
+`"bypass_2fa": false` e permesso `package:write`. La doc npm e' esplicita:
+"Publishing to npm requires either: 2FA enabled on your account, OR a granular
+access token with bypass 2FA enabled". L'utente **NON ha mai attivato la 2FA**,
+quindi l'unica via e' un **granular access token con la casella "Bypass
+two-factor authentication" SPUNTATA alla creazione**. La casella NON si puo'
+attivare su un token gia' creato (vale solo al momento della creazione) — per
+questo la spunta fatta dopo non ha avuto effetto.
+- `npm whoami` col token risponde `ciao22` (auth ok), ma
+  `npm profile get` → 403: dalla policy 2026 le azioni di account richiedono
+  2FA interattiva anche con token bypass.
+- `npm publish --otp=000000` da' lo stesso E403 (non e' un problema di OTP).
+- `GET /-/npm/v1/tokens` e' utile per ispezionare `bypass_2fa` di un token.
+- Dal **gen 2027** anche i token bypass-2FA perderanno il publish diretto:
+  la strada a lungo termine e' **trusted publishing (OIDC)** da GitHub Actions,
+  oppure **staged publishing**.
+- La `0.1.0` su npm resta con la descrizione in italiano.
 
 PR #1 era **già mergiata** su `main` (merge commit `50f9d77`): non ci si pusha
 sopra. Nuova PR **#2** aperta da `cloudflare-workers` → `main`.
