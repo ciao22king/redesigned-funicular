@@ -23,23 +23,28 @@ node dist/index.js help
 
 ## Autenticazione
 
-Il comando `login` recupera un token GitHub e lo salva in
-`~/.config/skill-forge/config.json` (permessi `600`). Le fonti, in ordine:
+```bash
+skill-forge login          # Device Flow: mostra un codice, lo digiti nel browser
+skill-forge login --token ghp_xxx   # token esplicito
+skill-forge logout         # rimuove la config
+```
+
+`login` apre il **Device Flow** di GitHub: stampa un codice, tu apri
+`github.com/login/device`, lo inserisci e autorizzi. La CLI resta in attesa e
+salva il token appena arriva. Niente da copiare e incollare.
+
+Il token finisce in `~/.config/skill-forge/config.json` con permessi `600`.
+
+Fonti del token, in ordine di priorità:
 
 1. `--token <token>`
 2. la variabile `SKILL_FORGE_TOKEN`
 3. `gh auth token`, se la GitHub CLI è installata e autenticata
-4. input interattivo
+4. Device Flow (solo con terminale interattivo)
 
-```bash
-skill-forge login                       # usa gh, se disponibile
-skill-forge login --token ghp_xxx       # token esplicito
-skill-forge logout                      # rimuove la config
-```
-
-> **Perché non il Device Flow?** Sarebbe la scelta naturale per una CLI, ma va
-> abilitato esplicitamente sulla OAuth App di GitHub e su questa è disattivato.
-> Il token personale fa lo stesso lavoro e non richiede modifiche all'app.
+In un contesto non interattivo (CI, pipe) il Device Flow non ha senso, quindi la
+CLI usa `--token`, `$SKILL_FORGE_TOKEN` o `gh auth token`. Con `--no-device-flow`
+si salta il flusso interattivo anche da terminale.
 
 Il token serve solo ai comandi che scrivono (`generate`, `publish`, `star`,
 `delete`, `whoami`). `list`, `search`, `show` e `pull` funzionano senza.
@@ -48,7 +53,7 @@ Il token serve solo ai comandi che scrivono (`generate`, `publish`, `star`,
 
 | Comando | Cosa fa |
 | --- | --- |
-| `login [--token <t>]` | Salva e verifica il token |
+| `login [--token <t>]` | Autentica via Device Flow e salva il token |
 | `logout` | Rimuove il token |
 | `whoami` | Utente autenticato e quota residua |
 | `generate` | Genera una skill (da file o da zero) |
