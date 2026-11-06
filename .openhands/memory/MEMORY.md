@@ -527,3 +527,25 @@ HTTP, interruzione del timeout).
 **Nota per verificare l'output reale**: `OPENROUTER_API_KEY` e' un secret del
 worker, non e' nello shell del container. Per provare una generazione end-to-end
 serve una richiesta autenticata (cookie di sessione GitHub), non basta curl.
+
+### Pubblicazione su GitHub rimossa (2026-11-05)
+
+Commit `fc26609`, deploy Version `2f003e44`. La pubblicazione creava repository
+e committava file con i permessi dell'utente; ora le skill si pubblicano **solo
+sul marketplace** di Skill Forge.
+
+- Eliminati `src/app/api/publish/route.ts` e `src/lib/github.ts` (nessun altro
+  consumatore: `lib/github` era usato solo da quella route).
+- `CreateFlow.tsx`: via il campo repository e il pulsante "Pubblica su GitHub",
+  resta "Pubblica sul marketplace" accanto a "Scarica il file .md".
+- **`auth.ts`: scope OAuth da `read:user user:email repo` a `read:user
+  user:email`.** `repo` serviva solo a scrivere sui repository. Attenzione: gli
+  utenti con sessione gia' attiva conservano il vecchio token; il nuovo scope si
+  vede al prossimo login.
+- Testi aggiornati in landing, metadata, dashboard, termini (sezione 5 ora
+  "Pubblicazione sul marketplace"), privacy, cookie. La privacy ora dichiara che
+  le skill pubblicate sono archiviate e visibili a chiunque.
+
+`/api/publish` risponde 404. 53 test verdi, `tsc` pulito, tutte le pagine 200.
+Nota: `tsc --noEmit` puo' fallire su `.next/types/validator.ts` che referenzia la
+route cancellata; si risolve con `rm -rf .next` (artefatto di build, non codice).
