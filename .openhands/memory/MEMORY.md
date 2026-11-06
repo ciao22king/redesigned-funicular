@@ -549,3 +549,31 @@ sul marketplace** di Skill Forge.
 `/api/publish` risponde 404. 53 test verdi, `tsc` pulito, tutte le pagine 200.
 Nota: `tsc --noEmit` puo' fallire su `.next/types/validator.ts` che referenzia la
 route cancellata; si risolve con `rm -rf .next` (artefatto di build, non codice).
+
+### CLI Node e auth via bearer (2026-11-05)
+
+Commit `0658202`, deploy Version `f90a4137`. La CLI sta in `skill-forge/cli/`
+(vedi `cli/README.md`): pacchetto Node a se', **zero dipendenze a runtime**,
+TypeScript compilato in `dist/` con `tsc`. Binari `skill-forge` e `sf`.
+
+- **Il server ora accetta `Authorization: Bearer <token GitHub>`** oltre al
+  cookie NextAuth (`src/lib/github-token.ts`, usato da `getServerAuth`). Il
+  token viene verificato contro `api.github.com/user` a ogni richiesta. Il
+  percorso del browser e' invariato. Nuovo endpoint `src/app/api/me/route.ts`
+  (login + quota in una chiamata).
+- **Il Device Flow di GitHub e' DISATTIVATO** su questa OAuth App
+  (`device_flow_disabled`): la CLI prende il token da `--token`,
+  `$SKILL_FORGE_TOKEN`, `gh auth token` o input interattivo. Non perdere tempo a
+  riprovare il device flow.
+- Config CLI: `~/.config/skill-forge/config.json`, permessi **600** (contiene un
+  token). `SKILL_FORGE_URL` / `SKILL_FORGE_TOKEN` vincono sul file.
+- Comandi: login, logout, whoami, generate, publish, list/search, show, pull,
+  star, delete. `generate --quiet | publish` funziona in pipe (markdown puro su
+  stdout, messaggi su stderr).
+- `skill-forge/tsconfig.json` **esclude `cli/`**: la build web non deve
+  compilare il pacchetto CLI. `cli/` ha il proprio `tsconfig.json`.
+- Test: **43 nella CLI** (`cd cli && npm test`, node:test + tsx) + 53 dell'app.
+  L'e2e usa un server HTTP locale vero, non mock.
+
+Verificato in produzione: `whoami` con token reale -> `ciao22king` illimitato;
+`generate | publish` -> skill creata e poi cancellata con `delete --yes`.
