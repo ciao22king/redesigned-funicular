@@ -698,3 +698,36 @@ in locale: i secret stanno sul Worker, i pubblici (`GITHUB_ID`,
 pre-esistente, non introdotto dal deploy. Il worker `.workers.dev` e' l'URL vivo.
 
 La CLI **non** viene ripubblicata su npm (l'utente la gestisce da se').
+
+### Marketplace: ranking trending + nav mobile + rimozione CLI (2026-11-06)
+
+Richiesta utente: togliere npm dal sito, sistemare i tasti header su mobile,
+aggiungere tab new/trending/top al marketplace "con un algoritmo potente", e
+verificare le pagine legali.
+
+- **Algoritmo trending** in `src/lib/marketplace.ts` (`TRENDING` + `orderClause`):
+  punteggio = `(BASE + stars + VELOCITY_WEIGHT * stelleUltimi7g) /
+  pow(oreEta + 2, GRAVITY)` con BASE=1, VELOCITY_WEIGHT=5, GRAVITY=1.5. E' una
+  "velocity ranking" (chi guadagna stelle adesso batte chi le ha raccolte
+  mesi fa). Costanti esportate cosi' UI e server non divergono.
+- **D1 supporta `pow` ed `exp`/`ln`/`log`/`sqrt`** ma **NON `log10`** ("not
+  authorized to use function: log10"). Verificare le funzioni SQL con
+  `npx wrangler d1 execute <db> --remote --json --command "SELECT fn(...)"`
+  prima di scriverle nel codice.
+- Sort del marketplace ora: **Trending** (default), **New**, **Most starred**,
+  **Name** (prima: Recent/Most starred/Name). `parseSort` accetta 'trending'.
+- **Nav mobile**: aggiunto hamburger (`md:hidden`) con drawer; prima la riga di
+  link desktop andava in overflow/clipping sugli schermi piccoli. I tab di sort
+  sono diventati una riga scrollabile (`overflow-x-auto`, `role=tablist`).
+- **Landing**: rimossa del tutto la sezione CLI/`InstallCommand` (l'utente non
+  vuole piu' pubblicizzare npm); sostituita da `RankingPreview` (illustrazione
+  statica dei tre ranking). Rimossa anche la keyword `CLI` dai metadata.
+- **Legale**: il paragrafo su ordinamento algoritmico e' nella **sezione 5 dei
+  Terms** (`src/app/terms/page.tsx`); `lastUpdated` in `src/lib/legal.ts` e la
+  data della pagina terms portati a "November 6, 2026". Privacy e cookie NON
+  richiedono modifiche (nessun nuovo dato personale: le stelle erano gia'
+  documentate).
+- Test: **54 app** (era 53), `tsc --noEmit` pulito. Deploy Version
+  **`ccba8838-ec62-4a1d-9e2c-5590807e74cf`**. Verificato in prod: nessun
+  "npm install" nella landing, tab presenti, `?sort=trending` risponde, menu
+  mobile presente. Commit `313b6e1` pushato su PR #2 (ancora aperta).
