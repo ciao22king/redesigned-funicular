@@ -15,8 +15,8 @@ export default function TerminiPage() {
           Skill Forge è un servizio che trasforma materiale grezzo (appunti, documenti,
           descrizioni) in una skill in formato Markdown per agenti AI. Offre due modalità: a
           partire da materiale esistente oppure da zero, rispondendo a sei domande. Il
-          risultato può essere scaricato come file <code>.md</code> o pubblicato su un
-          repository GitHub che indichi.
+          risultato può essere scaricato come file <code>.md</code> o pubblicato sul
+          marketplace di Skill Forge.
         </p>
       </section>
 
@@ -57,11 +57,11 @@ export default function TerminiPage() {
       </section>
 
       <section>
-        <h2>5. Pubblicazione su GitHub</h2>
+        <h2>5. Pubblicazione sul marketplace</h2>
         <p>
-          Se scegli di pubblicare, autorizzi il servizio a scrivere sul repository che indichi
-          usando i permessi del tuo account GitHub. Sei responsabile del repository scelto e
-          del contenuto che vi viene scritto.
+          Se scegli di pubblicare, la skill viene salvata sul marketplace di Skill Forge e
+          diventa visibile a chiunque, con il tuo nome utente come autore. Puoi eliminarla in
+          qualsiasi momento dalla tua dashboard. Sei responsabile del contenuto che pubblichi.
         </p>
       </section>
 

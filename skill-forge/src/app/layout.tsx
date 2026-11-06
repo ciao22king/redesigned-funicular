@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: '%s',
   },
   description:
-    "Trasforma appunti, documenti o un'idea in una skill completa e dettagliata per agenti AI. Poi scaricala o pubblicala su GitHub.",
+    "Trasforma appunti, documenti o un'idea in una skill completa e dettagliata per agenti AI. Poi scaricala o pubblicala sul marketplace.",
   applicationName: 'Skill Forge',
   keywords: ['skill', 'AI', 'agenti', 'prompt', 'documentazione', 'GitHub'],
   alternates: { canonical: '/' },

@@ -33,7 +33,7 @@ export default function Home() {
               Carica appunti, documenti o bozze, oppure parti da zero.
               Il modello scrive un documento operativo con procedura numerata,
               esempi, errori comuni e checklist di verifica.
-              Poi lo scarichi o lo pubblichi sul tuo GitHub.
+              Poi lo scarichi o lo pubblichi sul marketplace.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -116,8 +116,8 @@ export default function Home() {
           </h2>
           <ol className="mt-12 grid gap-x-14 gap-y-10 md:grid-cols-2">
             <Step n="1" t="Accedi con GitHub">
-              Un click, scope <code className="font-mono text-[13px]">repo</code> incluso.
-              Serve per pubblicare le skill nel tuo repository.
+              Un click, per leggere il tuo profilo. L&apos;identità dell&apos;autore
+              serve a firmare le skill che pubblichi.
             </Step>
             <Step n="2" t="Dai il materiale o rispondi al wizard">
               Fino a venti file, oppure sei campi. Il materiale resta solo
@@ -129,7 +129,7 @@ export default function Home() {
             </Step>
             <Step n="4" t="Scarica o pubblica">
               File <code className="font-mono text-[13px]">.md</code> pronto,
-              oppure commit diretto sul repository che indichi.
+              oppure pubblicazione sul marketplace, con autore e stelle.
             </Step>
           </ol>
         </section>

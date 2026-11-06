@@ -8,11 +8,11 @@ export const authOptions: NextAuthOptions = {
     GitHubProvider({
       clientId: process.env.GITHUB_ID ?? '',
       clientSecret: process.env.GITHUB_SECRET ?? '',
-      // `repo` non serve solo a leggere il profilo: serve per creare
-      // repository e committare le skill generate.
+      // Solo lettura del profilo: le skill si pubblicano sul marketplace di
+      // Skill Forge, non su repository GitHub, quindi non serve `repo`.
       authorization: {
         params: {
-          scope: 'read:user user:email repo',
+          scope: 'read:user user:email',
         },
       },
     }),

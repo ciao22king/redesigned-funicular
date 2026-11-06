@@ -55,7 +55,7 @@ export default function CookiePage() {
         </div>
         <p>
           Il cookie di sessione è firmato e cifrato; contiene il token GitHub che ci permette
-          di leggere il tuo profilo e, se scegli di pubblicare, di scrivere sul repository.
+          di leggere il tuo profilo.
         </p>
       </section>
 

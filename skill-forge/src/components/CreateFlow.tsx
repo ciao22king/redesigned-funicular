@@ -348,10 +348,6 @@ function ResultPanel({
   name: string;
   onDownload: () => void;
 }) {
-  const [publishing, setPublishing] = useState(false);
-  const [pub, setPub] = useState<{ fileUrl?: string; repoUrl?: string } | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [repo, setRepo] = useState('my-skills');
   const [marketBusy, setMarketBusy] = useState(false);
   const [market, setMarket] = useState<string | null>(null);
 
@@ -381,29 +377,6 @@ function ResultPanel({
     }
   }
 
-  async function publish() {
-    setPublishing(true);
-    setErr(null);
-    try {
-      const res = await fetch('/api/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown, repo }),
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        fileUrl?: string;
-        repoUrl?: string;
-      };
-      if (!res.ok) throw new Error(data.error ?? 'Pubblicazione fallita');
-      setPub({ fileUrl: data.fileUrl, repoUrl: data.repoUrl });
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Errore sconosciuto');
-    } finally {
-      setPublishing(false);
-    }
-  }
-
   return (
     <section className="mt-14 animate-fade-up">
       <div className="mb-5 flex items-baseline justify-between">
@@ -427,23 +400,6 @@ function ResultPanel({
         >
           Scarica il file .md
         </button>
-
-        <div className="flex flex-1 items-center gap-2">
-          <input
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            aria-label="Repository di destinazione"
-            className="min-w-0 flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none focus:border-[--accent]"
-          />
-          <button
-            type="button"
-            disabled={publishing}
-            onClick={publish}
-            className="shrink-0 rounded-xl border border-[--line] bg-[--surface-raised] px-5 py-3 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-50"
-          >
-            {publishing ? 'Pubblico...' : 'Pubblica su GitHub'}
-          </button>
-        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -462,36 +418,6 @@ function ResultPanel({
 
       {market && (
         <p className="mt-4 text-sm text-[--ink]">{market}</p>
-      )}
-
-      {err && (
-        <p className="mt-4 text-sm text-[oklch(45%_0.14_28)]">{err}</p>
-      )}
-
-      {pub && (
-        <div className="mt-4 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink]">
-          Pubblicata.{' '}
-          {pub.fileUrl && (
-            <a
-              href={pub.fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[--accent] underline underline-offset-2"
-            >
-              Apri il file
-            </a>
-          )}{' '}
-          {pub.repoUrl && (
-            <a
-              href={pub.repoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[--accent] underline underline-offset-2"
-            >
-              Vedi il repository
-            </a>
-          )}
-        </div>
       )}
     </section>
   );

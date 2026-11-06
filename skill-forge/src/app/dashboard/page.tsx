@@ -101,12 +101,11 @@ export default function Dashboard() {
 
         <p className="mt-6 max-w-prose text-[17px] text-[--ink-muted]">
           Ogni skill che generi resta salvata in questo browser, anche se non la
-          scarichi e non la committi. Da qui puoi pubblicarla sul{' '}
+          scarichi e non la pubblichi. Da qui puoi pubblicarla sul{' '}
           <Link href="/marketplace" className="text-[--accent] underline underline-offset-2">
             marketplace
           </Link>
-          , dove chiunque può scaricarla e metterle una stella. Le skill
-          pubblicate su GitHub restano nei repository del tuo account{' '}
+          , dove chiunque può scaricarla e metterle una stella. L&apos;autore è{' '}
           <strong className="text-[--ink]">@{owner}</strong>.
         </p>
 

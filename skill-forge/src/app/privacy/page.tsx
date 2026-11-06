@@ -31,6 +31,11 @@ export default function PrivacyPage() {
             generare una skill, e le risposte alle sei domande della modalità «da zero».
           </li>
           <li>
+            <strong>Skill pubblicate</strong>: se scegli di pubblicare sul marketplace, la
+            skill e il tuo nome utente GitHub vengono salvati e resi visibili a chiunque. Le
+            puoi eliminare in qualsiasi momento dalla tua dashboard.
+          </li>
+          <li>
             <strong>Dati tecnici</strong>: indirizzo IP, dati di richiesta e log, gestiti dal
             nostro fornitore di infrastruttura per sicurezza e funzionamento.
           </li>
@@ -65,8 +70,7 @@ export default function PrivacyPage() {
             <strong>Cloudflare</strong> — hosting e distribuzione (Workers, rete).
           </li>
           <li>
-            <strong>GitHub</strong> — autenticazione e, se scegli di pubblicare, scrittura sul
-            repository.
+            <strong>GitHub</strong> — autenticazione e lettura del tuo profilo.
           </li>
           <li>
             <strong>OpenRouter</strong> — il testo che invii viene trasmesso al modello
