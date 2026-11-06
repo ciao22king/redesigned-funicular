@@ -812,3 +812,32 @@ ma `not_before = 2026-11-06T23:00:00Z` → **utilizzabile solo dalle 23:00 UTC**
 `not_before` ogni altra chiamata (D1 list, wrangler) → "Authentication error".
 Deploy (quando attivo):
 `CLOUDFLARE_API_TOKEN=<cfat_> CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551 npx opennextjs-cloudflare deploy`.
+
+### MCP: come registrare un server (2026-11-06)
+I server MCP dell'agente vivono in **`~/.openhands/settings.json`** →
+`agent_settings.mcp_config`. NON c'è un file `mcp.json`. Si gestiscono via API
+dell'agent-server locale (`http://localhost:60000`), con
+`X-Session-API-Key: $SESSION_API_KEY` (la chiave sta nell'env del processo
+`openhands-agent-server`: `tr '\0' '\n' < /proc/$(pgrep -f openhands-agent-server|head -1)/environ | grep ^SESSION_API_KEY=`).
+- `POST /api/settings/mcp/<name>` crea/aggiorna (201); `PATCH` modifica;
+  `DELETE` rimuove; `POST /api/mcp/test` prova la connessione e lista i tool.
+- Body: `{"url","transport":"streamable-http","description","auth":{...}}`.
+  Strategie auth: `none`, `api_key` (`{strategy:"api_key",header_name,value}`),
+  `bearer` (`value`), `header` (`headers:{...}`), `basic`, `oauth2`.
+- **Le credenziali negli header vengono salvate cifrate (Fernet, prefisso
+  `gAAAAA`)**; `GET /api/settings` le mostra mascherate (`**********`). File 600.
+- **Trappola**: un **riavvio del container/sessione ricrea `~/.openhands/`** e
+  quindi `settings.json` può risultare vuoto → i server MCP registrati vanno
+  **ri-registrati**. Verificare sempre con `GET /api/settings` dopo un restart.
+
+### Upload-Post MCP (social posting) — registrato 2026-11-06
+Endpoint ufficiale `https://mcp.upload-post.com/mcp` (streamable-http, v0.17.3,
+**72 tool**: `upload_video`, `upload_photos`, `upload_text`, scheduling, history,
+analytics…). Auth: header `Authorization: ApiKey <UPLOAD_POST_API_KEY>` →
+registrato con `auth:{strategy:"header",headers:{Authorization:"ApiKey <key>"}}`.
+La chiave (JWT HS256, email `ciao22king@gmail.com`, exp 2126) è la stessa già
+salvata come **secret Cloudflare `UPLOAD_POST_API_KEY`**; è stata recuperata dai
+log della conversazione precedente (`/workspace/conversations/<id>/events/`), NON
+va mai scritta nel repo né in memoria. Account collegati (profilo `default`):
+X = @ImADev22, YouTube = @drixedits-h2m. Nota: `Bearer` è accettato dall'MCP ma
+per l'API REST `/api` serve lo schema `Apikey`.
