@@ -1,7 +1,7 @@
 {
   "name": "@ciao22/skill-forge-cli",
-  "version": "0.1.0",
-  "description": "CLI per Skill Forge: genera, pubblica e scarica skill per agenti AI dal terminale.",
+  "version": "0.1.1",
+  "description": "CLI for Skill Forge: generate, publish and pull skills for AI agents from the terminal.",
   "keywords": [
     "skill",
     "agent",
@@ -26,7 +26,9 @@
     "skill-forge": "dist/index.js",
     "sf": "dist/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=18"
   },
