@@ -679,3 +679,22 @@ hash cache di zsh. Rimedi: `npm config get prefix`, aggiungere `<prefix>/bin` a
 Nota: la `0.1.0` su npm ha ancora le stringhe in **italiano** (pubblicata prima
 della traduzione). Il fix inglese e' pronto come `0.1.1` ma la pubblicazione
 resta bloccata dalla 2FA (vedi sotto).
+
+### Deploy sito inglese su Cloudflare (2026-11-06)
+
+`npm run deploy` (= `opennextjs-cloudflare build && opennextjs-cloudflare deploy`)
+con `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` presenti nell'ambiente:
+**riuscito**. Version ID **`d27b480e-d653-40f8-ad82-fe63373ce919`**, live su
+`https://skill-forge.ciao22king.workers.dev`. La build NON ha bisogno delle env
+in locale: i secret stanno sul Worker, i pubblici (`GITHUB_ID`,
+`UNLIMITED_LOGINS`) in `wrangler.jsonc`. Verifica post-deploy (tutte 200):
+`/`, `/terms`, `/privacy`, `/cookie`, `/marketplace`, `/dashboard`,
+`/manifest.webmanifest`, `/sitemap.xml`; `/termini` → 404 (route rinominata);
+`/api/me` → 401 senza auth. Contenuti confermati in inglese, `lang="en"`,
+`og:locale` `en_US`, comando CLI presente nella landing.
+
+**`skillforge.eu.org` e `www.skillforge.eu.org` NON risolvono ancora** (DNS
+`Name or service not known`): la delega NS da eu.org non e' attiva. Problema
+pre-esistente, non introdotto dal deploy. Il worker `.workers.dev` e' l'URL vivo.
+
+La CLI **non** viene ripubblicata su npm (l'utente la gestisce da se').
