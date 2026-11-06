@@ -864,3 +864,28 @@ Su richiesta: pubblicare un annuncio su **X e YouTube**. Vincoli scoperti:
   (non contiene segreti; la chiave si passa come argomento).
 - `skillforge.eu.org` **continua a non risolvere** (NS eu.org non delegate):
   i link pubblici usano `https://skill-forge.ciao22king.workers.dev`.
+
+### Upload-Post: limiti e trappole (2026-11-06) — IMPORTANTE
+- **Piano free = 10 upload per mese** (ogni piattaforma conta 1). L'account
+  `ciao22king@gmail.com` è a **9 usati** (history: 4 X + 5 YouTube, tutti tra il
+  23 e il 27 ott) → **1 slot residuo**. L'X programmato per il 23:30 lo consuma.
+  Dopo, ogni upload (anche YouTube) fallisce con "monthly limit of 10 uploads,
+  0 remaining". Upgrade: https://app.upload-post.com/pricing
+- **X cancella gli URL dai post** per default (X Links add-on li mantiene):
+  "By default, Upload-Post strips every URL from posts published to X". Quindi
+  il post X non deve contenere link, altrimenti resta un "Free 👉" penzolante.
+  → Il testo X è stato riscritto senza URL ("Free to try. Just search \"Skill Forge\".")
+  con `edit_scheduled` (job `cc4dd6c4138f485c8304a1285e481c6e`).
+- **YouTube NON accetta post di testo** (`upload_text` enum senza youtube);
+  serve `upload_video`. Il video va **staged** (MCP remoto, niente path locale):
+  `create_media_upload` (filename/contentType/contentLength/mediaType) →
+  **PUT** dei byte su `upload_url` (R2 presigned, scade ~6 h) →
+  `complete_media_upload` → `media_url` temporaneo da passare a `upload_video`.
+- **Video promo creato** (2026-11-06): `/workspace/project/.skill-forge-deploy/
+  skillforge_short.mp4` — 1080×1920, 23,5 s, H.264, 2,6 MB, 30 fps. Generato con
+  `PIL`+`ffmpeg` (installati in sessione: `sudo apt-get update && sudo apt-get
+  install -y ffmpeg`; `pip install pillow numpy`). Scene: intro → problema →
+  4 mockup telefono (screenshot reali del sito, anche pagina pubblica `/s/...`
+  resa in locale con `wrangler dev --local` + D1 locale seminata) → CTA.
+  Script: `/tmp/vid/make_video.py` (volatile). Colori brand da OKLCH: accent
+  `#bb4632`, ink `#24130c`, surface `#fcf4eb`.
