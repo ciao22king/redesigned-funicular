@@ -27,10 +27,23 @@ Checklist finale
 ## Stack
 
 - **Next.js 16** (App Router, TypeScript)
-- **NextAuth 4** con provider GitHub, scope `repo`
+- **NextAuth 4** con provider GitHub (solo lettura del profilo)
 - **OpenRouter** come gateway AI, OpenAI-compatibile, con fallback tra i modelli free
 - **Tailwind CSS 3** con palette calda in OKLCH
 - Deploy su **Cloudflare Workers** tramite l'adapter `@opennextjs/cloudflare`
+
+## CLI
+
+Il servizio si usa anche da terminale. La CLI vive in [`cli/`](cli/) ed è un
+pacchetto Node a sé, senza dipendenze a runtime:
+
+```bash
+cd cli && npm install && npm run build && npm link
+skill-forge login
+cat note.md | skill-forge generate --quiet | skill-forge publish --tags docker
+```
+
+Genera, pubblica, cerca e scarica skill. Dettagli in [`cli/README.md`](cli/README.md).
 
 ## Avvio in locale
 

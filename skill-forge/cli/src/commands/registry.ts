@@ -1,0 +1,25 @@
+import type { Command } from './types.js';
+import { loginCommand, logoutCommand } from './login.js';
+import { whoamiCommand } from './whoami.js';
+import { generateCommand } from './generate.js';
+import { publishCommand } from './publish.js';
+import { listCommand, searchCommand } from './list.js';
+import { showCommand } from './show.js';
+import { pullCommand } from './pull.js';
+import { starCommand } from './star.js';
+import { deleteCommand } from './delete.js';
+
+/** Elenco dei comandi, nell'ordine in cui appaiono nell'help. */
+export const commands: Command[] = [
+  loginCommand,
+  logoutCommand,
+  whoamiCommand,
+  generateCommand,
+  publishCommand,
+  listCommand,
+  searchCommand,
+  showCommand,
+  pullCommand,
+  starCommand,
+  deleteCommand,
+];

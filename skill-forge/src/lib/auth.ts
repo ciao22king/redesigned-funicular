@@ -2,6 +2,7 @@ import type { NextAuthOptions } from 'next-auth';
 import { getToken } from 'next-auth/jwt';
 import GitHubProvider from 'next-auth/providers/github';
 import type { NextRequest } from 'next/server';
+import { loginForToken, readBearer } from './github-token';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -47,12 +48,24 @@ export const authOptions: NextAuthOptions = {
 };
 
 /**
- * Legge l'access token GitHub e il login dal JWT cifrato, lato server.
+ * Legge l'access token GitHub e il login, lato server.
+ *
+ * Due strade:
+ *   - la CLI manda `Authorization: Bearer <token GitHub>`, che verifichiamo
+ *     contro l'API di GitHub;
+ *   - il browser manda il cookie di sessione NextAuth.
+ * In entrambi i casi l'identita' viene dal token, mai dal corpo della richiesta.
  * Va usata solo nelle route API: il token non e' mai disponibile nel client.
  */
 export async function getServerAuth(
   req: NextRequest,
 ): Promise<{ token?: string; login?: string }> {
+  const bearer = readBearer(req);
+  if (bearer) {
+    const login = await loginForToken(bearer);
+    return login ? { token: bearer, login } : {};
+  }
+
   const jwt = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   return {
     token: (jwt?.accessToken as string | undefined) || undefined,
