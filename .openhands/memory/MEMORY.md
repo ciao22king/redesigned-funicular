@@ -580,3 +580,21 @@ TypeScript compilato in `dist/` con `tsc`. Binari `skill-forge` e `sf`.
 
 Verificato in produzione: `whoami` con token reale -> `ciao22king` illimitato;
 `generate | publish` -> skill creata e poi cancellata con `delete --yes`.
+
+### CLI pronta per npm (2026-11-05)
+
+Pacchetto `skill-forge-cli` in `skill-forge/cli/`, versione `0.1.0`. **Non
+pubblicato**: richiede login npm dell'utente (`npm login`), che l'agente non ha.
+Nome `skill-forge-cli` **libero** su npm; anche `skill-forge` lo e' (404).
+
+- `npm pack --dry-run`: 63 file, 27.8 kB. Contenuto: `dist/` + README + LICENSE +
+  package.json. Le `*.map` sono incluse: innocue, ma volendo si tolgono dal
+  tarball con `"files"` piu' stretti o `declarationMap: false` nel tsconfig.
+- Installazione pulita da tarball **verificata**: `npm i <tgz>` in cartella vuota
+  crea i bin `skill-forge` e `sf` e funzionano.
+- `prepublishOnly` ora e' `npm run build && npm test`: non si pubblica con i test
+  rossi.
+- `LICENSE` MIT aggiunto in `cli/` (il package.json lo dichiarava ma il file non
+  c'era). Aggiunto anche `*.tgz` a `cli/.gitignore`.
+- Il `bin` punta a `dist/index.js`, che esiste solo dopo `npm run build`; per
+  questo `prepublishOnly` compila. Chi installa non ha bisogno di compilare.
