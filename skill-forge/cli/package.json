@@ -2,6 +2,24 @@
   "name": "skill-forge-cli",
   "version": "0.1.0",
   "description": "CLI per Skill Forge: genera, pubblica e scarica skill per agenti AI dal terminale.",
+  "keywords": [
+    "skill",
+    "agent",
+    "ai",
+    "cli",
+    "marketplace",
+    "cloudflare"
+  ],
+  "homepage": "https://skill-forge.ciao22king.workers.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ciao22king/redesigned-funicular.git",
+    "directory": "skill-forge/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/ciao22king/redesigned-funicular/issues"
+  },
+  "author": "ciao22king",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -12,11 +30,14 @@
   "engines": {
     "node": ">=18"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "node --import tsx --test test/*.test.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build && npm test"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
