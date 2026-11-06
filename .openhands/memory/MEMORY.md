@@ -841,3 +841,26 @@ log della conversazione precedente (`/workspace/conversations/<id>/events/`), NO
 va mai scritta nel repo né in memoria. Account collegati (profilo `default`):
 X = @ImADev22, YouTube = @drixedits-h2m. Nota: `Bearer` è accettato dall'MCP ma
 per l'API REST `/api` serve lo schema `Apikey`.
+
+### Annuncio social di Skill Forge (2026-11-06)
+Su richiesta: pubblicare un annuncio su **X e YouTube**. Vincoli scoperti:
+- **YouTube non accetta post di solo testo** — `upload_text` ha enum piattaforme
+  `x,linkedin,facebook,threads,bluesky,google_business,discord,telegram,slack,
+  mastodon,nostr,lemmy,devto,hashnode,wordpress,whop,listmonk` (niente youtube).
+  Per YouTube serve **video** (`upload_video`, `videoPathOrUrl` o `videoBase64`).
+  `ffmpeg` non è installato nel container (serve `sudo apt-get install -y ffmpeg`).
+- **X**: programmato con `upload_text` (`platforms:["x"]`, `user:"default"`,
+  `linkUrl` workers.dev, `scheduledDate:2026-11-06T23:30:00Z`).
+  `job_id=cc4dd6c4138f485c8304a1285e481c6e`. Motivo dell'orario: far precedere il
+  **deploy delle 23:00** così il link ha già la OG image (altrimenti il card è
+  vuoto). Testo: "Skill Forge 🔥 / Turn scattered notes, docs or a single idea
+  into a complete, detailed skill for AI agents. / ✨ Generate → 📦 Download or
+  publish to the public marketplace / Free 👉 <url> / #AI #AIAgents #DevTools".
+- **Upload-Post richiede conferma in due passi**: la prima chiamata a `upload_*`
+  senza `confirmed:true` restituisce solo una **preview** (`executed:false`),
+  niente viene inviato; si ripete identica con `confirmed:true`.
+- Account: profilo `default` → X @ImADev22 ("Devme"), YouTube @drixedits-h2m
+  ("EditByDrix"). Helper locale per chiamare l'MCP a mano: `/tmp/mcptool.py`
+  (non contiene segreti; la chiave si passa come argomento).
+- `skillforge.eu.org` **continua a non risolvere** (NS eu.org non delegate):
+  i link pubblici usano `https://skill-forge.ciao22king.workers.dev`.
