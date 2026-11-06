@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Scena fisica (perché chiaro, non scuro) ----
+   Uno sviluppatore che scrive una skill al pomeriggio,
+   davanti a una finestra, con la tazza di caffè ancora calda.
+   Luce naturale, superficie chiara ma calda, non clinica. */
+
+:root {
+  --surface: oklch(97% 0.014 68);          /* carta calda, mai bianco puro */
+  --surface-raised: oklch(99% 0.008 70);
+  --surface-sunken: oklch(94% 0.02 66);
+  --ink: oklch(21% 0.032 45);              /* testo corpo, marrone-nero */
+  --ink-muted: oklch(45% 0.028 50);        /* etichette, metadati */
+  --line: oklch(86% 0.026 62);             /* hairline, mai grigio neutro */
+  --accent: oklch(55% 0.155 32);           /* terracotta */
+  --accent-soft: oklch(92% 0.048 55);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--surface);
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+/* Grana leggerissima, evita la piattezza digitale */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: oklch(88% 0.075 50);
+  color: oklch(20% 0.04 40);
+}
+
+/* Focus visibile, non rimosso */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Scrollbar coerente col tema caldo */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-sunken);
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(76% 0.04 55);
+  border: 3px solid var(--surface-sunken);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(66% 0.07 48);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .surface-card {
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+
+  .hairline {
+    height: 1px;
+    background: var(--line);
+  }
+
+  /* Documenti legali: titoli, liste, tabelle e link coerenti col tema */
+  .legal h2 {
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-display), serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .legal h2:first-child {
+    margin-top: 0;
+  }
+  .legal p,
+  .legal li {
+    color: var(--ink);
+  }
+  .legal ul {
+    margin-top: 0.5rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+  }
+  .legal li {
+    margin-top: 0.35rem;
+  }
+  .legal a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+  .legal a:hover {
+    text-decoration-thickness: 2px;
+  }
+  .legal code {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.85em;
+    background: var(--surface-sunken);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+  .legal table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+  }
+  .legal th,
+  .legal td {
+    border: 1px solid var(--line);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .legal th {
+    background: var(--surface-sunken);
+    font-weight: 600;
+  }
+}

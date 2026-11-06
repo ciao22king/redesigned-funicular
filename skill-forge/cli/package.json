@@ -1,0 +1,26 @@
+{
+  "name": "skill-forge-cli",
+  "version": "0.1.0",
+  "description": "CLI per Skill Forge: genera, pubblica e scarica skill per agenti AI dal terminale.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "skill-forge": "dist/index.js",
+    "sf": "dist/index.js"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.5.2"
+  }
+}
