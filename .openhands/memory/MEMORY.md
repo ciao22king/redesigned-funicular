@@ -620,3 +620,28 @@ https://www.npmjs.com/package/@ciao22/skill-forge-cli
   credenziale nella config globale.
 - Versioni successive: alzare `version` in `cli/package.json` e ripetere
   `npm publish`. `prepublishOnly` compila e testa da solo.
+
+### i18n IT→EN di sito e CLI (2026-11-05)
+
+Richiesta utente: "devi fare tutto in inglese anche il sito cambia in inglese".
+Tradotto **tutto**: UI, `src/lib/*`, API routes, metadata/SEO, pagine legali,
+CLI, README/docs, workflow, scripts, `.env.example`, `wrangler.jsonc` e
+**anche i commenti di codice e i test**. Unica eccezione voluta: il fixture
+`'Caffè e Città'` in `cli/test/skill.test.ts` (verifica l'accento in `slugify`).
+
+- Route `/termini` → `/terms` con `git mv` (aggiornati footer, sitemap, legal).
+- Anchor `id="contenuto"` → `id="content"` (in `layout.tsx`/`page.tsx`).
+- Landing: nuovo componente `InstallCommand` in `page.tsx` col comando
+  copiabile `npm install -g @ciao22/skill-forge-cli` (+ copy button, `useState`).
+- `og:locale` `it_IT` → `en_US`; `lang="en"`.
+- Dopo: 53/53 test app, 51/51 CLI, build Next OK (route `/terms`), build CLI OK.
+
+Pubblicazione npm della CLI (descrizione ora in inglese, `0.1.1`): **bloccata**.
+`npm publish` → **E403 "Two-factor authentication or granular access token with
+bypass 2fa enabled is required"**. Il token `$NPM_TOKEN` e quello in `~/.npmrc`
+non hanno il bypass 2FA, e l'account `ciao22` ha 2FA. Serve o un OTP
+(`npm publish --otp=...`) o un **granular access token con "bypass 2FA"**
+abilitato. La `0.1.0` su npm resta con la descrizione in italiano.
+
+PR #1 era **già mergiata** su `main` (merge commit `50f9d77`): non ci si pusha
+sopra. Nuova PR **#2** aperta da `cloudflare-workers` → `main`.
