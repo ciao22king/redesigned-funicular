@@ -1308,3 +1308,27 @@ Verificato leggendo i form di registrazione (campi `required`).
 - Natura: "non-profit domain distribution platform" di un team di giovani a
   Singapore, progetto partito 2024, aperto 2025. Fiducia **media** (giovane).
 - Tutte le pagine dietro **Cloudflare Turnstile** (browser reale ok; curl no).
+
+### Servizi "come DNSHE" (sottodominio gratis + NS custom) — 2026-11-07
+Cercato su GitHub topics (free-domain/free-subdomain), liste curate
+(harys722/free-domains 96 servizi, abint7/free-domains) e probe diretto.
+Regola: per Cloudflare servono **PSL + delega NS**. I servizi "stile is-a.dev"
+(fork+PR su GitHub, solo record A/CNAME) **non** vanno bene.
+
+**In PSL + NS custom (usabili come DNSHE):**
+- DigitalPlat — `.us.kg .dpdns.org .qzz.io .xx.kg` (anche `.qd.je` NO)
+- DNSHE — `.de5.net .us.ci .cc.cd` (`.bot.cd` NO)
+- pp.ua, netlib.re, eu.org, deSEC/dedyn.io
+
+**NS custom ma NON in PSL** (attenzione: Cloudflare vuole eTLD+1 in PSL):
+- **Intent** (`int.yt .xo.kg .nc.to .rh.to .yn.to .gw.to`) — non-profit
+  fiscalmente sponsorizzato da **Hack Club 501(c)(3)**, NS delegation
+  supportata, ma i suoi suffissi NON sono in PSL.
+- **vexr.dev / is-local.host** — dichiara ESPLICITAMENTE di non essere in PSL.
+- is-an.app — supporta record NS, non in PSL.
+
+**Solo CNAME/A via PR GitHub (niente NS → niente zona CF):** is-a.dev (in PSL
+ma CNAME-only), is-a.bot, js.org, open-domains, thedev.id/.me, jsid.dev,
+is-a.co, is-really.cool, js.cool, rweb.site, foo.ng, runs-on.dev, cluster.ws,
+wip.la, io.day, dee.al, withcoding.me, tilde.tk.
+Disponibilita': `skillforge` libero su int.yt, xo.kg, nc.to, de5.net, eu.org...
