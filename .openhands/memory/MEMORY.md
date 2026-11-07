@@ -1013,3 +1013,15 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
   facilmente. Postare in un sub pubblico non scelto dall'utente = rischio ban.
 - **Discord**: serve toolkit `discordbot` (token bot) per scrivere; i tool utente
   sono solo in lettura.
+
+### Reddit r/SideProject (2026-11-07)
+- Account **UpbeatBag5537** (reddit_anal-like): creato ~2026-03, **0 karma** → gli automod
+  filtrano facilmente. `r/SideProject` ha `restrict_posting: True`.
+- Post link creato: **id `1xq38n0`**,
+  https://www.reddit.com/r/SideProject/comments/1xq38n0/skill_forge_turn_scattered_notes_into_complete/
+  Formato richiesto dal sub: `[Nome] - [Descrizione breve]`.
+- **Verifica inconcludente**: reddit.com blocca curl e il browser dell'agente
+  ("blocked by network security"); i listing API (`/new`, `/user/.../submitted`)
+  tornano **vuoti** → probabile auto-filtro per account nuovo. Serve check da loggato.
+- Tool Reddit Composio: `REDDIT_GET` richiede `sort` (400 se manca); `REDDIT_RETRIEVE_REDDIT_POST`
+  richiede `subreddit` e ignora `id` (restituisce un listing). Verifica poco affidabile.
