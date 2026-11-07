@@ -30,6 +30,12 @@ export function Nav() {
           >
             Marketplace
           </Link>
+          <Link
+            href="/tags"
+            className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+          >
+            Tags
+          </Link>
           {status === 'authenticated' ? (
             <>
               <Link
@@ -138,6 +144,13 @@ export function Nav() {
               className="rounded-lg px-3 py-3 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken]"
             >
               Marketplace
+            </Link>
+            <Link
+              href="/tags"
+              onClick={() => setMobile(false)}
+              className="rounded-lg px-3 py-3 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+            >
+              Tags
             </Link>
             {status === 'authenticated' ? (
               <>

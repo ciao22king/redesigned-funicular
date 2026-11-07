@@ -4,7 +4,7 @@ import type {
   SkillRow,
   SortKey,
 } from './marketplace';
-import { orderClause, searchClause, skillId } from './marketplace';
+import { orderClause, searchClause, skillId, tagClause } from './marketplace';
 
 /**
  * D1 access for the marketplace.
@@ -46,6 +46,7 @@ export interface ListOptions {
   query?: string;
   sort?: SortKey;
   owner?: string;
+  tag?: string;
   limit?: number;
   offset?: number;
 }
@@ -56,7 +57,7 @@ export async function listSkills(
   injected?: D1Like,
 ): Promise<SkillRow[]> {
   const database = await db(injected);
-  const { query = '', sort = 'recent', owner, limit = 60, offset = 0 } = options;
+  const { query = '', sort = 'recent', owner, tag, limit = 60, offset = 0 } = options;
 
   const conditions: string[] = [];
   const params: unknown[] = [];
@@ -72,6 +73,12 @@ export async function listSkills(
     // concatenate it by hand so as not to depend on the position of the WHERE.
     conditions.push(search.sql.replace(/^ AND /, ''));
     params.push(...search.params);
+  }
+
+  const byTag = tagClause(tag);
+  if (byTag.sql) {
+    conditions.push(byTag.sql.replace(/^ AND /, ''));
+    params.push(...byTag.params);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -99,9 +106,24 @@ export async function listSkillRefs(
   return result.results ?? [];
 }
 
+/** Distinct authors with the last update time, for the sitemap. */
+export async function listOwners(
+  limit = 5000,
+  injected?: D1Like,
+): Promise<{ owner: string; updated_at: string }[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare(
+      'SELECT owner, MAX(updated_at) AS updated_at FROM skills GROUP BY owner ORDER BY owner LIMIT ?',
+    )
+    .bind(Math.min(Math.max(limit, 1), 10000))
+    .all<{ owner: string; updated_at: string }>();
+  return result.results ?? [];
+}
+
 /** Counts the skills matching the filters, for pagination. */
 export async function countSkills(
-  options: Pick<ListOptions, 'query' | 'owner'> = {},
+  options: Pick<ListOptions, 'query' | 'owner' | 'tag'> = {},
   injected?: D1Like,
 ): Promise<number> {
   const database = await db(injected);
@@ -117,6 +139,11 @@ export async function countSkills(
     conditions.push(search.sql.replace(/^ AND /, ''));
     params.push(...search.params);
   }
+  const byTag = tagClause(options.tag);
+  if (byTag.sql) {
+    conditions.push(byTag.sql.replace(/^ AND /, ''));
+    params.push(...byTag.params);
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const row = await database
@@ -124,6 +151,24 @@ export async function countSkills(
     .bind(...params)
     .first<{ n: number }>();
   return Number(row?.n ?? 0);
+}
+
+/**
+ * Distinct tags with their counts, for the tag index.
+ *
+ * Only the `tags` column is read: the aggregation happens in JS over a bounded
+ * number of rows, so a large marketplace still answers with one cheap query.
+ */
+export async function tagCounts(
+  limit = 5000,
+  injected?: D1Like,
+): Promise<{ tags: string }[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare('SELECT tags FROM skills LIMIT ?')
+    .bind(Math.min(Math.max(limit, 1), 20000))
+    .all<{ tags: string }>();
+  return result.results ?? [];
 }
 
 /** A single skill, with the markdown body. */

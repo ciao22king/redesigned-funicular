@@ -28,7 +28,12 @@ export const metadata: Metadata = {
     'Turn notes, documents or a single idea into a complete, detailed skill for AI agents. Then download it or publish it to the marketplace.',
   applicationName: 'Skill Forge',
   keywords: ['skill', 'AI', 'agents', 'prompt', 'documentation', 'GitHub'],
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    types: {
+      'application/rss+xml': '/feed.xml',
+    },
+  },
   // Google Search Console verification. The matching TXT record lives in the
   // skillforge.eu.org zone, but until the NS delegation from eu.org is active
   // that domain does not resolve: meanwhile the meta tag covers the workers.dev

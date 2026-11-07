@@ -154,20 +154,46 @@ src/
 │   ├── create/from-skills/page.tsx  Mode A
 │   ├── create/from-scratch/page.tsx Mode B
 │   ├── dashboard/page.tsx           Where the skills end up
+│   ├── marketplace/page.tsx         Storefront: search, sort, stars
+│   ├── tags/page.tsx                Tag index (most used first)
+│   ├── tags/[tag]/page.tsx          Skills carrying one tag
+│   ├── u/[owner]/page.tsx           All skills of one author
+│   ├── s/[owner]/[slug]/page.tsx    Public page of a single skill
+│   ├── feed.xml/route.ts            RSS feed of the newest skills
 │   └── api/
 │       ├── auth/[...nextauth]/      NextAuth
 │       ├── generate/                Model call
-│       └── publish/                 Commit to the marketplace
+│       └── marketplace/             List, detail, publish, star
 ├── components/
 │   ├── Nav.tsx                      Header with login and user menu
 │   ├── CreateFlow.tsx               Form, result, download, publish
+│   ├── SkillGrid.tsx                Server-rendered grid for tag/author pages
 │   └── Providers.tsx                SessionProvider
 └── lib/
     ├── ai.ts                        OpenRouter client, model ladder and system prompt
     ├── auth.ts                      NextAuth configuration
-    ├── github-token.ts              GitHub token handling
+    ├── feed.ts                      RSS building and XML escaping
+    ├── marketplace.ts               Pure marketplace logic (tags, sorting, validation)
+    ├── marketplace-db.ts            D1 access for the marketplace
     └── skill.ts                     Slug, fences, frontmatter
 ```
+
+## Discovery
+
+Beyond the searchable marketplace, skills are reachable by tag and by author,
+which also gives each one a stable, indexable URL:
+
+| Route | What it shows |
+| --- | --- |
+| `/tags` | Every tag used, with how many skills carry it |
+| `/tags/[tag]` | Skills with one tag, ranked by trending |
+| `/u/[owner]` | Everything one author has published |
+| `/feed.xml` | RSS 2.0 feed of the newest published skills |
+
+Tags are stored as a comma-separated string, so `tagClause` wraps both the
+column and the term in commas to match a whole element (a plain `LIKE '%git%'`
+would also match `github`). The tag index and the sitemap both aggregate that
+column in JS, over a bounded number of rows.
 
 ## Obvious extensions
 

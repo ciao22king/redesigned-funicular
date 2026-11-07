@@ -271,18 +271,25 @@ export default function MarketplacePage() {
                   {skill.tags.length > 0 && (
                     <ul className="mt-4 flex flex-wrap gap-1.5">
                       {skill.tags.map((tag) => (
-                        <li
-                          key={tag}
-                          className="rounded-full bg-[--surface-sunken] px-2.5 py-1 font-mono text-[11px] text-[--ink-muted]"
-                        >
-                          {tag}
+                        <li key={tag}>
+                          <Link
+                            href={`/tags/${tag}`}
+                            className="rounded-full bg-[--surface-sunken] px-2.5 py-1 font-mono text-[11px] text-[--ink-muted] transition-colors hover:text-[--accent]"
+                          >
+                            {tag}
+                          </Link>
                         </li>
                       ))}
                     </ul>
                   )}
 
                   <div className="mt-5 flex items-center justify-between gap-3">
-                    <span className="truncate text-xs text-[--ink-muted]">@{skill.owner}</span>
+                    <Link
+                      href={`/u/${skill.owner}`}
+                      className="truncate text-xs text-[--ink-muted] hover:text-[--accent]"
+                    >
+                      @{skill.owner}
+                    </Link>
                     <button
                       type="button"
                       disabled={busyId === skill.id}

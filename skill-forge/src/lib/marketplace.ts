@@ -112,6 +112,54 @@ export function deserializeTags(value: string | null | undefined): string[] {
 }
 
 /**
+ * Normalizes a tag coming from a URL into the same kebab-case form used at
+ * save time. Returns an empty string for anything that could not be a real tag,
+ * so a caller can answer 404 instead of running a meaningless query.
+ */
+export function normalizeTag(value: string | null | undefined): string {
+  const tag = slugify((value ?? '').trim()).slice(0, MAX_TAG_CHARS);
+  return tag === 'untitled-skill' ? '' : tag;
+}
+
+/**
+ * SQL clause that matches a skill carrying exactly this tag.
+ *
+ * Tags are stored as a comma-separated string, so a plain `LIKE '%git%'` would
+ * also match `github`. Wrapping both the column and the term in commas turns it
+ * into an exact element match.
+ */
+export function tagClause(tag: string | null | undefined): { sql: string; params: string[] } {
+  const clean = normalizeTag(tag);
+  if (!clean) return { sql: '', params: [] };
+  return { sql: " AND (',' || tags || ',') LIKE ?", params: [`%,${clean},%`] };
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+/**
+ * Counts how many skills carry each tag, most used first.
+ *
+ * The aggregation is done in JS over the `tags` column, not in SQL: the column
+ * is a denormalized string, and splitting it in SQLite would need a recursive
+ * CTE for no real gain at this size. The result feeds the tag index page.
+ */
+export function aggregateTags(rows: { tags: string }[], limit = 80): TagCount[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    for (const tag of deserializeTags(row.tags)) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+    .slice(0, Math.max(0, limit));
+}
+
+/**
  * Validates and normalizes a skill coming from the client.
  *
  * Name and description, if missing, are read from the frontmatter: so a skill

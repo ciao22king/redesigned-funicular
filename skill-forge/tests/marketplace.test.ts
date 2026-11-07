@@ -1,17 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  aggregateTags,
   deserializeTags,
   normalizeQuery,
+  normalizeTag,
   orderClause,
   parseSkillId,
   parseSort,
   parseTags,
   serializeTags,
   skillId,
+  tagClause,
   toDetail,
   toSummary,
   validateSkillInput,
+  MAX_TAG_CHARS,
   TRENDING,
   type SkillRow,
 } from '../src/lib/marketplace';
@@ -175,4 +179,52 @@ test('toDetail include il markdown', () => {
   const detail = toDetail(ROW);
   assert.equal(detail.markdown, SAMPLE);
   assert.equal(detail.id, ROW.id);
+});
+
+// --- Tags: discovery ---------------------------------------------------------
+
+test('normalizeTag riporta una tag a kebab-case', () => {
+  assert.equal(normalizeTag('Code Review'), 'code-review');
+  assert.equal(normalizeTag('  Git  '), 'git');
+  assert.equal(normalizeTag('a'.repeat(100)).length, MAX_TAG_CHARS);
+});
+
+test('normalizeTag rifiuta un valore vuoto o non valido', () => {
+  assert.equal(normalizeTag(''), '');
+  assert.equal(normalizeTag(null), '');
+  assert.equal(normalizeTag('!!!'), '');
+});
+
+test('tagClause fa un match esatto e non un prefisso', () => {
+  const { sql, params } = tagClause('git');
+  // The commas around the column and the term prevent `git` matching `github`.
+  assert.match(sql, /'\,' \|\| tags \|\| '\,'/);
+  assert.deepEqual(params, ['%,git,%']);
+});
+
+test('tagClause senza tag non aggiunge clausole', () => {
+  assert.deepEqual(tagClause(''), { sql: '', params: [] });
+  assert.deepEqual(tagClause(undefined), { sql: '', params: [] });
+});
+
+test('aggregateTags conta, ordina e limita', () => {
+  const rows = [
+    { tags: 'git,review' },
+    { tags: 'git' },
+    { tags: 'ai,git' },
+    { tags: '' },
+  ];
+  const counts = aggregateTags(rows);
+  assert.deepEqual(counts[0], { tag: 'git', count: 3 });
+  assert.deepEqual(counts[1], { tag: 'ai', count: 1 });
+  assert.deepEqual(counts[2], { tag: 'review', count: 1 });
+});
+
+test('aggregateTags rispetta il limite', () => {
+  const rows = Array.from({ length: 10 }, (_, i) => ({ tags: `tag${i}` }));
+  assert.equal(aggregateTags(rows, 3).length, 3);
+});
+
+test('aggregateTags su nessuna riga restituisce lista vuota', () => {
+  assert.deepEqual(aggregateTags([]), []);
 });

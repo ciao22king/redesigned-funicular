@@ -7,12 +7,28 @@ const legalLinks = [
   { href: '/cookie', label: 'Cookies' },
 ];
 
+const exploreLinks = [
+  { href: '/marketplace', label: 'Marketplace' },
+  { href: '/tags', label: 'Tags' },
+  { href: '/feed.xml', label: 'RSS' },
+];
+
 export function Footer() {
   const year = new Date().getFullYear();
   const range = year > legal.since ? `${legal.since}–${year}` : `${legal.since}`;
   return (
     <footer className="mt-16 border-t border-[--line] py-10">
       <div className="mx-auto max-w-6xl px-6">
+        <nav
+          aria-label="Explore"
+          className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[--ink-muted]"
+        >
+          {exploreLinks.map((l) => (
+            <Link key={l.href} href={l.href} className="transition-colors hover:text-[--ink]">
+              {l.label}
+            </Link>
+          ))}
+        </nav>
         <nav
           aria-label="Legal information"
           className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[--ink-muted]"

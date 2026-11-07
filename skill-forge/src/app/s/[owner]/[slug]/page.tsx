@@ -111,18 +111,20 @@ export default async function SkillPage({ params }: { params: Promise<Params> })
             </p>
           )}
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[--ink-muted]">
-            <Link href="/marketplace" className="text-[--accent] underline underline-offset-2">
+            <Link href={`/u/${owner}`} className="text-[--accent] underline underline-offset-2">
               @{owner}
             </Link>
             <span>★ {skill.stars}</span>
             {skill.tags.length > 0 && (
               <ul className="flex flex-wrap gap-1.5">
                 {skill.tags.map((tag) => (
-                  <li
-                    key={tag}
-                    className="rounded-full bg-[--surface-sunken] px-2.5 py-1 font-mono text-[11px]"
-                  >
-                    {tag}
+                  <li key={tag}>
+                    <Link
+                      href={`/tags/${tag}`}
+                      className="rounded-full bg-[--surface-sunken] px-2.5 py-1 font-mono text-[11px] transition-colors hover:text-[--accent]"
+                    >
+                      {tag}
+                    </Link>
                   </li>
                 ))}
               </ul>
