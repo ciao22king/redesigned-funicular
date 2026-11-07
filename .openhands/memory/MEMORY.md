@@ -910,3 +910,34 @@ dell'agente NON è autenticata su Composio (solo cookie CSRF WorkOS).
 abilita solo i tool Gmail. Per pubblicare serve connettere il toolkit della
 piattaforma. Se si connette **YouTube** in Composio, si può caricare il video
 via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
+
+### Deploy riuscito + X pubblicato (2026-11-07)
+- Il **watcher è morto** prima delle 23:00: i riavvii container lo uccidono e lui
+  NON sopravvive (le note precedenti che dicevano il contrario erano sbagliate).
+  Token Cloudflare attivato 2026-11-06T23:00Z ma nessun deploy era partito.
+  **Deploy fatto a mano** il 7/11 ~09:40 UTC:
+  `CLOUDFLARE_API_TOKEN=... npx opennextjs-cloudflare deploy` → Version ID
+  `50e0bf6e-48fa-4852-8923-7f9fde66f9a0`. Verificato: `/opengraph-image` ora
+  **200 image/png 89 KB** (prima 404). Il sito nuovo è live.
+- **Post X pubblicato** il 6/11 alle 23:30 UTC:
+  https://x.com/ImADev22/status/2118848413244457440 — lo scheduling è server-side
+  su Upload-Post, quindi è partito anche col watcher morto. Link rimosso da
+  Upload-Post (X Links add-on assente) → testo pubblicato senza URL.
+- **Upload-Post 10/10 upload/mese**: esaurito. Niente altri upload fino a upgrade
+  o reset del contatore.
+
+### Composio: accesso programmatico (2026-11-07)
+- `https://connect.composio.dev/mcp` è **OAuth-only per i client** (Claude, Cursor,
+  Codex…). `redirect_uri` = `http://localhost:<porta>/callback` **dentro il
+  container**, e **il browser dell'agente RAGGIUNGE quel localhost** (verificato
+  servendo `python3 -m http.server 56391`). L'OAuth callback funzionerebbe, MA il
+  browser non è loggato su Composio (solo cookie CSRF WorkOS) → serve login umano.
+- Per uso **programmatico** conviene la **REST API Composio**, non l'MCP:
+  `POST https://backend.composio.dev/api/v3.1/tools/execute/<TOOL>` con header
+  `x-api-key: $COMPOSIO_API_KEY` (project API key dal dashboard). Serve che
+  l'utente crei la API key e connetta il toolkit (es. YouTube) con consenso OAuth.
+- **Gmail ≠ social**: ogni app (X, YouTube, IG, TikTok…) è un toolkit separato da
+  connettere. Connettere Gmail abilita solo i tool Gmail.
+- CLI login umano senza browser locale: `composio login --no-wait` (stampa URL) →
+  l'utente apre su un suo device → `composio login --poll`. Install:
+  `curl -fsSL https://composio.dev/install | sh` (curl|bash: richiede consenso).
