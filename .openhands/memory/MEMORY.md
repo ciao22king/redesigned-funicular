@@ -1332,3 +1332,26 @@ ma CNAME-only), is-a.bot, js.org, open-domains, thedev.id/.me, jsid.dev,
 is-a.co, is-really.cool, js.cool, rweb.site, foo.ng, runs-on.dev, cluster.ws,
 wip.la, io.day, dee.al, withcoding.me, tilde.tk.
 Disponibilita': `skillforge` libero su int.yt, xo.kg, nc.to, de5.net, eu.org...
+
+### skillforge.cc.cd — "dns status unresolved" (2026-11-07)
+L'utente ha registrato `skillforge.cc.cd` su DNSHE. Stato mostrato dal pannello:
+**"dns status unresolved"**. Diagnosi fatta con query raw UDP ai NS autorevoli:
+- `a.ns.dnshe.org` (23.106.44.52) e `b.ns.dnshe.org` (165.140.240.53)
+  rispondono **rcode=3 (NXDOMAIN)** per `skillforge.cc.cd` su A/NS/SOA/CNAME.
+- Stessa cosa da Google DNS (Status=3) e rdap.org (404).
+- Controllo di sanita': gli stessi NS rispondono rcode=0 per `cc.cd` e `de5.net`,
+  e `www.de5.net` risolve su IP Cloudflare. Quindi i NS funzionano: il nome
+  `skillforge.cc.cd` **non e' pubblicato** nella zona.
+- Conclusione: la **delega non e' attiva**. "Unresolved" = il delegation-check di
+  DNSHE non ha (ancora) confermato che i NS assegnati sono pubblicati nel parent.
+- API DNSHE v1 (`m=dns`, Bearer `adns_...`): `GET /v1/zones/{id}/delegation`
+  legge l'ultimo esito; `POST /v1/zones/{id}/delegation/check` rifa il check ma
+  con **cooldown 2 ore** (429 `delegation_check_cooldown`). Errori utili:
+  `zone_reconciliation_pending` (503) = creazione zona ancora in riconciliazione;
+  "Do not immediately submit the same zone creation request again".
+- Nota: nel prodotto DNS hosting, i record **NS non si creano come record normali**
+  ("controlled by the administrator"); ma il prodotto Free Domains (domain_hub)
+  permette di **cambiare NS** (FAQ: "Can I use my own DNS servers? Yes").
+- Prossimi passi consigliati: attendere propagazione/riconciliazione, poi usare
+  "Check delegation" nel pannello (max 1 volta/2h), altrimenti ticket
+  (risposta < 24h). NON riregistrare il dominio.
