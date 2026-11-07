@@ -1128,3 +1128,43 @@ grigia sotto i pulsanti. Ora e' un blocco stat nella hero (numero in
 - **Trappola grep**: React inserisce `<!-- -->` tra numero e testo, quindi
   `grep "1 user registered"` NON matcha. Cercare `registered` o usare una regex
   `[0-9]+\s*(?:<!-- -->)?\s*users?`.
+
+### Perche' le view non salivano: canonical/OG su un dominio morto (2026-11-07)
+Commit `367f721`, deploy Version `a899c810`. **Causa vera del "non stiamo
+migliorando le views"**: `legal.siteUrl` era `https://skillforge.eu.org`
+(NXDOMAIN, zona pending). Da li' derivavano `metadataBase`, `<link
+rel=canonical>`, `og:url`, `og:image`, `twitter:image` e il `CANONICAL_HOST` del
+middleware. Quindi **ogni link condiviso e ogni anteprima social puntavano a un
+host morto**: chi cliccava non arrivava al sito. Ora `siteUrl` = default
+`https://skill-forge.ciao22king.workers.dev` e il middleware ricava
+`CANONICAL_HOST` da `new URL(legal.siteUrl).host` (niente piu' hardcode).
+**Quando eu.org sblocca**, basta settare `NEXT_PUBLIC_SITE_URL=https://skillforge.eu.org`
+e ridistribuire: tutto torna canonico senza toccare il codice.
+
+### Automazione social quotidiana (2026-11-07)
+- **Esiste gia'**: `automations/daily-social/` (+ copia in
+  `/workspace/project/.skill-forge-deploy/daily-social/`), automation id
+  `31537c81-515c-4e22-b1c7-169fa35f48cc`, cron `0 9 * * *` Europe/Rome,
+  entrypoint `python3 main.py`. Pubblica su **LinkedIn** (`linkedin_wearer-delhi`)
+  e **Pinterest** (`pinterest_labor-arrie`) via **Composio MCP**
+  (`https://connect.composio.dev/mcp`). Copy ruota su 6 post fissi (KV `rotation`).
+- **API automations** (host `https://app.all-hands.dev`, auth `Bearer $OPENHANDS_API_KEY`):
+  `GET /api/automation/v1` (lista), `GET /api/automation/v1/{id}/runs`,
+  `POST /api/automation/v1/{id}/dispatch` (run manuale),
+  `GET|PUT /api/automation/v1/kv/{key}?automation_id={id}`.
+  NB: `…/automations/{id}` NON esiste (404); la lista e' il path nudo.
+- **Trappola Composio**: le credenziali stanno in KV `composio`
+  (`{client_id, refresh_token}`). Il refresh token **ruota ad ogni uso**, quindi
+  se qualcun altro lo usa (es. `publish_youtube.py`) quello in KV diventa
+  `invalid_grant`. Fix: rigenerare da `creds/comp_token.json` (il locale resta
+  valido) e riscrivere il KV. Il token **in KV era rotto**, l'ho riparato e
+  verificato con un run manuale (post LinkedIn + pin Pinterest riusciti).
+- `publish_youtube.py` carica uno Short su YouTube ma e' **bloccato da
+  `QUOTA_EXCEEDED`** (quota Composio condivisa, reset ~08:00 UTC).
+- Il video promo e' `skillforge_short.mp4`; serve `python3 -m http.server 12000`
+  in `preview/` per farlo scaricare a Composio.
+- **Token CF**: quello nel `deploy-when-ready.sh` funziona per l'API Workers ma
+  `tokens/verify` risponde "Invalid API Token" (scope ridotti). Usare
+  `CLOUDFLARE_API_TOKEN=$(grep -o "cfat_[A-Za-z0-9]*" …/deploy-when-ready.sh|head -1)`.
+  Il secret `Cloudflare` del container e' una coppia `CLOUD… cfut…` **non valida**
+  come bearer token.
