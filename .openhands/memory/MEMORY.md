@@ -1066,3 +1066,24 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
   di `~/.openhands/settings.json` non sono automaticamente disponibili allo script:
   lo script parla direttamente con `https://connect.composio.dev/mcp`.
 - Aggiornare l'automazione = ricaricare il tarball e PATCH `tarball_path`.
+
+### Sito: pagine tag/autore + RSS (2026-11-07)
+Commit `979389b` (branch `cloudflare-workers`; il deploy parte da `main`).
+Nuove feature di **scoperta**, tutte server-rendered con `force-dynamic`:
+- `/tags` (indice tag con conteggi), `/tags/[tag]` (skill di un tag, ordinamento trending),
+  `/u/[owner]` (tutte le skill di un autore, avatar GitHub, login validato con regex),
+  `/feed.xml` (RSS 2.0 delle ultime 50 skill). Chips dei tag ora link in
+  `s/[owner]/[slug]` e in `/marketplace`; Nav e Footer hanno il link "Tags"; il
+  layout dichiara l'autodiscovery RSS.
+- **Trappola tag**: `tags` è una stringa CSV, quindi un `LIKE '%git%'` matcherebbe anche
+  `github`. `tagClause` in `lib/marketplace.ts` avvolge colonna e termine tra virgole
+  (`(',' || tags || ',') LIKE '%,git,%'`). `aggregateTags`/`tagCounts` aggregano in JS su
+  un numero limitato di righe, non in SQL.
+- **RSS**: l'escaping XML è estratto in `lib/feed.ts` (`escapeXml`/`buildFeed`) e testato
+  — i titoli arrivano da skill pubblicate da chiunque.
+- `next dev` **genera `AGENTS.md`** nella root di skill-forge (agent rules): aggiunto a
+  `.gitignore`, non committarlo. `next lint` è **rimosso** in Next 16: il type-check lo fa
+  `npm run build`.
+- Test: **72** (erano 58), +7 in `tests/marketplace.test.ts`, +7 in `tests/feed.test.ts`.
+  `npm run build` OK; verificate a runtime (dev server) `/tags`, `/tags/[tag]`, `/u/[owner]`,
+  `/feed.xml` → 200 con dati reali da D1.
