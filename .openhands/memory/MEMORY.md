@@ -889,3 +889,24 @@ Su richiesta: pubblicare un annuncio su **X e YouTube**. Vincoli scoperti:
   resa in locale con `wrangler dev --local` + D1 locale seminata) → CTA.
   Script: `/tmp/vid/make_video.py` (volatile). Colori brand da OKLCH: accent
   `#bb4632`, ink `#24130c`, surface `#fcf4eb`.
+
+### Composio MCP (2026-11-06) — richiede OAuth interattivo
+Endpoint `https://connect.composio.dev/mcp` (streamable-http). **Solo OAuth**
+(`Authorization: Bearer`), nessuna API key: `initialize` senza token → 401
+"Authorization required". Discovery: authorization_endpoint
+`https://connect.composio.dev/oauth/authorize`, token su
+`login.composio.dev/oauth2/token`, scopes `openid profile email offline_access`.
+Registrato in `~/.openhands/settings.json` con `auth:{strategy:"oauth2"}`.
+`POST /api/mcp/oauth/start` vuole `{"name":..., "server":{"type":"streamable-http",
+"url":...,"auth":{"strategy":"oauth2"}}}` (NON `server_name`), restituisce
+`authorization_url` + `job_id`; stato su `GET /api/mcp/oauth/status/{job_id}`.
+**Problema**: il `redirect_uri` è `http://localhost:<porta>/callback` — un
+listener DENTRO il container. Il browser dell'utente è remoto → il callback su
+localhost non torna al container. Il login Composio va fatto in un browser che
+raggiunge il container, oppure serve un token/API key. La sessione del browser
+dell'agente NON è autenticata su Composio (solo cookie CSRF WorkOS).
+**Nota**: "ho connesso Gmail" NON basta per i social — in Composio ogni app
+(X, YouTube, IG, TikTok…) va connessa separatamente (toolkit diversi). Gmail
+abilita solo i tool Gmail. Per pubblicare serve connettere il toolkit della
+piattaforma. Se si connette **YouTube** in Composio, si può caricare il video
+via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
