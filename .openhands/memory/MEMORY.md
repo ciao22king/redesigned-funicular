@@ -941,3 +941,36 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
 - CLI login umano senza browser locale: `composio login --no-wait` (stampa URL) →
   l'utente apre su un suo device → `composio login --poll`. Install:
   `curl -fsSL https://composio.dev/install | sh` (curl|bash: richiede consenso).
+
+### Composio OAuth COMPLETATO + YouTube (2026-11-07) — svolta
+- **OAuth Composio riuscito!** Il flusso MCP di OpenHands usa `redirect_uri=http://localhost:<porta>/callback`
+  **dentro il container**; il browser dell'utente NON lo raggiunge, ma l'URL col `code`
+  resta nella barra → si completa con `POST /api/mcp/oauth/callback/{job_id}`
+  (header `X-Session-API-Key`, body `{"callback_url":"..."}`). Utile ma **non basta**:
+  il probe di OpenHands va in timeout a 15s listando i tool Composio e **non salva il token**.
+- **Soluzione robusta**: registrare un **proprio client OAuth pubblico** con PKCE
+  (`POST https://login.composio.dev/oauth2/register`, `token_endpoint_auth_method=none`),
+  far approvare all'utente l'auth URL, scambiare il code su
+  `https://login.composio.dev/oauth2/token` (`code_verifier`), e chiamare l'MCP
+  `https://connect.composio.dev/mcp` con `Authorization: Bearer <access_token>`.
+  Refresh token funziona (grant `refresh_token`). Credenziali in
+  `/workspace/project/.skill-forge-deploy/creds/` (600, **fuori dal repo**).
+- Tool MCP Composio: 12 meta-tool (`COMPOSIO_SEARCH_TOOLS`, `COMPOSIO_MULTI_EXECUTE_TOOL`,
+  `COMPOSIO_REMOTE_WORKBENCH`, `COMPOSIO_MANAGE_CONNECTIONS`, …). Il gateway è **lento
+  a listare** i tool (timeout 15s) ma le chiamate singole sono veloci (<1s).
+- **Account connessi**: gmail `ciao22king@gmail.com` (attivo) e **youtube attivo** —
+  canale **EditByDrix** (@drixedits-h2m, id `youtube_asylum-fillip`). **Gmail ≠ YouTube**:
+  ogni toolkit va connesso a parte.
+- **Upload file su YouTube**: `YOUTUBE_MULTIPART_UPLOAD_VIDEO` richiede
+  `videoFile={name,mimetype,s3key}` dove `s3key` è uno staging Composio. Si ottiene nel
+  sandbox: `from composio_helpers import upload_local_file; upload_local_file(path)`.
+  Il workbench sandbox ha rete e `/mnt/files`; **non** condivide il filesystem del container.
+- **Blocco attuale**: `RESOURCE_EXHAUSTED / 429 — Video Uploads per day` sul **progetto
+  Google condiviso di Composio** (966/giorno, esaurito). **NON** è il limite di Upload-Post.
+  Reset stimato ~**2026-11-08 08:00 UTC** (window_start 1794038400).
+- **Publisher automatico**: `/workspace/project/.skill-forge-deploy/publish_youtube.py`
+  (refresh token → re-stage video via workbench → upload; ritenta ogni 30 min per 36h).
+  Si auto-avvia da un hook in `~/.bashrc` (nessun cron/systemd nel container). Log:
+  `publish-youtube.log`. Serve `python3 -m http.server 12000` in `preview/` per l'URL video.
+- Host pubblici di file: catbox/0x0/litterbox **rifiutano** ("Invalid uploader"); tmpfiles.org
+  accetta ma è temporaneo. Per questo lo staging passa dal sandbox Composio.
