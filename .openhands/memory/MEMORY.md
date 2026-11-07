@@ -1373,3 +1373,17 @@ perche' il CNAME all'apice viene appiattito). `www` NON configurato.
   Cloudflare da' 2 NS -> in DNSHE cambiare i NS del dominio verso quei NS ->
   attendere -> nel Worker: Settings > Domains & Routes > Add Custom Domain.
   Il cert TLS viene poi emesso automaticamente.
+
+### skillforge.cc.cd — zona Cloudflare OK, resta 522 (2026-11-07)
+Dopo il cambio NS, la propagazione e' avvenuta:
+- NS pubblici: **achiel.ns.cloudflare.com, chloe.ns.cloudflare.com** (zona attiva).
+- Il vecchio CNAME->workers.dev e' stato importato come **A proxied**
+  (104.21.66.219 / 172.67.164.177) sull'apice.
+- **http://skillforge.cc.cd -> HTTP 522** ("error code: 522", Server: cloudflare);
+  https -> TLS handshake failure. `www` non esiste. Worker diretto = 200.
+- Causa: l'A record all'apice punta (via proxy) a un origine non raggiungibile;
+  un record A/CNAME semplice **non collega un Worker**. Serve un **Custom Domain**.
+- **Passo finale**: dashboard Cloudflare > Workers & Pages > `skill-forge` >
+  Settings > Domains & Routes > Add > **Custom Domain** > `skillforge.cc.cd`.
+  Cloudflare chiede di rimuovere/gestire il record in conflitto: accettare.
+  Poi il cert TLS viene emesso da solo e il 522 sparisce.
