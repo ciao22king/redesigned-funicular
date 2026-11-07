@@ -1355,3 +1355,21 @@ L'utente ha registrato `skillforge.cc.cd` su DNSHE. Stato mostrato dal pannello:
 - Prossimi passi consigliati: attendere propagazione/riconciliazione, poi usare
   "Check delegation" nel pannello (max 1 volta/2h), altrimenti ticket
   (risposta < 24h). NON riregistrare il dominio.
+
+### skillforge.cc.cd — delega ATTIVA ma errore Cloudflare 1001 (2026-11-07)
+Dopo che l'utente ha messo il record, la delega si e' sbloccata:
+`skillforge.cc.cd` ora ha CNAME -> `skill-forge.ciao22king.workers.dev` e
+A -> 172.67.207.217 / 104.21.22.238 (IP anycast Cloudflare dei workers.dev,
+perche' il CNAME all'apice viene appiattito). `www` NON configurato.
+- **http://skillforge.cc.cd -> HTTP 409, body "error code: 1001"**
+  (Server: cloudflare). **https -> TLS handshake failure** (nessun certificato).
+- Significato: l'edge Cloudflare riceve la richiesta ma NON ha una **zona**
+  configurata per `skillforge.cc.cd`, e nessun cert. Un semplice CNAME verso
+  `*.workers.dev` NON basta: un Worker risponde su un hostname personalizzato
+  **solo** se quel dominio e' registrato come **Custom Domain** del Worker,
+  il che richiede che la **zona sia su Cloudflare**.
+- Soluzione corretta: aggiungere `skillforge.cc.cd` come zona su Cloudflare
+  (`cc.cd` e' in PSL, quindi `skillforge.cc.cd` e' un eTLD+1 valido) ->
+  Cloudflare da' 2 NS -> in DNSHE cambiare i NS del dominio verso quei NS ->
+  attendere -> nel Worker: Settings > Domains & Routes > Add Custom Domain.
+  Il cert TLS viene poi emesso automaticamente.
