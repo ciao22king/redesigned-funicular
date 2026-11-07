@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Public_Sans } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { Providers } from '@/components/Providers';
 import { legal } from '@/lib/legal';
+
+// Cloudflare Web Analytics: aggregate, cookieless page views. The token is a
+// public site tag, safe in the client bundle like GITHUB_ID. Empty disables the
+// beacon (for example on a local build).
+const ANALYTICS_TOKEN = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN ?? '9d40be2ece8d4cb0be14e47e1c2f2039';
 
 // Display: variable serif with character, not Inter, not Roboto
 const display = Fraunces({
@@ -86,6 +92,14 @@ export default function RootLayout({
           Skip to content
         </a>
         <Providers>{children}</Providers>
+        {ANALYTICS_TOKEN ? (
+          <Script
+            defer
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={JSON.stringify({ token: ANALYTICS_TOKEN })}
+            strategy="afterInteractive"
+          />
+        ) : null}
       </body>
     </html>
   );

@@ -77,7 +77,7 @@ export default function PrivacyPage() {
         <ul>
           <li>
             <strong>Cloudflare</strong> — hosting and delivery (Workers,
-            network).
+            network) and cookieless aggregate analytics (Web Analytics).
           </li>
           <li>
             <strong>GitHub</strong> — authentication and reading your profile.

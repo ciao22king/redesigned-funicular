@@ -77,6 +77,12 @@ export default function CookiePage() {
           <li>No tracking across different sites.</li>
           <li>No profiling.</li>
         </ul>
+        <p>
+          For aggregate traffic figures we use <strong>Cloudflare Web
+          Analytics</strong>, which is cookieless: it sets no cookie and does not
+          fingerprint the visitor, so no consent banner is required. It records
+          only aggregate page views and referrers, never your identity.
+        </p>
       </section>
 
       <section>
