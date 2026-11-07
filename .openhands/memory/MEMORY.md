@@ -25,9 +25,13 @@ Ran the official setup at `https://developers.cloudflare.com/agent-setup/prompt.
 OpenHands is not one of its named agents, so the "other agents" path applies.
 
 - **Skills**: `npx -y skills add cloudflare/skills --skill '*' --yes --global`
-  installs 19 skills to `~/.agents/skills/` and symlinks them into
-  `~/.openhands/skills/`. The CLI auto-detects this agent as "OpenHands".
-  Verify with `npx -y skills list -g`.
+  installs them to `~/.agents/skills/` and symlinks them for the agent
+  (`~/.openhands/skills/`). The CLI auto-detects this agent as "OpenHands".
+  Verify with `npx -y skills list -g`. **These do NOT survive a new container**:
+  re-run the command each session (2026-11-07: re-run, 22 skills, was 19).
+  The Cloudflare MCP (`mcp_config.cloudflare` -> `https://mcp.cloudflare.com/mcp`,
+  oauth2) is in `/home/openhands/.openhands/settings.json` under `mcp_config`
+  (NOT `mcpServers`) and did persist.
 - **MCP**: the local agent-server (pid 1, `--port 60000`) owns MCP config and is
   the canonical store — docs say there is *no* per-project MCP config file, so do
   not hand-edit one. Register servers over its REST API:
