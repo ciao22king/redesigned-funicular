@@ -1168,3 +1168,38 @@ e ridistribuire: tutto torna canonico senza toccare il codice.
   `CLOUDFLARE_API_TOKEN=$(grep -o "cfat_[A-Za-z0-9]*" …/deploy-when-ready.sh|head -1)`.
   Il secret `Cloudflare` del container e' una coppia `CLOUD… cfut…` **non valida**
   come bearer token.
+
+### Analytics (Cloudflare Web Analytics) — e il CSP che lo bloccava (2026-11-07)
+Richiesta utente: "non stiamo migliorando le views". Il sito **non aveva alcun
+analytics**. Aggiunto il beacon **Cloudflare Web Analytics** (gratis, senza
+cookie → niente banner, coerente con `/cookie`).
+- **RUM site** creato via API: `POST /accounts/$ACC/rum/site_info`
+  `{"host":"skill-forge.ciao22king.workers.dev"}`. Site tag (pubblico)
+  `9d40be2ece8d4cb0be14e47e1c2f2039`. Elenco: `GET …/rum/site_info/list`.
+- **Beacon**: in `src/app/layout.tsx`, `<script defer src=
+  "https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":…}'>`,
+  token da `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` (default = tag live; vuoto = disattiva).
+  **Non** usare `next/script`: con `afterInteractive` il tag NON finisce nell'HTML
+  SSR. Un `<script defer>` semplice sì (verificato).
+- **TRAPPOLA GROSSA — il CSP di `next.config.mjs`**: `script-src 'self'
+  'unsafe-inline'` + `connect-src 'self'` **bloccavano** il beacon (script da
+  `static.cloudflareinsights.com`, POST a `cloudflareinsights.com/cdn-cgi/rum`).
+  Sintomo: **zero dati RUM per sempre**, senza errori server. Fix: aggiunti
+  `https://static.cloudflareinsights.com` a `script-src` e
+  `https://cloudflareinsights.com` a `connect-src`. **Ogni volta che aggiungi
+  uno script/endpoint esterno, aggiorna questo CSP.**
+- **Come verificare davvero** (i dati RUM tardano ~30 min, quindi non fidarti
+  dell'API): headless Chromium + CDP `Network.*`. `chromium --headless=new
+  --no-sandbox --remote-debugging-port=9333 --remote-allow-origins=*`, poi
+  websocket-client su `/json` → `Network.enable` + `Page.navigate`. Conferma
+  `REQ/RESP 200` verso `cloudflareinsights.com/cdn-cgi/rum`. (Ho dovuto
+  `pip install websocket-client`.)
+- **Query dati RUM** (GraphQL, richiede **filtro di data** o dà errore
+  "time range wider than 13w2d"): `rumPageloadEventsAdaptiveGroups(filter:
+  {siteTag:$tag, datetime_geq:$since})`. Dopo ~1h dall'attivazione: 0 righe
+  (atteso, il traffico reale e' quasi nullo — ecco perche' le "views" non si
+  vedono: non c'e' traffico, e i link erano rotti).
+- Deploy: Version `9fd494a2` (beacon SSR) poi `fec8fe69` (fix CSP).
+- Nota: `POST https://cloudflareinsights.com/cdn-cgi/rum` con curl → 404
+  (serve il payload/UA giusti); col browser reale → 200. Non concludere nulla
+  da un curl diretto.
