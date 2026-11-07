@@ -1045,3 +1045,24 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
   Inoltre `HASHNODE_ME` è rotto (GraphQL campi deprecati followersCount/followingsCount).
 - **Reddit**: post r/SideProject `1xq38n0` **RIMOSSO** (account 0 karma, restrict_posting).
   NON fare vote-farming (viola la policy → shadowban). Meglio: commenti genuini o sub piccoli.
+
+### Automazione OpenHands "Skill Forge daily social post" (2026-11-07)
+- **API automazioni**: host `https://app.all-hands.dev`, auth `Authorization: Bearer $OPENHANDS_API_KEY`.
+  Endpoint: `/api/automation/v1` (POST crea), `/uploads?name=` (POST tarball, gzip, 1MB),
+  `/kv/{key}?automation_id=<uuid>` (PUT/GET), `/{id}/dispatch` (POST), `/{id}/runs`.
+  Capabilities: triggerKinds cron+event, maxAutomationTimeoutSeconds 1800.
+- **Automazione creata** (deterministica, **no LLM → costo zero**):
+  id `31537c81-515c-4e22-b1c7-169fa35f48cc`, cron `0 9 * * *` Europe/Rome,
+  entrypoint `python3 main.py`, timeout 300. Codice in
+  `skill-forge/automations/daily-social/main.py` (+README). Tarball `oh-internal://uploads/78538f6d-...`.
+- **Cosa fa**: ogni giorno pubblica su **LinkedIn + Pinterest** via gateway MCP Composio,
+  scegliendo il testo da un pool di 6 (rotazione). Stato in KV: `rotation` (int) e
+  `last_run` (timestamp+esito). Credenziali in KV chiave `composio`
+  (`{client_id, refresh_token}`); il refresh token viene riscritto quando ruota.
+- **Run manuale di test → COMPLETED** e ha pubblicato davvero
+  (LinkedIn `urn:li:share:7524787372434079744`, pin creato; rotation 0→1).
+- **Attenzione**: il sandbox dell'automazione è separato da questo container → le
+  credenziali NON si leggono da `/workspace/.../creds`, vanno nella KV. I MCP server
+  di `~/.openhands/settings.json` non sono automaticamente disponibili allo script:
+  lo script parla direttamente con `https://connect.composio.dev/mcp`.
+- Aggiornare l'automazione = ricaricare il tarball e PATCH `tarball_path`.
