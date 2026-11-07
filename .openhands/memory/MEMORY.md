@@ -1283,3 +1283,28 @@ Verificato leggendo i form di registrazione (campi `required`).
   "niente telefono".
 - **netlib.re**: nessun form pubblico trovato (sito OpenBSD httpd, 404 su
   /register); registrazione poco chiara → fiducia bassa.
+
+### DNSHE — scheda approfondita (navigato a fondo, 2026-11-07)
+- Sito: https://www.dnshe.com/ ; signup https://my.dnshe.com/register.php ;
+  login/clientarea https://my.dnshe.com/clientarea.php ; dominio hub
+  https://my.dnshe.com/index.php?m=domain_hub (redirect al login se anonimo).
+- Login anche con **Google / GitHub** (oltre email+password).
+- Suffissi: `.de5.net`, `.us.ci`, `.cc.cd`, `.bot.cd` (`.bot.cd` NON in PSL).
+  "More extensions available in the console". Extra: **email gratis `@V.cd`**
+  (mail.v.cd) e servizio DDNS.
+- NS reali: `a/b.ns.dnshe.org` (.de5.net, .cc.cd) e `a/b.nic.dnshe.org`
+  (.us.ci, .bot.cd). Il suffisso `www.de5.net` risolve su IP **Cloudflare**
+  (104.21.x / 172.67.x) => DNSHE gira su Cloudflare, quindi CF e' compatibile.
+- Modello: gratis 1 anno, **rinnovo gratis** (finestra 180 gg prima della
+  scadenza) oppure "Permanent Domain Upgrade" gratuito invitando amici.
+- Supporta **NS custom** ("Can I use my own DNS servers? Yes") + record A/AAAA/
+  CNAME/MX/TXT/NS/SRV/CAA + DNSSEC + routing per paese/ISP. TTL fino a 1s.
+  Record **illimitati** (batte il limite 200 di CF free).
+- **API v2**: endpoint `https://api005.dnshe.com/index.php?m=domain_hub`,
+  auth header `X-API-Key` + `X-API-Secret` (formato `cfsd_...`), rate 30-60/min.
+  Endpoint: `subdomains` (list/register/get/delete/renew), `dns_records`
+  (list/create/update/delete), `keys`, `quota`. Guida:
+  https://my.dnshe.com/knowledgebase/13/DNSHE-Free-Domain-API-User-Guide-V2.0.html
+- Natura: "non-profit domain distribution platform" di un team di giovani a
+  Singapore, progetto partito 2024, aperto 2025. Fiducia **media** (giovane).
+- Tutte le pagine dietro **Cloudflare Turnstile** (browser reale ok; curl no).
