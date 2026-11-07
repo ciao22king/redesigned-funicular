@@ -1451,3 +1451,13 @@ Composio ha il toolkit **devto** e l'account e' GIA' collegato:
 - Attenzione: `COMPOSIO_MANAGE_CONNECTIONS` richiede `toolkits` e restituisce
   `status:initiated` anche per toolkit gia' connessi (fuorviante) -> verificare
   con una chiamata reale al tool, non con quel metodo.
+
+### Always Use HTTPS attivato su skillforge.cc.cd — 2026-11-07
+`PATCH /zones/{zone}/settings/always_use_https {"value":"on"}` -> success.
+Verificato: `http://skillforge.cc.cd/` -> **301** Location `https://skillforge.cc.cd/`
+(anche su path+query); https diretto resta 200. Zona `bfc64fb636f77ec4b0f9707737aecd17`.
+Altri setting della zona: ssl=full, automatic_https_rewrites=on,
+opportunistic_encryption=on, min_tls_version=1.0 (si potrebbe alzare a 1.2).
+Cert TLS: Let's Encrypt, SAN `skillforge.cc.cd` + `*.skillforge.cc.cd`,
+scade 2027-02-05 (rinnovo automatico Cloudflare, nessuna azione manuale).
+`www.skillforge.cc.cd` NON ha record DNS -> handshake fallisce (da fare se serve).
