@@ -1203,3 +1203,29 @@ cookie → niente banner, coerente con `/cookie`).
 - Nota: `POST https://cloudflareinsights.com/cdn-cgi/rum` con curl → 404
   (serve il payload/UA giusti); col browser reale → 200. Non concludere nulla
   da un curl diretto.
+
+### Cloudflare agent setup (prompt ufficiale) — 2026-11-07
+Richiesta: eseguire `https://developers.cloudflare.com/agent-setup/prompt.md`.
+Sezione "other agents": skills + MCP.
+- **Skills**: `npx -y skills add cloudflare/skills --skill '*' --yes --global`
+  → installa 22 skill in `~/.agents/skills/` e le **symlinka in
+  `~/.openhands/skills/`** (e' cosi' che OpenHands le vede). Lock in
+  `~/.agents/.skill-lock.json`. (`npx skills` e' interattivo senza `--yes`.)
+- **MCP**: OpenHands scopre i plugin in `~/.agents/plugins/`, `~/.openhands/plugins/`
+  e `<git_root>/.agents|.openhands/plugins/` (`openhands.sdk.plugin.discovery`,
+  `USER_PLUGINS_DIRS`). Formato **Agent Plugins 1.0.0**: `plugin.json` +
+  `mcp.json` **alla radice** (schema vendored in
+  `openhands/sdk/plugin/format/schemas/`). Il repo `cloudflare/skills` **e' gia'
+  un plugin** in quel formato. Installazione fatta: copiati `plugin.json`,
+  `mcp.json` e `skills/` in `~/.agents/plugins/cloudflare/`.
+  MCP = `{"type":"streamable-http","url":"https://mcp.cloudflare.com/mcp"}`.
+- **OAuth**: `mcp.cloudflare.com/mcp` → 401 senza auth. Discovery in
+  `/.well-known/oauth-authorization-server`; l'OAuth scatta al primo uso dei
+  tool (serve autorizzazione browser dell'utente).
+- **CLI `cf`** (opzionale, beta): `npm install -g cf` + `cf auth login`.
+- **Lettura del binario**: `openhands-agent-server` e' un bundle PyInstaller; per
+  ispezionare il codice usare `pip install pyinstxtractor-ng` +
+  `python3 -m pyinstxtractor_ng <bin>`, poi disassemblare i `.pyc` con
+  `marshal`+`dis` (py3.13, header 16 byte). Le costanti stringa si vedono cosi'.
+- Trappola: i path passati a `Plugin.load` da `_load_plugins_from_dir` NON
+  includono `~/.claude/plugins`; `~/.claude/skills` invece e' usato per le skill.
