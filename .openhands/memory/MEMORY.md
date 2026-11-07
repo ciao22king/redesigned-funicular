@@ -992,3 +992,24 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
   NON connesso → i tool `DISCORDBOT_*` danno "No active connection found for 'discordbot'".
   I tool utente (DISCORD_LIST_MY_GUILDS, DISCORD_GET_MY_USER) funzionano solo in lettura.
 - **Gmail** = invio email: NON usarlo per spam/annunci a terzi.
+
+### Pubblicazione multi-canale via Composio (2026-11-07, agg.)
+- **Composio può GENERARE i link di connessione a un click**:
+  `COMPOSIO_MANAGE_CONNECTIONS {toolkits:[{name,action:"add"}]}` → se il toolkit ha
+  managed auth restituisce `redirect_url` (`https://connect.composio.dev/link/...`).
+  Se NON ha managed auth (twitter, threads, instagram, facebook, tiktok…) risponde
+  "user must set up their own auth config" con link al dashboard → serve app OAuth propria.
+- Connettori con managed auth (link pronti): linkedin, telegram, hashnode, discordbot,
+  reddit, devto, notion, slack, github, pinterest.
+- **Stato connettori attivi (2026-11-07 10:2x)**: devto (imadev22), discord, gmail,
+  hashnode, pinterest (ciao22king), reddit (UpbeatBag5537), youtube (×2).
+- **Pinterest PUBBLICATO**: creata board "Skill Forge" (`1125548200563604519`) +
+  pin `1125548131922912702` → https://www.pinterest.com/pin/1125548131922912702/
+  (immagine = opengraph-image del sito, `media_source={source_type:"image_url",url:...}`).
+- **Hashnode BLOCCATO**: `HASHNODE_ME` fallisce (query GraphQL con campi deprecati
+  `followersCount`/`followingsCount` → HTTP 400) e `HASHNODE_LIST_PUBLICATIONS` → 0
+  pubblicazioni. Il tool è rotto lato Composio; serve una pubblicazione Hashnode.
+- **Reddit**: `REDDIT_LIST_SUBSCRIBED_SUBREDDITS` → **0**; `subreddits/mine` dà 429
+  facilmente. Postare in un sub pubblico non scelto dall'utente = rischio ban.
+- **Discord**: serve toolkit `discordbot` (token bot) per scrivere; i tool utente
+  sono solo in lettura.
