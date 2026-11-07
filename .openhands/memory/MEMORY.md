@@ -1267,3 +1267,19 @@ GoDaddy: blocca questo ambiente (403 Akamai) su tutte le pagine; prezzi letti
 via `https://r.jina.ai/<url>` (reader proxy). Promo `.COM` $4.99 con `GDWELCOME`
 (1o anno, solo nuovi clienti, rinnovo $24.99). `.tools` $14.99 → **rinnovo
 $61.99** (trappola classica). Meglio Cloudflare Registrar/Porkbun (a costo).
+
+### Domini gratis senza numero di telefono — 2026-11-07
+Verificato leggendo i form di registrazione (campi `required`).
+- **eu.org**: il telefono (`ph1`) e' **OPZIONALE** (il form marca required solo
+  nome, email, indirizzo, policy). NB: **non usare Gmail** — eu.org avvisa che
+  gmail.com scarta le sue email di validazione come spam. Registrazione via
+  "contact handle" + password, validazione via email.
+- **DNSHE** (`my.dnshe.com/register.php`): bastano **email + password**;
+  telefono/indirizzo presenti ma NON obbligatori. Offre `.de5.net .us.ci .cc.cd`.
+- **DigitalPlat**: form email chiede il telefono, ma offre **Continue with
+  Google / GitHub** (probabile scorciatoia, non verificato senza account).
+- **pp.ua** (nic.ua): signup = email + password, ma il pp.ua e' noto per la
+  **verifica telefonica** in fase di attivazione → da evitare se il vincolo e'
+  "niente telefono".
+- **netlib.re**: nessun form pubblico trovato (sito OpenBSD httpd, 404 su
+  /register); registrazione poco chiara → fiducia bassa.
