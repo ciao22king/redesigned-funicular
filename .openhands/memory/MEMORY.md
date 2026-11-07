@@ -1431,3 +1431,23 @@ via Composio MCP usando `https://skillforge.cc.cd` invece del vecchio workers.de
   youtube_asylum-fillip. OG image su nuovo dominio OK (HTTP 200, image/png).
 - YouTube: publisher in retry per QUOTA_EXCEEDED (quota condivisa Composio,
   reset ~08:00 UTC); non bloccante.
+
+### dev.to aggiornato al nuovo link — 2026-11-07
+Composio ha il toolkit **devto** e l'account e' GIA' collegato:
+- Utente dev.to: **imadev22** ("ImADev", github ciao22king, id 3845165).
+- Tool utili: `DEVTO_LIST_USER_ALL_ARTICLES`, `DEVTO_CREATE_ARTICLE`,
+  `DEVTO_UPDATE_ARTICLE` (campi: id, title, body_markdown, canonical_url,
+  main_image, tags, published), `DEVTO_GET_CURRENT_USER`, `DEVTO_GET_ARTICLE`.
+- Articolo Skill Forge id **4992961**:
+  https://dev.to/imadev22/skill-forge-turn-scattered-notes-into-complete-reusable-skills-for-ai-agents-401j
+  Aggiornati: **canonical_url -> https://skillforge.cc.cd**, le 3 occorrenze
+  nel body (incluse le etichette dei link) e la **main_image/cover** ->
+  https://skillforge.cc.cd/opengraph-image. Verifica live: 0 occorrenze del
+  vecchio workers.dev, 13 del nuovo dominio.
+- Helper riutilizzabile creato: `/workspace/project/.skill-forge-deploy/devto_helper.py`
+  (classe `MCP`, `connect()`, `run_tool(slug,args)`), evita di riscrivere il
+  boilerplate MCP+refresh. NB: la costante URL e' `MCP_URL` (non `MCP`, che e'
+  la classe).
+- Attenzione: `COMPOSIO_MANAGE_CONNECTIONS` richiede `toolkits` e restituisce
+  `status:initiated` anche per toolkit gia' connessi (fuorviante) -> verificare
+  con una chiamata reale al tool, non con quel metodo.
