@@ -1412,3 +1412,22 @@ invalido):
 - Altre zone nell'account: `edgepassport.eu.org` (pending), `skillforge.eu.org`
   (pending). Worker scripts: `edge-passport`, `skill-forge`.
 - Verificare se aggiungere anche `www.skillforge.cc.cd` (route `www.skillforge.cc.cd/*`).
+
+### Pubblicazione social (Composio) con il nuovo link — 2026-11-07
+Obiettivo "pubblicizza con composito col nuovo link" = pubblicare i post promozionali
+via Composio MCP usando `https://skillforge.cc.cd` invece del vecchio workers.dev.
+- Script: `/workspace/project/.skill-forge-deploy/daily-social/main.py` (LinkedIn +
+  Pinterest, rotazione copy) e `publish_youtube.py` (Shorts).
+- **Link aggiornato** con sed in entrambi (SITE e DESC ora = https://skillforge.cc.cd).
+- Credenziali Composio in `/workspace/project/.skill-forge-deploy/creds/`
+  (`comp2.json` client_id + `comp_token.json` refresh_token). Il refresh OAuth
+  FUNZIONA (login.composio.dev/oauth2/token).
+- **`AUTOMATION_KV_*` NON e' impostato** in questo ambiente: main.py da solo non
+  parte. Creato shim `daily-social/run_local.py` che rimpiazza kv_get/kv_set con un
+  file locale `local_kv.json` e legge le credenziali da creds/. NON tocca main.py.
+- Eseguito: **LinkedIn OK** (share urn:li:share:7524937911268638720),
+  **Pinterest OK** (pin creato 2026-11-07T20:56:46, board 1125548200563604519).
+- Account Composio: linkedin_wearer-delhi, pinterest_labor-arrie,
+  youtube_asylum-fillip. OG image su nuovo dominio OK (HTTP 200, image/png).
+- YouTube: publisher in retry per QUOTA_EXCEEDED (quota condivisa Composio,
+  reset ~08:00 UTC); non bloccante.
