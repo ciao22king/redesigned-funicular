@@ -197,12 +197,12 @@ column in JS, over a bounded number of rows.
 
 ## Obvious extensions
 
-- **Skill list in the dashboard**: add `listFiles()` in `lib/github-token.ts` and
-  a `GET /api/skills` route that reads the repository's `contents/skills`
 - **Streaming the generation**: pass `stream: true` to the model and use a
   `ReadableStream` in the route handler
-- **Versioning**: update existing skills using the SHA already handled by
-  `commitFile`
+- **Tag filtering in the search box**: accept `?tag=` on `/api/marketplace` and
+  reuse `tagClause`, instead of only the dedicated tag pages
+- **Following an author**: store `(follower, owner)` rows and let `/u/[owner]`
+  show a follow button
 - **Default templates**: a catalog of domains with pre-filled prompts
 
 ## License
