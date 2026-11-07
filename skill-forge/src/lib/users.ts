@@ -12,6 +12,11 @@ export interface UserRow {
   last_seen: string;
 }
 
+/** The noun alone, so the UI can style the number and the label separately. */
+export function userNoun(count: number): string {
+  return count === 1 ? 'user' : 'users';
+}
+
 /**
  * Label for the landing page, pluralized in English.
  *
@@ -21,7 +26,7 @@ export interface UserRow {
  */
 export function userCountLabel(count: number): string {
   const n = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
-  return `${n} ${n === 1 ? 'user' : 'users'}`;
+  return `${n} ${userNoun(n)}`;
 }
 
 /** Validates a GitHub login before it is written to the users table. */

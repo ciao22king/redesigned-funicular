@@ -4,7 +4,7 @@ import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
 import Link from 'next/link';
 import { signIn, useSession } from 'next-auth/react';
-import { userCountLabel } from '@/lib/users';
+import { userNoun } from '@/lib/users';
 
 /**
  * Landing page body. It is a client component because of the session state
@@ -69,10 +69,16 @@ export function Landing({ userCount }: { userCount?: number }) {
             </div>
 
             {userCount !== undefined && (
-              <p className="mt-8 flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.14em] text-[--ink-muted]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[--accent]" aria-hidden />
-                {userCountLabel(userCount)} registered
-              </p>
+              <div className="mt-10 flex items-center gap-4 border-t border-[--line] pt-6">
+                <span className="font-display text-4xl font-semibold leading-none text-[--accent]">
+                  {userCount}
+                </span>
+                <span className="font-mono text-[11px] uppercase leading-tight tracking-[0.14em] text-[--ink-muted]">
+                  {userNoun(userCount)}
+                  <br />
+                  registered
+                </span>
+              </div>
             )}
           </div>
 

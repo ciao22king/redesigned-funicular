@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isLogin, userCountLabel } from '../src/lib/users';
+import { isLogin, userCountLabel, userNoun } from '../src/lib/users';
 import { countUsers, publicUserCount, recordUser } from '../src/lib/users-db';
 import type { D1Like } from '../src/lib/d1';
 
@@ -51,6 +51,12 @@ test('userCountLabel pluralizza al singolare e al plurale', () => {
   assert.equal(userCountLabel(1), '1 user');
   assert.equal(userCountLabel(2), '2 users');
   assert.equal(userCountLabel(1234), '1234 users');
+});
+
+test('userNoun dà solo il nome, per lo stile separato dal numero', () => {
+  assert.equal(userNoun(1), 'user');
+  assert.equal(userNoun(0), 'users');
+  assert.equal(userNoun(2), 'users');
 });
 
 test('userCountLabel tratta valori non validi come zero', () => {
