@@ -1461,3 +1461,11 @@ opportunistic_encryption=on, min_tls_version=1.0 (si potrebbe alzare a 1.2).
 Cert TLS: Let's Encrypt, SAN `skillforge.cc.cd` + `*.skillforge.cc.cd`,
 scade 2027-02-05 (rinnovo automatico Cloudflare, nessuna azione manuale).
 `www.skillforge.cc.cd` NON ha record DNS -> handshake fallisce (da fare se serve).
+
+### Verifica Google Search Console (TXT) su skillforge.cc.cd — 2026-11-07
+Aggiunto record DNS TXT sull'apex della zona
+(`POST /zones/{zone}/dns_records`, id 32e96723e2b833287795a118b702179f):
+`skillforge.cc.cd TXT "google-site-verification=BdX3KzeudlL_Vyb1p_70F1_Bhl93NGoNPHhxw5CMIFU"`.
+Propagato e verificato su 1.1.1.1, 8.8.8.8, 9.9.9.9 (query TXT raw via UDP, `dig` assente).
+NB: il CNAME apex + TXT convivono senza problemi. Se serve, aggiungere lo stesso
+TXT anche su `www` (record separato) per verificare la proprieta' del prefisso www.
