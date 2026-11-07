@@ -1,10 +1,10 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare';
 import type {
   NormalizedSkill,
   SkillRow,
   SortKey,
 } from './marketplace';
 import { orderClause, searchClause, skillId, tagClause } from './marketplace';
+import { getDatabase, type D1Like } from './d1';
 
 /**
  * D1 access for the marketplace.
@@ -14,29 +14,10 @@ import { orderClause, searchClause, skillId, tagClause } from './marketplace';
  * without the binding does not blow up but degrades with a readable error.
  */
 
-export interface D1Like {
-  prepare(sql: string): {
-    bind(...values: unknown[]): {
-      all<T = unknown>(): Promise<{ results?: T[] }>;
-      first<T = unknown>(): Promise<T | null>;
-      run(): Promise<unknown>;
-    };
-  };
-  batch(statements: unknown[]): Promise<unknown>;
-}
+export type { D1Like };
 
 async function db(injected?: D1Like): Promise<D1Like> {
-  if (injected) return injected;
-  try {
-    const { env } = await getCloudflareContext({ async: true });
-    const bound = (env as { MARKETPLACE?: D1Like }).MARKETPLACE;
-    if (!bound) throw new Error('binding assente');
-    return bound;
-  } catch {
-    throw new Error(
-      'Marketplace unavailable: the D1 binding `MARKETPLACE` is missing.',
-    );
-  }
+  return getDatabase(injected);
 }
 
 const COLUMNS =

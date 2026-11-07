@@ -195,6 +195,20 @@ column and the term in commas to match a whole element (a plain `LIKE '%git%'`
 would also match `github`). The tag index and the sitemap both aggregate that
 column in JS, over a bounded number of rows.
 
+## Registered users
+
+Signing in with GitHub is the registration. The `users` table (migration
+`0002_users.sql`) stores one row per login, with the first and last sign-in
+dates; the landing page shows the count, read server-side so it is in the HTML.
+Only the username is stored, no email and no token.
+
+- The `signIn` callback in `lib/auth.ts` records the login. It never blocks the
+  login: if D1 is unreachable the person still gets in.
+- The migration backfills people who already used the site, from the authors and
+  star-givers the marketplace already knows.
+- The count is hidden (not shown as zero) when D1 is missing, so local
+  development and a broken binding do not claim a wrong number.
+
 ## Obvious extensions
 
 - **Streaming the generation**: pass `stream: true` to the model and use a

@@ -3,6 +3,8 @@ import { getToken } from 'next-auth/jwt';
 import GitHubProvider from 'next-auth/providers/github';
 import type { NextRequest } from 'next/server';
 import { loginForToken, readBearer } from './github-token';
+import { recordUser } from './users-db';
+import { isLogin } from './users';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,6 +21,22 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    /**
+     * Records the sign-in in the `users` table (the landing page shows the
+     * count). It never blocks the login: if D1 is unreachable, the person still
+     * gets in, only the number misses one row.
+     */
+    async signIn({ profile }) {
+      const login = (profile as { login?: unknown } | undefined)?.login;
+      if (isLogin(login)) {
+        try {
+          await recordUser(login);
+        } catch {
+          // Best effort: an analytics write must not break authentication.
+        }
+      }
+      return true;
+    },
     async jwt({ token, account, profile }) {
       // On first login we store the GitHub access token in the signed JWT,
       // so the API routes use it without a second OAuth round.

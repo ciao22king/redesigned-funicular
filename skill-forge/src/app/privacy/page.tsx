@@ -39,6 +39,12 @@ export default function PrivacyPage() {
             dashboard.
           </li>
           <li>
+            <strong>Registration record</strong>: when you sign in, your GitHub
+            username and the date of your first and most recent sign-in are
+            stored, so the landing page can show how many people registered.
+            Only the username is kept, no email and no token.
+          </li>
+          <li>
             <strong>Technical data</strong>: IP address, request data and logs,
             handled by our infrastructure provider for security and operation.
           </li>
