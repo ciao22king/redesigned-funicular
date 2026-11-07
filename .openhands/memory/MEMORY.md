@@ -1469,3 +1469,22 @@ Aggiunto record DNS TXT sull'apex della zona
 Propagato e verificato su 1.1.1.1, 8.8.8.8, 9.9.9.9 (query TXT raw via UDP, `dig` assente).
 NB: il CNAME apex + TXT convivono senza problemi. Se serve, aggiungere lo stesso
 TXT anche su `www` (record separato) per verificare la proprieta' del prefisso www.
+
+### FIX SEO: canonical puntava al vecchio dominio — 2026-11-07
+Trovato mentre si controllava la sitemap: **canonical e og:url di tutte le pagine
+erano `https://skill-forge.ciao22king.workers.dev`** -> Google avrebbe indicizzato
+il dominio VECCHIO e vanificato Search Console. Causa: in `src/lib/legal.ts`
+`siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '<workers.dev>'` e
+NEXT_PUBLIC_SITE_URL non era impostata.
+- Fix: default nel codice -> `https://skillforge.cc.cd` (+ `.env.example`).
+- Rebuild `npx opennextjs-cloudflare build` (con NEXT_PUBLIC_SITE_URL esportata)
+  + `npx wrangler deploy` (token/account da deploy-when-ready.sh). Ora canonical,
+  og:url, sitemap e robots puntano tutti a skillforge.cc.cd (0 occorrenze workers.dev).
+- NB: la SITEMAP era gia' corretta perche' `src/lib/site-url.ts` usa l'host della
+  richiesta (`x-forwarded-host`); solo i meta tag usavano `legal.siteUrl`.
+- Il token Cloudflare **non puo' modificare i binding** del Worker
+  (`PUT .../bindings` -> 10405; `PATCH .../settings` vuole multipart). Quindi
+  impostare NEXT_PUBLIC_SITE_URL via API non e' possibile con questo token: il
+  default nel codice e' la via. In alternativa, dashboard o `wrangler secret/vars`.
+- `siteUrl` viene **inlinato nel bundle al build time** (NEXT_PUBLIC_*): percio'
+  cambiarlo richiede sempre un rebuild+deploy, non basta una var runtime.
