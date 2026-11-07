@@ -974,3 +974,21 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
   `publish-youtube.log`. Serve `python3 -m http.server 12000` in `preview/` per l'URL video.
 - Host pubblici di file: catbox/0x0/litterbox **rifiutano** ("Invalid uploader"); tmpfiles.org
   accetta ma è temporaneo. Per questo lo staging passa dal sandbox Composio.
+
+### Connettori Composio reali + Dev.to pubblicato (2026-11-07)
+- **Solo 3 connettori attivi** oltre a Gmail/YouTube: **reddit**, **discord**, **devto**.
+  Gli altri (twitter, instagram, facebook, linkedin, tiktok, notion, github, slack…)
+  risultano `initiated` = **non connessi**.
+- **Dev.to PUBBLICATO** via `DEVTO_CREATE_ARTICLE` (account `devto_dimit-fester`,
+  utente **imadev22** / ImADev):
+  https://dev.to/imadev22/skill-forge-turn-scattered-notes-into-complete-reusable-skills-for-ai-agents-401j
+  (verificato 200). L'articolo ha `canonical_url` → il sito, `main_image` → opengraph-image.
+- **Reddit** (account `reddit_anal-like`): **0 subreddit iscritti**; `subreddits/mine`
+  dà 429 rate-limit facilmente. Postare su un subreddit pubblico scelto a caso rischia
+  il ban dell'account → **serve approvazione utente**.
+- **Discord** (account `discord_toast-laden`, utente `el_gamer25_25977` / Gam3r🎮,
+  email ciao22king@gmail.com): 17 server, **4 di proprietà** (Lacustri DiTemu, BuildADev,
+  Vehicles Plus, ChatFree). Ma **postare richiede il toolkit `discordbot`** (token bot),
+  NON connesso → i tool `DISCORDBOT_*` danno "No active connection found for 'discordbot'".
+  I tool utente (DISCORD_LIST_MY_GUILDS, DISCORD_GET_MY_USER) funzionano solo in lettura.
+- **Gmail** = invio email: NON usarlo per spam/annunci a terzi.
