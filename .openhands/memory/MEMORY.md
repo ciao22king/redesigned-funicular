@@ -1114,3 +1114,17 @@ online**; ora lo sono (`/tags`, `/feed.xml`, `/u/...` → 200).
   deploy`), NON passa da `main` né da PR. Token CF attivo, `CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551`.
 - Test: **81** (erano 72). `skillforge.eu.org` **non risolve** ancora (delega NS
   eu.org pendente): il live va testato su `skill-forge.ciao22king.workers.dev`.
+
+### Conteggio utenti: visibilita' (2026-11-07)
+Commit `8e895af`, deploy Version `3d5886bd`. L'utente ha detto "il conteggio non
+c'e'": in realta' **c'era** (curl 12/12 + browser reale su
+`skill-forge.ciao22king.workers.dev`). Era solo **poco visibile**: riga 12px
+grigia sotto i pulsanti. Ora e' un blocco stat nella hero (numero in
+`font-display text-4xl` accent + etichetta sotto, separato da una hairline).
+- **"Pending" = zona DNS `skillforge.eu.org`**, non il conteggio: la zona e' in
+  stato `pending` (delega NS eu.org non ancora pubblicata → NXDOMAIN pubblico).
+  La route Worker `skillforge.eu.org/*` esiste gia', ma senza delega il dominio
+  canonico **non risolve**. Per vedere il sito serve `…workers.dev`.
+- **Trappola grep**: React inserisce `<!-- -->` tra numero e testo, quindi
+  `grep "1 user registered"` NON matcha. Cercare `registered` o usare una regex
+  `[0-9]+\s*(?:<!-- -->)?\s*users?`.
