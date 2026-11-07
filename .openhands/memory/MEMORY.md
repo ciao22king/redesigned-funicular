@@ -1229,3 +1229,41 @@ Sezione "other agents": skills + MCP.
   `marshal`+`dis` (py3.13, header 16 byte). Le costanti stringa si vedono cosi'.
 - Trappola: i path passati a `Plugin.load` da `_load_plugins_from_dir` NON
   includono `~/.claude/plugins`; `~/.claude/skills` invece e' usato per le skill.
+
+### Domini gratis — ricerca approfondita 2026-11-07
+Contesto: serve un dominio che si possa **zonare su Cloudflare** (per il Worker).
+Requisiti reali: (1) nella **Public Suffix List** (PSL) e (2) **nameserver
+custom** (NS). Un semplice CNAME NON basta: il Custom Domain di un Worker
+richiede che la zona sia su Cloudflare.
+
+**Verificato con PSL (publicsuffix.org) + probe HTTP + DNS Google.**
+
+Utilizzabili col Worker (PSL ✅ + NS custom ✅):
+| Servizio | Suffisso gratis | PSL | Note |
+|---|---|---|---|
+| eu.org | `*.eu.org` | ✅ | no-profit dal 1996, alta fiducia, LENTO (settimane). Gia' in corso. |
+| DigitalPlat | `.us.kg .dpdns.org .qzz.io .xx.kg` | ✅ | NS custom ("bring your own DNS"), veloce. `.qd.je` NON in PSL. |
+| DNSHE | `.de5.net .us.ci .cc.cd` | ✅ | NS custom. `.bot.cd` NON in PSL. Servizio cinese, fiducia media. |
+| pp.ua | `*.pp.ua` | ✅ | via nic.ua, registrazione a scadenza annuale. |
+| netlib.re | `*.netlib.re` | ✅ | progetto piccolo. |
+| deSEC/dedyn.io | `*.dedyn.io` | ✅ | DNS gestito da deSEC (NS non puntabili a CF → verifica caso d'uso). |
+
+NON usabili con Cloudflare:
+- isroot.in — fuori PSL, no NS custom.
+- freedns.afraid.org — fuori PSL.
+- open-domains.net — fuori PSL.
+- **is-a.dev / is-a.bot / js.org** — PSL ✅ ma **solo record via PR GitHub**
+  (no NS custom): niente zona CF. is-a.dev e' supportato da Cloudflare
+  "Project Alexandria" ma resta CNAME-only.
+
+Morti/inaffidabili: Freenom (`.tk .ml .ga .cf`) morto; `nic.us.kg` 522.
+
+Disponibilita' `skillforge` (DNS, oggi): liberi su eu.org, us.kg, dpdns.org,
+qzz.io, de5.net, pp.ua, netlib.re, dedyn.io. **Occupati**: `is-a.dev`, `js.org`.
+Paga: `skillforge.tools` e `skillforge.works` LIBERI (RDAP 404, no DNS);
+`.com .net .org .dev .app .io .eu .ai .cloud .tech .design .software` occupati.
+
+GoDaddy: blocca questo ambiente (403 Akamai) su tutte le pagine; prezzi letti
+via `https://r.jina.ai/<url>` (reader proxy). Promo `.COM` $4.99 con `GDWELCOME`
+(1o anno, solo nuovi clienti, rinnovo $24.99). `.tools` $14.99 → **rinnovo
+$61.99** (trappola classica). Meglio Cloudflare Registrar/Porkbun (a costo).
