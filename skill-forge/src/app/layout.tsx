@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Public_Sans } from 'next/font/google';
-import Script from 'next/script';
 import './globals.css';
 import { Providers } from '@/components/Providers';
 import { legal } from '@/lib/legal';
@@ -93,11 +92,10 @@ export default function RootLayout({
         </a>
         <Providers>{children}</Providers>
         {ANALYTICS_TOKEN ? (
-          <Script
+          <script
             defer
             src="https://static.cloudflareinsights.com/beacon.min.js"
             data-cf-beacon={JSON.stringify({ token: ANALYTICS_TOKEN })}
-            strategy="afterInteractive"
           />
         ) : null}
       </body>
