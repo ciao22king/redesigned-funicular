@@ -1387,3 +1387,28 @@ Dopo il cambio NS, la propagazione e' avvenuta:
   Settings > Domains & Routes > Add > **Custom Domain** > `skillforge.cc.cd`.
   Cloudflare chiede di rimuovere/gestire il record in conflitto: accettare.
   Poi il cert TLS viene emesso da solo e il 522 sparisce.
+
+### skillforge.cc.cd LIVE (risolto via Worker Route) — 2026-11-07
+**`https://skillforge.cc.cd` funziona**: HTTP/HTTPS 200, cert Let's Encrypt
+`CN=skillforge.cc.cd` (scade 2027-02-05), titolo "Skill Forge · From scattered
+notes to complete skills". La pagina risponde anche in HTTP (nessun redirect
+forzato a HTTPS: eventualmente aggiungere una Always-Use-HTTPS rule).
+
+Come e' stato risolto (credenziali trovate, NON nel secret `$Cloudflare` che e'
+invalido):
+- Token valido: in `/workspace/project/.skill-forge-deploy/deploy-when-ready.sh`
+  (`CLOUDFLARE_API_TOKEN='cfat_...'`) con `CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551`.
+  **E' un token TEMPORANEO**: `expires_on 2026-11-07T22:59:59Z` (poche ore).
+- L'endpoint **Custom Domains** (`POST /accounts/{acc}/workers/domains`) e'
+  VIETATO a questo token: errore `10405 Method not allowed for this
+  authentication scheme`.
+- **Workaround che ha funzionato**: **Worker Route** a livello di zona:
+  `POST /zones/{zone_id}/workers/routes` con
+  `{"pattern":"skillforge.cc.cd/*","script":"skill-forge"}` -> success:true.
+  (route id c8e766a371754d7ba026a2ab2ecc7d1d)
+- Il DNS della zona ha un **CNAME proxied** `skillforge.cc.cd ->
+  skill-forge.ciao22king.workers.dev` (basta cosi', con la route).
+- Zone id `skillforge.cc.cd` = `bfc64fb636f77ec4b0f9707737aecd17`.
+- Altre zone nell'account: `edgepassport.eu.org` (pending), `skillforge.eu.org`
+  (pending). Worker scripts: `edge-passport`, `skill-forge`.
+- Verificare se aggiungere anche `www.skillforge.cc.cd` (route `www.skillforge.cc.cd/*`).
