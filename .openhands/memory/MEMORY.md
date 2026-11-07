@@ -1025,3 +1025,23 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
   tornano **vuoti** → probabile auto-filtro per account nuovo. Serve check da loggato.
 - Tool Reddit Composio: `REDDIT_GET` richiede `sort` (400 se manca); `REDDIT_RETRIEVE_REDDIT_POST`
   richiede `subreddit` e ignora `id` (restituisce un listing). Verifica poco affidabile.
+
+### Catalogo Composio + LinkedIn pubblicato (2026-11-07)
+- **LinkedIn PUBBLICATO** (account `linkedin_wearer-delhi`, profilo "Ciao" id `U0CikiARb7`):
+  `LINKEDIN_CREATE_LINKED_IN_POST` con `author=urn:li:person:U0CikiARb7`,
+  `visibility=PUBLIC` → `urn:li:share:7524785068330881024`.
+- **Toolkit collegabili a un click (managed auth)**: airtable, asana, beehiiv, bitbucket,
+  box, brevo, calendly, clickup, coda, confluence, devto, discord, discordbot, dropbox,
+  facebook, framer, github, gitlab, gmail, googledocs/drive/sheets, gumroad, hashnode,
+  hubspot, instagram, intercom, jira, linear, linkedin, mailchimp, monday, notion, outlook,
+  pinterest, reddit, salesforce, sendgrid, slack, stripe, telegram, todoist, trello, twitch,
+  typeform, webflow, whatsapp, wix, youtube, zendesk, zoho, zoom.
+- **Esistono ma servono app OAuth proprie**: docusign, hackernews, shopify, snapchat,
+  soundcloud, spotify, threads, tiktok, twitter, vimeo.
+- **Non esistono su Composio**: medium, wordpress, substack, bluesky, mastodon, producthunt,
+  blogger, squarespace, ghost, patreon, kofi, quora, stackexchange, stackoverflow…
+- **Hashnode**: blog dell'utente = `imadev.hashnode.dev`, ma l'API risponde
+  "Publication does not have an active Pro plan" → **Hashnode ha chiuso l'API gratuita**.
+  Inoltre `HASHNODE_ME` è rotto (GraphQL campi deprecati followersCount/followingsCount).
+- **Reddit**: post r/SideProject `1xq38n0` **RIMOSSO** (account 0 karma, restrict_posting).
+  NON fare vote-farming (viola la policy → shadowban). Meglio: commenti genuini o sub piccoli.
