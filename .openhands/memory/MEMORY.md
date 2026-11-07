@@ -1091,3 +1091,26 @@ Nuove feature di **scoperta**, tutte server-rendered con `force-dynamic`:
 - Test: **72** (erano 58), +7 in `tests/marketplace.test.ts`, +7 in `tests/feed.test.ts`.
   `npm run build` OK; verificate a runtime (dev server) `/tags`, `/tags/[tag]`, `/u/[owner]`,
   `/feed.xml` → 200 con dati reali da D1.
+
+### Landing: conteggio utenti registrati (2026-11-07)
+Commit `e8f9ee9`, **deployato** (Version `a26330d2`). Prima di questo deploy il
+sito live era FERMO al 2026-11-07T09:40 → le feature tag/autore/RSS **non erano
+online**; ora lo sono (`/tags`, `/feed.xml`, `/u/...` → 200).
+- **"Registrato" = login GitHub.** Non esisteva una tabella utenti: l'ho creata
+  (`migrations/0002_users.sql`, `users(login PK, first_seen, last_seen)`).
+  `signIn` in `lib/auth.ts` registra il login, **senza mai bloccare** l'accesso.
+- **Backfill**: la migration inserisce anche gli autori e chi ha messo stelle
+  (da `skills.owner` e `stars.user_login`), così il numero non parte da 0.
+- **`D1Like` ora in `lib/d1.ts`** (`getDatabase` + `D1Statement` con i metodi
+  terminali direttamente sullo statement, non solo dopo `bind`). `marketplace-db.ts`
+  lo re-esporta. **Trappola TS**: se `prepare().first()` dà "Property 'first' does
+  not exist", il tipo è troppo stretto.
+- **Home**: `app/page.tsx` è ora un **server component** che legge il conteggio e
+  renderizza `components/Landing.tsx` (client, `userCount` prop). Così il numero è
+  nell'HTML (SEO) e non serve fetch post-hydration. Conteggio **nascosto** (non "0")
+  se D1 manca.
+- **Deploy**: il branch di lavoro `cloudflare-workers` è **68 commit avanti** da
+  `main`; il deploy è **diretto** (`npm run deploy` = `opennextjs-cloudflare
+  deploy`), NON passa da `main` né da PR. Token CF attivo, `CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551`.
+- Test: **81** (erano 72). `skillforge.eu.org` **non risolve** ancora (delega NS
+  eu.org pendente): il live va testato su `skill-forge.ciao22king.workers.dev`.
