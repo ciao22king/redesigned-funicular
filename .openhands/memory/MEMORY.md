@@ -1608,3 +1608,40 @@ condivisi, non un bug: riprovare con un repo pubblico noto.
 - Il secret `$Cloudflare` dell'ambiente **non è un API token valido** per l'API v4
   (`/user/tokens/verify` → 401 "Invalid API Token"); contiene anche uno **spazio al
   carattere 20**. Non usarlo per l'auth.
+
+## Skill Forge — fiducia e sicurezza (7 requisiti)
+
+Implementati e **deployati** (Worker Version `c9664938-6888-4e6b-8ed4-91a1970342b2`,
+branch `cloudflare-workers`, commit `7394b12`). Librerie pure + gemelli DB (D1Like
+opzionale per i test) in `skill-forge/src/lib/`: `uploads`, `scans`, `sanitize`
+(`sanitizeField`), `audit`/`audit-db` (`pruneAudit(180)`), `reports`/`reports-db`,
+`preferences`/`preferences-db`. `ratelimit.ts` ora esporta `rateLimitHeaders`,
+`quotaMessage`, `secondsUntilReset`.
+
+- **Migrazioni D1** `0003_audit`, `0004_reports`, `0005_preferences` create e
+  **applicate al remoto** (`wrangler d1 migrations apply skill-forge-marketplace --remote`).
+  `wrangler d1 migrations list ... --remote` mostra solo le pending.
+- **Test**: `npm test` → **188** (erano 133). I nuovi test sono in italiano come gli altri.
+- **UI**: `components/Report.tsx` (sulla pagina skill), `components/PrivacySettings.tsx`
+  (nella dashboard), `src/app/security/page.tsx`. `/security` aggiunta a `Footer`,
+  `sitemap.ts` e `public/llms.txt`.
+- **Trappola — lint rotto**: `npm run lint` è `next lint`, che con Next 16 tratta
+  l'argomento come directory → `Invalid project directory provided, .../lint`. È
+  **preesistente**, non causato da queste modifiche. Usare `tsc --noEmit` per il
+  controllo dei tipi.
+- **Il numero nella pagina /security non deve essere hardcoded**: importa
+  `MAX_FILES`/`MAX_FILE_BYTES`/`MAX_TOTAL_BYTES` da `lib/uploads` e
+  `MAX_SOURCE_CHARS`/`MAX_OUTPUT_CHARS` da `lib/guardrails`, così la promessa non
+  diverge dal codice.
+- **Verifica end-to-end in produzione** (tutte confermate): POST `/api/demo` con
+  `rm -rf`/fork bomb → 422 con `findings`; richiesta pulita → 429 con
+  `x-ratelimit-*` + `retry-after`; POST `/api/marketplace/report` su skill reale →
+  `{ok:true}`, ragione inventata → 400, skill inesistente → 404, secondo report
+  identico nello stesso giorno → `duplicate:true`; riga corrispondente in `audit_log`.
+- **Pulizia dati di prova**: dopo la verifica ho cancellato da D1 remoto i report e
+  le righe `audit_log` di prova. Ricordarsi di farlo: le prove scrivono in produzione.
+- **Setup Cloudflare ri-eseguito**: le 22 skill sono tornate in `~/.agents/skills/`
+  (symlink in `~/.openhands/skills/`), e stavolta `agent_settings.mcp_config` è
+  **già presente** con `cloudflare` → `https://mcp.cloudflare.com/mcp`
+  (streamable-http, oauth2, enabled). La CLI opzionale `cf` **non** è installata
+  (`npm i -g cf` solo se l'utente la vuole).
