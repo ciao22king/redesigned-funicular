@@ -70,6 +70,16 @@ export default function PrivacyPage() {
             material to improve the service, stored against your username.
           </li>
           <li>
+            <strong>Aggregate usage counters</strong>: counts of visits,
+            generations, downloads and publications, and the summed generation
+            time, kept as one row per day and per event. They contain no
+            identifier and no IP address, and the visit beacon is cookieless.
+          </li>
+          <li>
+            <strong>Feedback</strong>: the verdict and the optional note you
+            leave after a generation. It carries no account and no address.
+          </li>
+          <li>
             <strong>Cookies</strong>: one session cookie required to keep you
             signed in (see the <a href="/cookie">cookie policy</a>).
           </li>
@@ -90,6 +100,12 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Security and abuse prevention</strong>: legitimate interest.
+          </li>
+          <li>
+            <strong>Measuring and improving the service</strong>: legitimate
+            interest, on aggregate and non-identifying data. There is no profiling
+            and no decision about you; see{' '}
+            <a href="/security">how we measure</a>.
           </li>
           <li>
             <strong>Legal obligations</strong>, if required: legal obligation.
@@ -188,6 +204,12 @@ export default function PrivacyPage() {
           <li>
             <strong>Reports and preferences</strong>: kept until the report is
             closed or you ask us to delete them.
+          </li>
+          <li>
+            <strong>Usage counters and feedback</strong>: kept as an aggregate
+            for the trend. The counters hold no identifier, and the feedback
+            holds no account, so there is nothing to delete for a single person
+            beyond asking us to remove a note.
           </li>
           <li>
             <strong>Technical logs</strong>: for the retention period of our

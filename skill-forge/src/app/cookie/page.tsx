@@ -83,6 +83,13 @@ export default function CookiePage() {
           fingerprint the visitor, so no consent banner is required. It records
           only aggregate page views and referrers, never your identity.
         </p>
+        <p>
+          Our own usage counters follow the same rule. The visit beacon sets no
+          cookie and sends no identifier: whether you are a returning visitor is
+          decided in your browser, from a date in <code>localStorage</code>, and
+          only the resulting yes or no leaves your device. The counters are stored
+          as one row per day and per event, with no address and no per-visit row.
+        </p>
       </section>
 
       <section>

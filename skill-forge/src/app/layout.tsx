@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Fraunces, Public_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/Providers';
+import { VisitTracker } from '@/components/VisitTracker';
 import { legal } from '@/lib/legal';
 
 // Cloudflare Web Analytics: aggregate, cookieless page views. The token is a
@@ -113,6 +114,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <Providers>{children}</Providers>
+        <VisitTracker />
         {ANALYTICS_TOKEN ? (
           <script
             defer

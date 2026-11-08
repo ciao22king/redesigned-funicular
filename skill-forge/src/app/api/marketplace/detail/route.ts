@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { getSkill, hasStar } from '@/lib/marketplace-db';
 import { toDetail } from '@/lib/marketplace';
+import { recordMetrics } from '@/lib/metrics-db';
+import { normalizeBatch } from '@/lib/metrics';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -25,6 +27,10 @@ export async function GET(req: NextRequest) {
     if (!row) {
       return NextResponse.json({ error: 'Skill not found.' }, { status: 404 });
     }
+    // This route serves the Download button, so a successful hit is a download.
+    // Counted server-side with the skill id as target and no identifier: the
+    // aggregate download count is what the creator stats show.
+    await recordMetrics(normalizeBatch([{ event: 'download', target: id }]));
     const starred = login ? await hasStar(id, login) : false;
     return NextResponse.json({ skill: toDetail(row, starred) });
   } catch (err) {

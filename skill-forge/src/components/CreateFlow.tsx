@@ -20,6 +20,8 @@ import { regenerableSections } from '@/lib/sections';
 import type { QualityReport } from '@/lib/quality';
 import { ACCEPT_ATTRIBUTE, MAX_FILES, MAX_TOTAL_BYTES, formatBytes, uploadRulesLabel, validateFile } from '@/lib/uploads';
 import { scanMessages, scanUpload } from '@/lib/scans';
+import { track } from '@/lib/track';
+import { Feedback } from '@/components/Feedback';
 
 type Mode = 'from-skills' | 'from-scratch';
 
@@ -61,6 +63,9 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       .then((r) => (r.ok ? (r.json() as Promise<Quota>) : null))
       .then((d) => d && setQuota(d))
       .catch(() => {});
+    // First step of the funnel: the generator was opened. The drop-off table
+    // needs this as its denominator, so it fires once on mount.
+    track('funnel_start');
   }, []);
 
   // "from existing skills" mode fields
@@ -131,6 +136,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
     if (warned.length) setFileNotice(warned.join(' '));
     if (next.length) setFiles((prev) => [...prev, ...next]);
     setPlan(null);
+    if (next.length || sources.length || pasted.trim()) track('funnel_material');
   }
 
   /** Builds the summary locally: no model call, so it is instant and free. */
@@ -161,7 +167,9 @@ export default function CreatePage({ mode }: { mode: Mode }) {
     setQuestions([]);
     setAnswers({});
     setQuality(null);
+    track('funnel_submit');
 
+    const startedAt = Date.now();
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -181,6 +189,13 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       setQuestions(data.questions ?? []);
       setQuality(data.quality ?? null);
       setPlan(null);
+
+      // Funnel: a skill arrived, and how long the wait took. The duration is
+      // sent as a value, so the server accumulates an average and nothing
+      // per-request is stored.
+      track('generate');
+      track('generation_ms', { value: Date.now() - startedAt });
+      track('funnel_result');
 
       // Every generated skill enters the local archive right away: it stays
       // findable even if it is not downloaded or committed.
@@ -253,6 +268,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
   function download() {
     if (!result) return;
+    track('download');
+    track('funnel_download');
     const blob = new Blob([result], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -532,6 +549,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
             <ResultPanel
               markdown={result}
               name={name}
+              mode={mode}
               onEdit={setResult}
               onDownload={download}
               onRegenerateSection={regenerateSection}
@@ -569,12 +587,14 @@ const inputClass =
 function ResultPanel({
   markdown,
   name,
+  mode,
   onEdit,
   onDownload,
   onRegenerateSection,
 }: {
   markdown: string;
   name: string;
+  mode: Mode;
   onEdit: (next: string) => void;
   onDownload: () => void;
   onRegenerateSection: (section: string, instruction: string) => Promise<void>;
@@ -624,6 +644,9 @@ function ResultPanel({
         skill?: { id: string; name: string };
       };
       if (!res.ok || !data.skill) throw new Error(data.error ?? 'Publishing failed');
+
+      track('publish', { target: data.skill.id });
+      track('funnel_publish');
 
       // The local copy also remembers it was published.
       const localName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';
@@ -743,6 +766,10 @@ function ResultPanel({
       </div>
 
       {market && <p className="mt-4 text-sm text-[--ink]">{market}</p>}
+
+      <div className="mt-6">
+        <Feedback mode={mode} />
+      </div>
     </section>
   );
 }

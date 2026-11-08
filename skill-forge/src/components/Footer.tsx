@@ -10,6 +10,8 @@ const legalLinks = [
 
 const exploreLinks = [
   { href: '/marketplace', label: 'Marketplace' },
+  { href: '/use-cases', label: 'Use cases' },
+  { href: '/changelog', label: 'Changelog' },
   { href: '/tags', label: 'Tags' },
   { href: '/feed.xml', label: 'RSS' },
 ];

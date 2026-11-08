@@ -48,8 +48,10 @@ export default function SecurityPage() {
           <li>
             <strong>Cloudflare D1</strong> (a SQLite database, in the Cloudflare
             network) holds the public data: published skills and their metadata,
-            stars, the registration record, the audit log, reports and your
-            preferences. It is bound to the Worker as <code>MARKETPLACE</code>.
+            stars, the registration record, the audit log, reports, your
+            preferences, the feedback you leave after a generation, and
+            aggregate usage counters. It is bound to the Worker as{' '}
+            <code>MARKETPLACE</code>.
           </li>
           <li>
             <strong>Cloudflare KV</strong> holds the generation counters, keyed
@@ -74,7 +76,44 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>3. What we keep, and for how long</h2>
+        <h2>3. How we measure, without identifying you</h2>
+        <p>
+          We count visits, generations, downloads, publications and the steps of
+          the generation flow, and we read the feedback you choose to leave. All
+          of it is aggregate, and that constrains how it is built:
+        </p>
+        <ul>
+          <li>
+            <strong>Counters, not events.</strong> The metrics table holds one
+            row per day, per event, per target, with a running count and a summed
+            duration. There is no row per visit and no per-request value.
+          </li>
+          <li>
+            <strong>No identifier and no IP.</strong> The metrics table has no
+            user, session or address column. The address is used only to rate
+            limit the anonymous demo, in KV, and is not written to the metrics.
+          </li>
+          <li>
+            <strong>No cookie.</strong> The visit beacon is cookieless. Whether
+            you are a returning visitor is decided on your device, from a date in{' '}
+            <code>localStorage</code>; only the resulting yes/no is sent, never
+            the date.
+          </li>
+          <li>
+            <strong>Feedback is about the skill, not you.</strong> The prompt
+            after a generation stores a verdict and an optional short note. It
+            carries no account and no address.
+          </li>
+        </ul>
+        <p>
+          The consequence is deliberate: there is no way to reconstruct who did
+          what, only how many did it. That is the trade we make, and it is the
+          reason no consent banner is needed for measurement.
+        </p>
+      </section>
+
+      <section>
+        <h2>4. What we keep, and for how long</h2>
         <ul>
           <li>
             <strong>Submitted material</strong>: not retained. It is used for the
@@ -107,11 +146,22 @@ export default function SecurityPage() {
             <strong>Preferences</strong>: your opt-out choice, until you change
             it or ask us to delete it.
           </li>
+          <li>
+            <strong>Usage counters</strong>: one row per day, per event, per
+            skill, with a count and a summed duration. No identifier, no address,
+            no per-visit row. They are kept as long as they are useful for the
+            trend, and carry nothing that points to a person.
+          </li>
+          <li>
+            <strong>Feedback</strong>: the verdict and the optional note you
+            leave after a generation, kept so the notes can be acted on. It
+            carries no account and no address.
+          </li>
         </ul>
       </section>
 
       <section>
-        <h2>4. Who processes data on our behalf</h2>
+        <h2>5. Who processes data on our behalf</h2>
         <p>These are the only subprocessors:</p>
         <ul>
           <li>
@@ -136,7 +186,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>5. Upload limits</h2>
+        <h2>6. Upload limits</h2>
         <p>
           The limits are explicit and enforced, both in the browser and again on
           the server, so a crafted request cannot skip them:
@@ -168,7 +218,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>6. How uploads are scanned</h2>
+        <h2>7. How uploads are scanned</h2>
         <p>
           Every file is checked before it is read, and the material is checked
           again on the server:
@@ -206,7 +256,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>7. Sanitising what becomes public</h2>
+        <h2>8. Sanitising what becomes public</h2>
         <p>
           A skill&apos;s name, description and tags become public on the skill
           page, in the marketplace cards and in the RSS feed. They are sanitised
@@ -222,7 +272,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>8. Reporting and moderation</h2>
+        <h2>9. Reporting and moderation</h2>
         <p>
           Every published skill has a <strong>Report</strong> control. Anyone can
           use it, signed in or not. You choose a reason from a fixed list (spam,
@@ -234,7 +284,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>9. Your training opt-out</h2>
+        <h2>10. Your training opt-out</h2>
         <p>
           In your dashboard there is a switch:{' '}
           <strong>
@@ -252,7 +302,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>10. Rate limits, in the open</h2>
+        <h2>11. Rate limits, in the open</h2>
         <p>
           The daily generation limit exists to keep the service available and to
           contain abuse. It is not a secret: every response carries{' '}
@@ -265,7 +315,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>11. How the service is built</h2>
+        <h2>12. How the service is built</h2>
         <ul>
           <li>
             <strong>Secrets stay on the server</strong>: the OpenRouter key, the
@@ -294,7 +344,7 @@ export default function SecurityPage() {
       </section>
 
       <section>
-        <h2>12. Contact</h2>
+        <h2>13. Contact</h2>
         <p>
           For a security issue, a data request, or a takedown, write to{' '}
           <a href={`mailto:${legal.owner.email}`}>{legal.owner.email}</a>. We

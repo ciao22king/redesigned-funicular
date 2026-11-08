@@ -11,6 +11,7 @@ import {
   type LocalSkill,
 } from '@/lib/localstore';
 import { PrivacySettings } from '@/components/PrivacySettings';
+import { CreatorStats } from '@/components/CreatorStats';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -130,6 +131,10 @@ export default function Dashboard() {
             {notice}
           </p>
         )}
+
+        <div className="hairline my-10" />
+
+        <CreatorStats />
 
         <div className="hairline my-10" />
 

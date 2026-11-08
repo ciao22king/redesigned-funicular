@@ -1645,3 +1645,40 @@ opzionale per i test) in `skill-forge/src/lib/`: `uploads`, `scans`, `sanitize`
   **già presente** con `cloudflare` → `https://mcp.cloudflare.com/mcp`
   (streamable-http, oauth2, enabled). La CLI opzionale `cf` **non** è installata
   (`npm i -g cf` solo se l'utente la vuole).
+
+## Skill Forge — crescita e misurazione (2026-11-05, nuova richiesta)
+
+Requisiti: analytics privacy-first, funnel/abbandoni, feedback post-generazione,
+changelog/newsletter, casi d'uso, contatto creator, (2 requisiti finali troncati
+nel messaggio utente). Stato: **implementato, testato, build OK**, non ancora
+committato/deployato quando è arrivato il task Cloudflare.
+
+- **Librerie pure + gemelli DB** (`D1Like` iniettabile) in `skill-forge/src/lib/`:
+  `metrics`/`metrics-db`, `feedback`/`feedback-db`, `creator`/`creator-db`,
+  `track` (beacon client), `changelog`, `usecases`.
+- **Migrazioni** `0006_metrics`, `0007_feedback` create (NON ancora applicate al
+  remoto). `metrics` è una tabella di **contatori aggregati** `(day, event, target)`
+  con `count` + `total_ms`: nessun id utente, nessun IP, nessuna riga per visita.
+  Motivo: niente banner di consenso e niente dato personale da cancellare.
+- **Route**: `api/metrics` (204 sempre, body non identificante, no auth di
+  proposito), `api/feedback` (no auth), `api/stats` (solo operatori via
+  `isUnlimited`), `api/me/stats` (solo il login autenticato).
+- **Download contati server-side** in `api/marketplace/detail` (quella route serve
+  il pulsante Download) con `target` = skill id.
+- **Pagine**: `/changelog`, `/use-cases`, `/stats` (owner). Componenti
+  `VisitTracker` (nel layout), `Feedback` (in `CreateFlow` e `/demo`),
+  `CreatorStats` (dashboard). `Landing` ora accetta `featured` e mostra la
+  sezione "Featured skills" (solo se non vuota).
+- **Test**: `npm test` → **223** (erano 188). Nuovi: `metrics`, `feedback`,
+  `creator`, `track`. `tsc --noEmit` OK; `next build` OK (nuove route visibili).
+- **`markVisit` è testabile**: accetta uno `StorageLike` iniettato (stessa
+  convenzione di `localstore.ts`) — senza, il ritorno non è testabile senza browser.
+- **Trappola — `npm run lint` è rotto** (`next lint` con Next 16 → "Invalid project
+  directory .../lint"): preesistente, ignorarlo, usare `tsc --noEmit`.
+- **`docs/OUTREACH.md`** = kit di contatto creator (template messaggi, regole
+  oneste, soglia `FEATURED_MIN_STARS`).
+- **Pagine legali aggiornate** per restare oneste: `/security` nuova sezione "How we
+  measure, without identifying you" (+ rinumerazione 1–13), `/privacy` (contatori
+  aggregati, feedback, base giuridica "measuring and improving"), `/cookie` (il
+  beacon visite non usa cookie). **Se si tocca la numerazione di /security, farlo
+  dall'alto verso il basso** per evitare collisioni nei `replace`.

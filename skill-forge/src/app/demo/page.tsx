@@ -11,6 +11,8 @@ import { SAMPLES } from '@/lib/samples';
 import { countWords } from '@/lib/skill';
 import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/lib/audience';
 import type { QualityReport } from '@/lib/quality';
+import { track } from '@/lib/track';
+import { Feedback } from '@/components/Feedback';
 
 /**
  * The public demo. A visitor pastes material (or picks a sample), gets a real
@@ -31,6 +33,8 @@ export default function DemoPage() {
     setError(null);
     setResult(null);
     setQuality(null);
+    track('funnel_submit');
+    const startedAt = Date.now();
     try {
       const res = await fetch('/api/demo', {
         method: 'POST',
@@ -45,6 +49,9 @@ export default function DemoPage() {
       if (!res.ok) throw new Error(data.error ?? 'Generation failed');
       setResult(data.markdown as string);
       setQuality(data.quality ?? null);
+      track('demo_generate');
+      track('generation_ms', { value: Date.now() - startedAt });
+      track('funnel_result');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
@@ -149,6 +156,10 @@ export default function DemoPage() {
                 <QualityPanel report={quality} />
               </div>
             )}
+
+            <div className="mt-6">
+              <Feedback mode="demo" />
+            </div>
 
             <div className="mt-6 rounded-xl border border-[--accent] bg-[--accent-soft] px-5 py-4">
               <p className="text-sm text-[--ink]">

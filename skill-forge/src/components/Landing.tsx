@@ -6,6 +6,7 @@ import { BeforeAfter } from '@/components/BeforeAfter';
 import Link from 'next/link';
 import { signIn, useSession } from 'next-auth/react';
 import { userNoun } from '@/lib/users';
+import type { FeaturedCandidate } from '@/lib/creator';
 
 /**
  * Landing page body. It is a client component because of the session state
@@ -13,7 +14,13 @@ import { userNoun } from '@/lib/users';
  * server component `app/page.tsx`, so it is rendered in the HTML and visible to
  * search engines, not fetched after hydration.
  */
-export function Landing({ userCount }: { userCount?: number }) {
+export function Landing({
+  userCount,
+  featured = [],
+}: {
+  userCount?: number;
+  featured?: FeaturedCandidate[];
+}) {
   const { status } = useSession();
 
   return (
@@ -216,6 +223,46 @@ export function Landing({ userCount }: { userCount?: number }) {
             <RankingPreview />
           </div>
         </section>
+
+        {/* Featured skills: the creators whose work the community has starred
+            most. It only appears once there is something to show, so a fresh
+            marketplace does not render an empty heading. */}
+        {featured.length > 0 && (
+          <>
+            <div className="hairline" />
+            <section className="py-20">
+              <h2 className="font-display text-3xl font-semibold tracking-tight text-[--ink]">
+                Featured skills
+              </h2>
+              <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
+                The most starred skills, from the creators who have published the
+                most. Publish your own to be considered.
+              </p>
+              <ul className="mt-10 grid gap-4 md:grid-cols-3">
+                {featured.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/s/${s.id}`}
+                      className="flex h-full flex-col rounded-2xl border border-[--line] bg-[--surface-raised] p-5 transition-colors hover:border-[--accent]"
+                    >
+                      <span className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-[--accent] bg-[--accent-soft] px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[--accent]">
+                        Featured
+                      </span>
+                      <span className="font-mono text-[13px] text-[--ink]">{s.name}</span>
+                      <span className="mt-2 line-clamp-3 text-sm text-[--ink-muted]">
+                        {s.description}
+                      </span>
+                      <span className="mt-4 flex items-center justify-between text-xs text-[--ink-muted]">
+                        <span>@{s.owner}</span>
+                        <span className="font-mono">★ {s.stars}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
+        )}
       </main>
 
       <Footer />
