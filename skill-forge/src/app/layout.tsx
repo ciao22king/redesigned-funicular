@@ -39,13 +39,13 @@ export const metadata: Metadata = {
       'application/rss+xml': '/feed.xml',
     },
   },
-  // Google Search Console verification. The matching TXT record lives in the
-  // skillforge.eu.org zone, but until the NS delegation from eu.org is active
-  // that domain does not resolve: meanwhile the meta tag covers the workers.dev
-  // domain. Two tokens: each verifies its own property in Search Console, and
-  // Google ignores the ones it does not need.
+  // Google Search Console verification. Each token verifies its own property
+  // and Google ignores the ones it does not need. The apex TXT record for
+  // skillforge.cc.cd lives in its own zone; these meta tags cover the property
+  // served from this origin.
   verification: {
     google: [
+      'BdX3KzeudlL_Vyb1p_70F1_Bhl93NGoNPHhxw5CMIFU',
       'hg9z_CJS5ZLTdubmXqF8Mpae1XwhXgDqjpXOJ5PXJ14',
       'WcvnFbGkas_gCmkPeSXXrEoYusWceo4fWNDxkWT1dVE',
     ],
@@ -76,6 +76,23 @@ export const viewport: Viewport = {
   themeColor: '#c25a3a',
 };
 
+// Site-wide structured data: tells search engines what this site is and which
+// name to use for it, so the sitelinks/knowledge panel has a canonical entity.
+const siteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: legal.siteName,
+  url: legal.siteUrl,
+  description:
+    'Turn notes, documents or a single idea into a complete, detailed skill for AI agents.',
+  inLanguage: 'en',
+  publisher: {
+    '@type': 'Organization',
+    name: legal.siteName,
+    url: legal.siteUrl,
+  },
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -84,6 +101,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="font-sans antialiased">
+        <script
+          type="application/ld+json"
+          // Structured data only: `JSON.stringify` of a plain object, no user HTML.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
+        />
         <a
           href="#content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[--accent] focus:px-4 focus:py-2 focus:text-white"
