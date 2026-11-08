@@ -1557,3 +1557,54 @@ pagina Site Scan e' `help/site-scan-623520c9`, ricavato da
 `help/<nome>-<hash>`). Limite Site Scan: **nessun massimo pubblico** — la quota
 mensile e' calcolata da Bing per sito e non e' aumentabile; si possono salvare
 **max 5 scansioni**.
+
+## Skill Forge — Fase 2: generazione (2026-11-08)
+
+Otto migliorie alla generazione, deployate (Version ID `04c1e346-b98e-4046-874b-91e616d354a7`,
+commit `feat(generation): target, sources, pre-flight plan, questions, quality, section rewrite`).
+**133 test** (erano 95), `tsc --noEmit` pulito, OpenNext build ok.
+
+Nuove librerie in `src/lib/`: `audience.ts` (target+tono), `quality.ts` (punteggio
+struttura/passi/esempi/checklist), `sections.ts` (parse/serialize/replaceSection),
+`sources.ts` (fetch URL con anti-SSRF), `plan.ts` (riepilogo pre-generazione).
+Nuove route: `api/ingest` (testo/URL/GitHub/Google; Notion → 422 con istruzione di
+export, non è leggibile senza token) e `api/section` (riscrive una sola `##`).
+UI: `GenerateOptions.tsx`, `PlanSummary.tsx`, `QualityPanel.tsx`, `SourceInput.tsx`;
+`CreateFlow.tsx` riscritto (selettore target/tono → riepilogo → genera → domande+qualità
+→ rigenera sezione). `runQuestions`/`runSectionRegeneration` in `generate.ts`.
+Nota: `buildUserPrompt` ora accetta `audience`/`register`; test in `tests/prompt.test.ts`.
+
+**Verificato live (SSRF, la parte critica)**: `api/ingest` rifiuta `169.254.169.254`,
+`localhost`, `10.0.0.1`, `metadata.google.internal` → 400; Notion → 422; GitHub
+pubblico (`sindresorhus/slugify`) → 200 con README+file; redirect pubblico→pubblico
+seguito, redirect verso metadata bloccato. `curl` con URL senza schema → 400
+(la normalizzazione `https://` sta **solo** nella UI, non nel server).
+Limite: `api/ingest` ha budget IP separato (`INGEST_DAILY_LIMIT=20`, chiave
+`ingest:<ip>:<utcday>`), così non consuma la quota di generazione.
+**Trappola**: il 403 su `api.github.com` da Workers è il rate-limit degli IP
+condivisi, non un bug: riprovare con un repo pubblico noto.
+
+## Setup Cloudflare (ri-eseguito 2026-11-08)
+
+- Skill: `npx -y skills add cloudflare/skills --skill '*' --yes --global` → 22 skill
+  in `~/.agents/skills/`, symlink in `~/.openhands/skills/`. **Non sopravvivono al
+  container**: ri-eseguire. (`--global` è la via per agenti non nominati, come OpenHands.)
+- MCP: la config era **vuota** dopo il restart (confermato: `GET /api/settings` →
+  `agent_settings.mcp_config = {}`), quindi la nota "persiste" è **falsa**. Riscritto
+  `mcp_config.cloudflare` → `https://mcp.cloudflare.com/mcp` (streamable-http, oauth2).
+- **Forma esatta del body** (correzione): `/api/mcp/test` e `/api/mcp/oauth/start`
+  NON accettano un body piatto. Vogliono
+  `{"name":"cloudflare","server":{"type":"streamable-http","url":...,"auth":{"strategy":"oauth2"}},"timeout":60}`.
+  Senza l'oggetto `server` → 422 `{"loc":["body","server"],"msg":"Field required"}`.
+  Invece `POST /api/settings/mcp/<name>` **sì** vuole il body piatto
+  (`{"url","transport","description","auth"}`) → 201. Leggere lo schema da
+  `GET http://localhost:60000/openapi.json` invece di indovinare.
+- **OAuth bloccato**: dopo `oauth/start` la pagina di consenso è già autenticata,
+  ma cliccare Continue porta a `dash.cloudflare.com/login` + **CAPTCHA Turnstile**
+  ("Verify you are human"). Non completabile in modo headless: serve che l'utente
+  autorizzi nel proprio browser entro i 120 s del job. Le istruzioni ufficiali
+  dicono che l'OAuth parte **da solo al primo uso di un tool Cloudflare**, quindi
+  va bene lasciare la config pronta senza token.
+- Il secret `$Cloudflare` dell'ambiente **non è un API token valido** per l'API v4
+  (`/user/tokens/verify` → 401 "Invalid API Token"); contiene anche uno **spazio al
+  carattere 20**. Non usarlo per l'auth.
