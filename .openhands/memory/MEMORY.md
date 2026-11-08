@@ -1649,15 +1649,17 @@ opzionale per i test) in `skill-forge/src/lib/`: `uploads`, `scans`, `sanitize`
 ## Skill Forge — crescita e misurazione (2026-11-05, nuova richiesta)
 
 Requisiti: analytics privacy-first, funnel/abbandoni, feedback post-generazione,
-changelog/newsletter, casi d'uso, contatto creator, (2 requisiti finali troncati
-nel messaggio utente). Stato: **implementato, testato, build OK**, non ancora
-committato/deployato quando è arrivato il task Cloudflare.
+changelog/newsletter, casi d'uso (5 casi), contatto creator. **Sono 5, non 7**:
+l'ipotesi di un troncamento era sbagliata, l'utente ha confermato che "dopo non
+c'è niente". Stato: **deployato** (Worker Version `e24b0569-478a-4e35-8e6b-88b2bacc45a5`,
+branch `cloudflare-workers`, commit `310b287`).
 
 - **Librerie pure + gemelli DB** (`D1Like` iniettabile) in `skill-forge/src/lib/`:
   `metrics`/`metrics-db`, `feedback`/`feedback-db`, `creator`/`creator-db`,
   `track` (beacon client), `changelog`, `usecases`.
-- **Migrazioni** `0006_metrics`, `0007_feedback` create (NON ancora applicate al
-  remoto). `metrics` è una tabella di **contatori aggregati** `(day, event, target)`
+- **Migrazioni** `0006_metrics`, `0007_feedback` create e **applicate al remoto**
+  (`wrangler d1 migrations apply skill-forge-marketplace --remote`). Verificate
+  presenti con `d1 execute ... --json`. `metrics` è una tabella di **contatori aggregati** `(day, event, target)`
   con `count` + `total_ms`: nessun id utente, nessun IP, nessuna riga per visita.
   Motivo: niente banner di consenso e niente dato personale da cancellare.
 - **Route**: `api/metrics` (204 sempre, body non identificante, no auth di
@@ -1682,3 +1684,15 @@ committato/deployato quando è arrivato il task Cloudflare.
   aggregati, feedback, base giuridica "measuring and improving"), `/cookie` (il
   beacon visite non usa cookie). **Se si tocca la numerazione di /security, farlo
   dall'alto verso il basso** per evitare collisioni nei `replace`.
+
+### Verifica in produzione (crescita, 2026-11-08)
+- `/changelog`, `/use-cases`, `/stats` → 200; `POST /api/metrics` → 204 (scrive i
+  contatori: confermato leggendo `metrics` in D1); `/api/stats` senza auth → 401;
+  `POST /api/feedback` valido → `{ok:true,id:1}`, verdetto inventato → 400.
+- La sezione "Featured skills" **non** compare in homepage finché nessuna skill ha
+  `stars >= FEATURED_MIN_STARS` (5): è voluto, non un bug.
+- **Pulizia post-verifica**: `DELETE FROM metrics; DELETE FROM feedback;` sul D1
+  remoto (le prove scrivono in produzione). Ricordarsene ogni volta.
+- Deploy con `CLOUDFLARE_API_TOKEN` già in env → `npx wrangler whoami` mostra
+  l'account; nessun `wrangler login` necessario. Bindings: `RATE_LIMIT` (KV),
+  `MARKETPLACE` (D1), `ASSETS`, `GITHUB_ID`, `UNLIMITED_LOGINS="ciao22king"`.
