@@ -230,3 +230,44 @@ export async function consumeDemoQuota(
     quota: { ...empty, used: count, remaining: Math.max(0, DEMO_DAILY_LIMIT - count) },
   };
 }
+
+/**
+ * Rate-limit headers for a response, so the limit is transparent instead of a
+ * surprise. A client can read exactly how much is left and when it comes back,
+ * which is also what the UI shows. An unlimited user gets no headers, because a
+ * limit that does not apply to them would only be noise.
+ *
+ * The names follow the common `X-RateLimit-*` convention and `Retry-After` is
+ * the standard header for the 429 case.
+ */
+export function rateLimitHeaders(quota: Quota): Record<string, string> {
+  if (quota.unlimited) return {};
+  const headers: Record<string, string> = {
+    'X-RateLimit-Limit': String(quota.limit),
+    'X-RateLimit-Remaining': String(quota.remaining),
+    'X-RateLimit-Reset': quota.resetsAt,
+  };
+  if (quota.remaining <= 0) {
+    headers['Retry-After'] = String(secondsUntilReset(quota));
+  }
+  return headers;
+}
+
+/** Seconds until the quota is full again, never negative. */
+export function secondsUntilReset(quota: Quota, now = Date.now()): number {
+  return Math.max(0, Math.ceil((Date.parse(quota.resetsAt) - now) / 1000));
+}
+
+/**
+ * A useful, actionable message for a spent quota.
+ *
+ * It says what happened, when it resets (in both UTC and the reader's clock),
+ * and what to do next, instead of a bare "too many requests".
+ */
+export function quotaMessage(quota: Quota, what = 'generations'): string {
+  const reset = new Date(quota.resetsAt);
+  const utc = reset.toLocaleString('en-US', { timeZone: 'UTC', hour12: false });
+  const local = reset.toLocaleString(undefined, { hour12: false });
+  return `You have used all ${quota.limit} ${what} for today. The limit resets at ${utc} UTC (${local} your time). Sign in with GitHub for a larger daily allowance, or come back after the reset.`;
+}
+

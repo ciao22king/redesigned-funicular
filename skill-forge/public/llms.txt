@@ -43,4 +43,5 @@ lists the missing information and the questions whose answers would close it.
 
 - [Terms of service](https://skillforge.cc.cd/terms)
 - [Privacy policy](https://skillforge.cc.cd/privacy)
+- [Security & Privacy](https://skillforge.cc.cd/security)
 - [Cookie policy](https://skillforge.cc.cd/cookie)

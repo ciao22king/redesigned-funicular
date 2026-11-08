@@ -9,7 +9,7 @@ import {
   isNotionUrl,
   validatePublicUrl,
 } from '@/lib/sources';
-import { consumeIngestQuota } from '@/lib/ratelimit';
+import { consumeIngestQuota, rateLimitHeaders } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -54,8 +54,11 @@ export async function POST(req: NextRequest) {
   const { allowed, quota } = await consumeIngestQuota(clientIp(req));
   if (!allowed) {
     return NextResponse.json(
-      { error: 'You have fetched too many sources today. Sign in to keep working.', quota },
-      { status: 429 },
+      {
+        error: `You have fetched ${quota.limit} sources today, which is the daily maximum. You can still paste the text or upload a file. The counter resets at ${new Date(quota.resetsAt).toLocaleString('en-US', { timeZone: 'UTC', hour12: false })} UTC.`,
+        quota,
+      },
+      { status: 429, headers: rateLimitHeaders(quota) },
     );
   }
 
@@ -63,34 +66,44 @@ export async function POST(req: NextRequest) {
   if (isNotionUrl(raw)) {
     return NextResponse.json(
       { error: NOTION_HINT, kind: 'notion', needsManual: true, quota },
-      { status: 422 },
+      { status: 422, headers: rateLimitHeaders(quota) },
     );
   }
 
   if (isGitHubUrl(raw)) {
     const result = await fetchGitHubRepo(raw);
-    if (!result.ok) return NextResponse.json({ error: result.error, quota }, { status: 502 });
-    return NextResponse.json({
-      text: result.text,
-      kind: 'github',
-      finalUrl: result.finalUrl,
-      truncated: result.truncated,
-      quota,
-    });
+    if (!result.ok) return NextResponse.json({ error: result.error, quota }, { status: 502, headers: rateLimitHeaders(quota) });
+    return NextResponse.json(
+      {
+        text: result.text,
+        kind: 'github',
+        finalUrl: result.finalUrl,
+        truncated: result.truncated,
+        quota,
+      },
+      { headers: rateLimitHeaders(quota) },
+    );
   }
 
   const target = isGoogleUrl(raw) ? (googleExportUrl(raw) ?? raw) : raw;
   const invalid = validatePublicUrl(target);
-  if (invalid) return NextResponse.json({ error: invalid, quota }, { status: 400 });
+  if (invalid) {
+    return NextResponse.json({ error: invalid, quota }, { status: 400, headers: rateLimitHeaders(quota) });
+  }
 
   const result = await fetchPublicText(target);
-  if (!result.ok) return NextResponse.json({ error: result.error, quota }, { status: 502 });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error, quota }, { status: 502, headers: rateLimitHeaders(quota) });
+  }
 
-  return NextResponse.json({
-    text: result.text,
-    kind: isGoogleUrl(raw) ? 'google' : 'url',
-    finalUrl: result.finalUrl,
-    truncated: result.truncated,
-    quota,
-  });
+  return NextResponse.json(
+    {
+      text: result.text,
+      kind: isGoogleUrl(raw) ? 'google' : 'url',
+      finalUrl: result.finalUrl,
+      truncated: result.truncated,
+      quota,
+    },
+    { headers: rateLimitHeaders(quota) },
+  );
 }

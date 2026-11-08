@@ -56,10 +56,29 @@ export default function PrivacyPage() {
             counter is keyed on the IP address and stores no other information.
           </li>
           <li>
+            <strong>Audit log</strong>: a short line for each action that changes
+            public state (publishing, deleting, reporting, starring), with your
+            username, the target, the reason when you report, and the address.
+            It never contains the material you submit.
+          </li>
+          <li>
+            <strong>Reports</strong>: if you report a skill, the reason, your
+            optional note, your username or the address, and the date.
+          </li>
+          <li>
+            <strong>Preferences</strong>: your choice about the use of your
+            material to improve the service, stored against your username.
+          </li>
+          <li>
             <strong>Cookies</strong>: one session cookie required to keep you
             signed in (see the <a href="/cookie">cookie policy</a>).
           </li>
         </ul>
+        <p>
+          The <a href="/security">Security &amp; Privacy</a> page lists every
+          store, the exact retention for each kind of data, and the
+          subprocessors.
+        </p>
       </section>
 
       <section>
@@ -107,7 +126,12 @@ export default function PrivacyPage() {
           The material you upload or paste is used only to generate the skill you
           asked for. It is sent in the request to OpenRouter and to the language
           model that serves it; it is not stored on our servers after the
-          response, and it is not used to train any model by us.
+          response, and it is not used to train any model by us. Uploads are
+          scanned for harmful content and prompt-injection markers before use,
+          and the limits on formats, size and number of files are enforced. The{' '}
+          <a href="/security">Security &amp; Privacy</a> page has the concrete
+          detail: where each kind of data lives, the exact limits, and how the
+          scanning works.
         </p>
         <p>
           OpenRouter and the upstream model providers process the text under
@@ -119,7 +143,8 @@ export default function PrivacyPage() {
         <p>
           What you choose to publish to the marketplace is different: the skill
           and your GitHub username become public and remain so until you delete
-          them from your dashboard. Treat publishing as a public act.
+          them from your dashboard. Treat publishing as a public act. You can
+          report a published skill from its page.
         </p>
       </section>
 
@@ -157,6 +182,14 @@ export default function PrivacyPage() {
             until you ask us to delete them.
           </li>
           <li>
+            <strong>Audit log</strong>: entries older than 180 days are removed
+            automatically.
+          </li>
+          <li>
+            <strong>Reports and preferences</strong>: kept until the report is
+            closed or you ask us to delete them.
+          </li>
+          <li>
             <strong>Technical logs</strong>: for the retention period of our
             infrastructure provider (Cloudflare), which is kept short and is used
             for security and diagnostics.
@@ -172,6 +205,12 @@ export default function PrivacyPage() {
           portability. Write to{' '}
           <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>. You may
           also lodge a complaint with your local data protection authority.
+        </p>
+        <p>
+          You can also change the use of your material yourself, without writing
+          to us: the dashboard has a switch to keep your material out of any
+          improvement of the service, described on the{' '}
+          <a href="/security">Security &amp; Privacy</a> page.
         </p>
       </section>
 

@@ -7,7 +7,10 @@ import {
   dayKey,
   DEMO_DAILY_LIMIT,
   isUnlimited,
+  quotaMessage,
+  rateLimitHeaders,
   readQuota,
+  secondsUntilReset,
 } from '../src/lib/ratelimit';
 
 /** In-memory KV: the logic does not depend on Cloudflare to be tested. */
@@ -121,4 +124,49 @@ test('la chiave demo non collide con un login che sembra un IP', async () => {
   for (let i = 0; i < DAILY_LIMIT; i++) await consumeQuota('203.0.113.7', ns);
   const demo = await consumeDemoQuota('203.0.113.7', ns);
   assert.equal(demo.allowed, true, 'i due contatori non devono condividere la chiave');
+});
+
+test('gli header di limite espongono il residuo e la scadenza', () => {
+  const quota = {
+    used: 1,
+    remaining: 2,
+    limit: 3,
+    resetsAt: '2030-01-02T00:00:00.000Z',
+    unlimited: false,
+  };
+  const headers = rateLimitHeaders(quota);
+  assert.equal(headers['X-RateLimit-Limit'], '3');
+  assert.equal(headers['X-RateLimit-Remaining'], '2');
+  assert.equal(headers['X-RateLimit-Reset'], '2030-01-02T00:00:00.000Z');
+  assert.equal(headers['Retry-After'], undefined, 'con quota residua non c e Retry-After');
+});
+
+test('con quota esaurita compare Retry-After', () => {
+  const quota = {
+    used: 3,
+    remaining: 0,
+    limit: 3,
+    resetsAt: '2030-01-02T00:00:00.000Z',
+    unlimited: false,
+  };
+  const headers = rateLimitHeaders(quota);
+  assert.ok(Number(headers['Retry-After']) > 0);
+});
+
+test('un utente illimitato non riceve header di limite', () => {
+  const quota = { used: 0, remaining: Infinity, limit: Infinity, resetsAt: 'x', unlimited: true };
+  assert.deepEqual(rateLimitHeaders(quota), {});
+});
+
+test('secondsUntilReset non e mai negativo', () => {
+  const quota = { used: 3, remaining: 0, limit: 3, resetsAt: '2020-01-01T00:00:00.000Z', unlimited: false };
+  assert.equal(secondsUntilReset(quota, Date.parse('2026-01-01T00:00:00Z')), 0);
+});
+
+test('il messaggio di quota dice quando si azzera e cosa fare', () => {
+  const quota = { used: 3, remaining: 0, limit: 3, resetsAt: '2030-01-02T00:00:00.000Z', unlimited: false };
+  const message = quotaMessage(quota);
+  assert.match(message, /3 generations/);
+  assert.match(message, /UTC/);
+  assert.match(message, /Sign in with GitHub/);
 });

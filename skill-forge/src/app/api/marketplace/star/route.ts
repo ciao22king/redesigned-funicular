@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { toggleStar } from '@/lib/marketplace-db';
+import { recordAudit } from '@/lib/audit-db';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -39,6 +40,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await toggleStar(id, login);
+    await recordAudit({
+      actor: login,
+      action: result.starred ? 'star' : 'unstar',
+      target: id,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

@@ -10,6 +10,7 @@ import {
   removeLocalSkill,
   type LocalSkill,
 } from '@/lib/localstore';
+import { PrivacySettings } from '@/components/PrivacySettings';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -131,6 +132,8 @@ export default function Dashboard() {
         )}
 
         <div className="hairline my-10" />
+
+        <PrivacySettings />
 
         {creations.length === 0 ? (
           <div className="rounded-2xl border border-[--line] bg-[--surface-raised] p-8 text-center">

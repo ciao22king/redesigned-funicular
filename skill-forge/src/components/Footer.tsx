@@ -4,6 +4,7 @@ import { legal } from '@/lib/legal';
 const legalLinks = [
   { href: '/terms', label: 'Terms of service' },
   { href: '/privacy', label: 'Privacy policy' },
+  { href: '/security', label: 'Security & Privacy' },
   { href: '/cookie', label: 'Cookie policy' },
 ];
 

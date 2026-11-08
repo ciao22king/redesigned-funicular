@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { runGeneration, runQuestions, type GenerateBody } from '@/lib/generate';
-import { consumeQuota, readQuota } from '@/lib/ratelimit';
+import { consumeQuota, quotaMessage, rateLimitHeaders, readQuota } from '@/lib/ratelimit';
 import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
+import { getPreferences } from '@/lib/preferences-db';
+import { scanText, scanMessages } from '@/lib/scans';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -25,7 +27,8 @@ export async function GET(req: NextRequest) {
   if (!token || !login) {
     return NextResponse.json({ error: 'You must sign in with GitHub.' }, { status: 401 });
   }
-  return NextResponse.json(await readQuota(login));
+  const quota = await readQuota(login);
+  return NextResponse.json(quota, { headers: rateLimitHeaders(quota) });
 }
 
 export async function POST(req: NextRequest) {
@@ -62,8 +65,26 @@ export async function POST(req: NextRequest) {
   }
   if (body.sourceMaterial && body.sourceMaterial.length > MAX_SOURCE_CHARS) {
     return NextResponse.json(
-      { error: `Material too long: maximum ${MAX_SOURCE_CHARS} characters.` },
+      {
+        error: `The material is ${body.sourceMaterial.length.toLocaleString('en-US')} characters; the maximum is ${MAX_SOURCE_CHARS.toLocaleString('en-US')}. Split it into two generations or remove the least relevant files.`,
+        maxChars: MAX_SOURCE_CHARS,
+      },
       { status: 413 },
+    );
+  }
+
+  // Defence in depth: the client scans files before sending them, but a request
+  // can be crafted by hand, so the material is scanned again here. A harmful
+  // payload is refused; a prompt-injection marker only warns, because the
+  // generator already treats the material as data.
+  const scan = scanText(body.sourceMaterial ?? '');
+  if (scan.level === 'block') {
+    return NextResponse.json(
+      {
+        error: 'The material contains a harmful payload and was refused.',
+        findings: scanMessages(scan),
+      },
+      { status: 422 },
     );
   }
 
@@ -71,15 +92,9 @@ export async function POST(req: NextRequest) {
   // about to start: a rejected input does not cost the user a generation.
   const { allowed, quota } = await consumeQuota(login);
   if (!allowed) {
-    const retryAfter = Math.max(0, Math.ceil((Date.parse(quota.resetsAt) - Date.now()) / 1000));
     return NextResponse.json(
-      {
-        error: `You have used all ${quota.limit} generations today. The quota resets on ${new Date(
-          quota.resetsAt,
-        ).toLocaleString('en-US', { timeZone: 'UTC' })} UTC.`,
-        quota,
-      },
-      { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+      { error: quotaMessage(quota), quota },
+      { status: 429, headers: rateLimitHeaders(quota) },
     );
   }
 
@@ -93,13 +108,23 @@ export async function POST(req: NextRequest) {
   // never an error, because losing the draft would be far worse.
   const questions = await runQuestions(result.markdown, QUESTIONS_BUDGET_MS);
 
-  return NextResponse.json({
-    markdown: result.markdown,
-    usage: result.usage,
-    model: result.model,
-    fallbacks: result.fallbacks,
-    questions,
-    quality: checkQuality(result.markdown),
-    quota,
-  });
+  // The opt-out is read here, after the generation: it is reported back so the
+  // UI can confirm the choice is in force. It changes nothing about the request
+  // itself, because the material is already not retained either way.
+  const preferences = await getPreferences(login);
+
+  return NextResponse.json(
+    {
+      markdown: result.markdown,
+      usage: result.usage,
+      model: result.model,
+      fallbacks: result.fallbacks,
+      questions,
+      quality: checkQuality(result.markdown),
+      quota,
+      warnings: scanMessages(scan),
+      trainOptOut: preferences.trainOptOut,
+    },
+    { headers: rateLimitHeaders(quota) },
+  );
 }

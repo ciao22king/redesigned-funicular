@@ -18,6 +18,8 @@ import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/
 import { buildPlan, type Plan, type PlanMaterial } from '@/lib/plan';
 import { regenerableSections } from '@/lib/sections';
 import type { QualityReport } from '@/lib/quality';
+import { ACCEPT_ATTRIBUTE, MAX_FILES, MAX_TOTAL_BYTES, formatBytes, uploadRulesLabel, validateFile } from '@/lib/uploads';
+import { scanMessages, scanUpload } from '@/lib/scans';
 
 type Mode = 'from-skills' | 'from-scratch';
 
@@ -63,6 +65,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
   // "from existing skills" mode fields
   const [files, setFiles] = useState<{ name: string; text: string }[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
   const [pasted, setPasted] = useState('');
   const [sources, setSources] = useState<FetchedSource[]>([]);
 
@@ -88,11 +92,44 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
   async function onFiles(list: FileList | null) {
     if (!list) return;
-    const next: { name: string; text: string }[] = [];
-    for (const f of Array.from(list).slice(0, 20)) {
-      next.push({ name: f.name, text: await f.text() });
+    setFileError(null);
+    setFileNotice(null);
+    const chosen = Array.from(list);
+
+    if (files.length + chosen.length > MAX_FILES) {
+      setFileError(`At most ${MAX_FILES} files per generation.`);
+      return;
     }
-    setFiles((prev) => [...prev, ...next]);
+
+    const next: { name: string; text: string }[] = [];
+    const blocked: string[] = [];
+    const warned: string[] = [];
+    for (const f of chosen) {
+      const single = validateFile(f);
+      if (!single.ok) {
+        setFileError(single.error ?? 'That file cannot be used.');
+        return;
+      }
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const scan = scanUpload(f.name, bytes);
+      if (scan.level === 'block') {
+        blocked.push(...scanMessages(scan));
+        continue;
+      }
+      if (scan.level === 'warn') warned.push(...scanMessages(scan));
+      next.push({ name: f.name, text: new TextDecoder().decode(bytes) });
+    }
+
+    // Combined size is checked once, over what will actually be kept.
+    const total = [...files, ...next].reduce((sum, f) => sum + f.text.length, 0);
+    if (total > MAX_TOTAL_BYTES) {
+      setFileError(`The files add up to more than ${formatBytes(MAX_TOTAL_BYTES)}.`);
+      return;
+    }
+
+    if (blocked.length) setFileError(blocked.join(' '));
+    if (warned.length) setFileNotice(warned.join(' '));
+    if (next.length) setFiles((prev) => [...prev, ...next]);
     setPlan(null);
   }
 
@@ -281,16 +318,27 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                 Source files
               </span>
               <span className="mb-3 block text-sm text-[--ink-muted]">
-                Markdown, text, JSON, code. Up to 20 files.
+                Markdown, text, JSON, code. {uploadRulesLabel()}
               </span>
               <input
                 type="file"
                 multiple
-                accept=".md,.txt,.json,.yaml,.yml,.ts,.tsx,.js,.py,.html,.css"
+                accept={ACCEPT_ATTRIBUTE}
                 onChange={(e) => onFiles(e.target.files)}
                 className="block w-full cursor-pointer rounded-xl border border-dashed border-[--line] bg-[--surface-raised] px-4 py-6 text-sm text-[--ink-muted] transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[--accent-soft] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[--accent]"
               />
             </label>
+
+            {fileError && (
+              <p className="rounded-lg border border-[oklch(70%_0.12_28)] bg-[oklch(96%_0.02_28)] px-3 py-2 text-sm text-[oklch(45%_0.14_28)]">
+                {fileError}
+              </p>
+            )}
+            {fileNotice && (
+              <p className="rounded-lg border border-[--line] bg-[--surface-sunken] px-3 py-2 text-sm text-[--ink-muted]">
+                {fileNotice}
+              </p>
+            )}
 
             {files.length > 0 && (
               <ul className="space-y-1.5">

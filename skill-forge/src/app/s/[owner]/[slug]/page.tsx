@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
 import { Share } from '@/components/Share';
+import { Report } from '@/components/Report';
 import { getSkill } from '@/lib/marketplace-db';
 import { skillId, toDetail } from '@/lib/marketplace';
 import { parseMarkdown, type Block } from '@/lib/markdown';
@@ -138,6 +139,7 @@ export default async function SkillPage({ params }: { params: Promise<Params> })
               Download .md
             </a>
             <Share title={skill.name} url={url} />
+            <Report skillId={skill.id} />
           </div>
           <div className="hairline mt-8" />
         </header>

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { runGeneration, type GenerateBody } from '@/lib/generate';
-import { consumeDemoQuota } from '@/lib/ratelimit';
+import { consumeDemoQuota, quotaMessage, rateLimitHeaders } from '@/lib/ratelimit';
 import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
+import { scanText, scanMessages } from '@/lib/scans';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -65,15 +66,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Material too long.' }, { status: 413 });
   }
 
+  const scan = scanText(material);
+  if (scan.level === 'block') {
+    return NextResponse.json(
+      {
+        error: 'The material contains a harmful payload and was refused.',
+        findings: scanMessages(scan),
+      },
+      { status: 422 },
+    );
+  }
+
   const { allowed, quota } = await consumeDemoQuota(clientIp(req));
   if (!allowed) {
     return NextResponse.json(
-      {
-        error:
-          'You have reached the demo limit for today. Sign in with GitHub to keep generating.',
-        quota,
-      },
-      { status: 429 },
+      { error: quotaMessage(quota, 'demo generations'), quota },
+      { status: 429, headers: rateLimitHeaders(quota) },
     );
   }
 
@@ -86,10 +94,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
 
-  return NextResponse.json({
-    markdown: result.markdown,
-    model: result.model,
-    quality: checkQuality(result.markdown),
-    quota,
-  });
+  return NextResponse.json(
+    {
+      markdown: result.markdown,
+      model: result.model,
+      quality: checkQuality(result.markdown),
+      quota,
+      warnings: scanMessages(scan),
+    },
+    { headers: rateLimitHeaders(quota) },
+  );
 }

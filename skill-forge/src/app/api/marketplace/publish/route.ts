@@ -5,9 +5,19 @@ import { deleteSkill, upsertSkill } from '@/lib/marketplace-db';
 import { skillId, toDetail, validateSkillInput } from '@/lib/marketplace';
 import { submitUrlsInBackground } from '@/lib/indexnow';
 import { legal } from '@/lib/legal';
+import { recordAudit } from '@/lib/audit-db';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
+
+/** Client address, only for the audit line. Cloudflare sets `cf-connecting-ip`. */
+function clientIp(req: NextRequest): string {
+  return (
+    req.headers.get('cf-connecting-ip')?.trim() ??
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    ''
+  );
+}
 
 interface Body {
   markdown?: string;
@@ -48,6 +58,14 @@ export async function POST(req: NextRequest) {
     // Tell the engines the new page exists, so it is crawled in minutes instead
     // of waiting for the next scheduled crawl.
     submitUrlsInBackground([`${legal.siteUrl}/s/${row.id}`, `${legal.siteUrl}/marketplace`]);
+    // Audit: who published what. No material, only the identity and the target.
+    await recordAudit({
+      actor: login,
+      action: 'publish',
+      target: row.id,
+      detail: row.name,
+      ip: clientIp(req),
+    });
     return NextResponse.json({ ok: true, skill: toDetail(row) });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -73,5 +91,11 @@ export async function DELETE(req: NextRequest) {
   if (!removed) {
     return NextResponse.json({ error: 'Skill not found.' }, { status: 404 });
   }
+  await recordAudit({
+    actor: login,
+    action: 'unpublish',
+    target: id,
+    ip: clientIp(req),
+  });
   return NextResponse.json({ ok: true });
 }
