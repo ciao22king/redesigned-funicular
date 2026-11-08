@@ -1513,3 +1513,21 @@ Reddit richiede subreddit specifico (spam risk), Discord ha solo `discord_*`
 **Slug Composio utili**: `DEVTO_LIST_USER_PUBLISHED_ARTICLES` (non
 `DEVTO_GET_PUBLISHED_ARTICLES`), `REDDIT_CREATE_REDDIT_POST`,
 `DISCORDBOT_CREATE_MESSAGE` (richiede connessione `discordbot`).
+
+### IndexNow implementato — 2026-11-08
+Chiave `cd40f79ff1814c27ac068bd08a746c48`, servita da
+`skill-forge/public/<key>.txt` (200 verificato). Libreria
+`src/lib/indexnow.ts`: `buildPayload` (pura, testabile), `submitUrls`
+(200/202 = ok, non lancia mai) e `submitUrlsInBackground` che usa
+`ctx.waitUntil` da `getCloudflareContext({async:true})` perche' il Worker
+altrimenti viene spento prima che il fetch parta. Agganciata in
+`api/marketplace/publish/route.ts` dopo `upsertSkill` → ping di `/s/<id>` e
+`/marketplace`. Test in `tests/indexnow.test.ts` (suite totale: **87 test**).
+Endpoint unico `https://api.indexnow.org/indexnow` copre Bing+Yandex+Seznam+Naver.
+Sottomissione iniziale delle 9 URL della sitemap: HTTP 200.
+**Bing Webmaster Tools**: docs ufficiali servite solo via JS. Lo slug della
+pagina Site Scan e' `help/site-scan-623520c9`, ricavato da
+`https://www.bing.com/webmasters/dist/bundle.min.js` (contiene tutti gli slug
+`help/<nome>-<hash>`). Limite Site Scan: **nessun massimo pubblico** — la quota
+mensile e' calcolata da Bing per sito e non e' aumentabile; si possono salvare
+**max 5 scansioni**.
