@@ -2,6 +2,7 @@
 
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
+import { BeforeAfter } from '@/components/BeforeAfter';
 import Link from 'next/link';
 import { signIn, useSession } from 'next-auth/react';
 import { userNoun } from '@/lib/users';
@@ -45,27 +46,37 @@ export function Landing({ userCount }: { userCount?: number }) {
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
               {status === 'authenticated' ? (
-                <Link
-                  href="/create/from-skills"
-                  className="rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90"
-                >
-                  Create your first skill
-                </Link>
+                <>
+                  <Link
+                    href="/create/from-skills"
+                    className="rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90"
+                  >
+                    Create your first skill
+                  </Link>
+                  <Link
+                    href="/create/from-scratch"
+                    className="rounded-xl border border-[--line] bg-[--surface-raised] px-6 py-3.5 font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+                  >
+                    Start from scratch
+                  </Link>
+                </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => signIn('github')}
-                  className="rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90"
-                >
-                  Sign in with GitHub
-                </button>
+                <>
+                  <Link
+                    href="/demo"
+                    className="rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90"
+                  >
+                    Try the demo, no account
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => signIn('github')}
+                    className="rounded-xl border border-[--line] bg-[--surface-raised] px-6 py-3.5 font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+                  >
+                    Sign in with GitHub
+                  </button>
+                </>
               )}
-              <Link
-                href="/create/from-scratch"
-                className="rounded-xl border border-[--line] bg-[--surface-raised] px-6 py-3.5 font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
-              >
-                Start from scratch
-              </Link>
             </div>
 
             {userCount !== undefined && (
@@ -113,7 +124,7 @@ export function Landing({ userCount }: { userCount?: number }) {
             <ModeRow
               letter="A"
               title="I already have material"
-              body="Transcripts, notes, exported PDFs, a rough skill. The model merges everything into one document, fills the gaps and keeps every technical detail."
+              body="Transcripts, notes, exported PDFs, a rough skill. The model merges everything into one document, identifies missing information and asks targeted questions, and keeps every technical detail."
               href="/create/from-skills"
               cta="Upload material"
             />
@@ -129,15 +140,40 @@ export function Landing({ userCount }: { userCount?: number }) {
 
         <div className="hairline" />
 
+        {/* Before / After: the transformation, shown side by side */}
+        <section className="py-20">
+          <h2 className="font-display text-3xl font-semibold tracking-tight text-[--ink]">
+            Before and after
+          </h2>
+          <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
+            On the left, the raw material: a few standup notes, written for
+            people. On the right, the skill the model produces from it, written
+            for an agent, with a procedure, examples and a checklist.
+          </p>
+          <div className="mt-12">
+            <BeforeAfter />
+          </div>
+          <p className="mt-6 text-sm text-[--ink-muted]">
+            Where the notes are silent, the skill does not invent: it lists the
+            missing information and the questions to ask.{' '}
+            <Link href="/demo" className="text-[--accent] underline underline-offset-2">
+              Try it with your own text →
+            </Link>
+          </p>
+        </section>
+
+        <div className="hairline" />
+
         {/* How it works: a numbered sequence, not a grid */}
         <section className="py-20">
           <h2 className="font-display text-3xl font-semibold tracking-tight text-[--ink]">
             How it works
           </h2>
           <ol className="mt-12 grid gap-x-14 gap-y-10 md:grid-cols-2">
-            <Step n="1" t="Sign in with GitHub">
-              One click, to read your profile. The author identity is used
-              to sign the skills you publish.
+            <Step n="1" t="Try the demo, or sign in">
+              Generate a free preview with no account, then sign in with GitHub
+              to keep the skill. The author identity is used to sign the skills
+              you publish.
             </Step>
             <Step n="2" t="Provide material or answer the wizard">
               Up to twenty files, or six fields. The material stays only
@@ -147,9 +183,10 @@ export function Landing({ userCount }: { userCount?: number }) {
               Fixed structure: when to use it, prerequisites, procedure,
               examples, common mistakes, checklist.
             </Step>
-            <Step n="4" t="Download or publish">
-              A ready <code className="font-mono text-[13px]">.md</code> file,
-              or publish to the marketplace, with author and stars.
+            <Step n="4" t="Edit, download or publish">
+              Adjust the text, copy the Markdown, get a ready{' '}
+              <code className="font-mono text-[13px]">.md</code> file, or publish
+              to the marketplace, with author and stars.
             </Step>
           </ol>
         </section>

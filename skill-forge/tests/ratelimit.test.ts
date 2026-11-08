@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  consumeDemoQuota,
   consumeQuota,
   DAILY_LIMIT,
   dayKey,
+  DEMO_DAILY_LIMIT,
   isUnlimited,
   readQuota,
 } from '../src/lib/ratelimit';
@@ -88,4 +90,35 @@ test('la chiave del giorno e la data UTC in corso', () => {
   const { key, resetsAt } = dayKey(new Date('2026-11-05T23:30:00Z'));
   assert.equal(key, '2026-11-05');
   assert.equal(resetsAt, '2026-11-06T00:00:00.000Z');
+});
+
+test('la demo consuma la quota per IP e poi blocca', async () => {
+  const { ns } = fakeKV();
+  for (let i = 0; i < DEMO_DAILY_LIMIT; i++) {
+    const { allowed, quota } = await consumeDemoQuota('203.0.113.7', ns);
+    assert.equal(allowed, true);
+    assert.equal(quota.used, i + 1);
+    assert.equal(quota.limit, DEMO_DAILY_LIMIT);
+  }
+  const { allowed, quota } = await consumeDemoQuota('203.0.113.7', ns);
+  assert.equal(allowed, false);
+  assert.equal(quota.remaining, 0);
+});
+
+test('la quota demo e separata per indirizzo', async () => {
+  const { ns } = fakeKV();
+  await consumeDemoQuota('203.0.113.7', ns);
+  await consumeDemoQuota('203.0.113.7', ns);
+  const blocked = await consumeDemoQuota('203.0.113.7', ns);
+  assert.equal(blocked.allowed, false);
+
+  const other = await consumeDemoQuota('198.51.100.9', ns);
+  assert.equal(other.allowed, true, 'un altro IP non deve ereditare il blocco');
+});
+
+test('la chiave demo non collide con un login che sembra un IP', async () => {
+  const { ns } = fakeKV();
+  for (let i = 0; i < DAILY_LIMIT; i++) await consumeQuota('203.0.113.7', ns);
+  const demo = await consumeDemoQuota('203.0.113.7', ns);
+  assert.equal(demo.allowed, true, 'i due contatori non devono condividere la chiave');
 });

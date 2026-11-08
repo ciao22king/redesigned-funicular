@@ -119,6 +119,26 @@ Three crates, split so the rules are testable with no UI toolkit:
 - `libonui/docs/` was an empty, untracked directory; the README is
   `libonui/README.md`.
 
+## The app: funnel changes (2026-11-05)
+- Public demo `/demo` (`src/app/api/demo/route.ts`, page `src/app/demo/page.tsx`)
+  runs the **same** `runGeneration` core as the signed-in flow (`src/lib/generate.ts`,
+  extracted from the old generate route). Anonymous, so: IP rate limit
+  (`consumeDemoQuota`, key `demo:<ip>:<utcday>`, `DEMO_DAILY_LIMIT=2`), 4k char cap,
+  smaller budget. Never water down the prompt for the demo.
+- `src/lib/samples.ts` holds raw notes + the finished skill for the homepage
+  Before/After. The "After" text is **validated by the test suite**
+  (`tests/samples.test.ts`) against `validateSkillOutput`, so the homepage can
+  never advertise output the generator could not produce.
+- Homepage Before/After is server-rendered static HTML (no model call): verify
+  with a plain `curl` of `/`, not a browser.
+- `robots.ts` now emits an explicit AI-crawler group (GPTBot, ClaudeBot,
+  PerplexityBot, Google-Extended, CCBot...). `llms.txt` alone is not enough.
+- Wording rule: never "fills the gaps" (implies invention). Use "identifies
+  missing information and asks targeted questions". The model output has a
+  `## Missing information` section for exactly this.
+- `ResultPanel` (CreateFlow.tsx) has Edit toggle + Copy Markdown; edits flow up
+  via `onEdit` so download/publish use the edited text.
+
 ## Build & verify
 - `export PATH="$HOME/.cargo/bin:$PATH"` first — cargo is not on the default PATH.
 - `rustfmt` and `clippy` are **not installed by default**:

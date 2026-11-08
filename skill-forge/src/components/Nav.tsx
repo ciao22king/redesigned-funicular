@@ -25,6 +25,12 @@ export function Nav() {
         {/* Desktop actions */}
         <div className="hidden items-center gap-1 md:flex">
           <Link
+            href="/demo"
+            className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+          >
+            Demo
+          </Link>
+          <Link
             href="/marketplace"
             className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
           >
@@ -138,6 +144,13 @@ export function Nav() {
           className="border-t border-[--line] bg-[--surface] px-4 py-3 md:hidden"
         >
           <div className="flex flex-col">
+            <Link
+              href="/demo"
+              onClick={() => setMobile(false)}
+              className="rounded-lg px-3 py-3 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+            >
+              Demo
+            </Link>
             <Link
               href="/marketplace"
               onClick={() => setMobile(false)}

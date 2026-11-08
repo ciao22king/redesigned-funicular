@@ -45,8 +45,15 @@ export default function PrivacyPage() {
             Only the username is kept, no email and no token.
           </li>
           <li>
-            <strong>Technical data</strong>: IP address, request data and logs,
-            handled by our infrastructure provider for security and operation.
+            <strong>Technical data and logs</strong>: IP address, the request
+            (method, path, status) and the user agent, recorded by our
+            infrastructure provider for security, diagnostics and abuse
+            prevention.
+          </li>
+          <li>
+            <strong>Generation counter</strong>: a number, per account and per
+            UTC day, used to enforce the daily limit. For the anonymous demo the
+            counter is keyed on the IP address and stores no other information.
           </li>
           <li>
             <strong>Cookies</strong>: one session cookie required to keep you
@@ -95,7 +102,29 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2>5. Transfers outside the EU</h2>
+        <h2>5. What happens to the content you submit</h2>
+        <p>
+          The material you upload or paste is used only to generate the skill you
+          asked for. It is sent in the request to OpenRouter and to the language
+          model that serves it; it is not stored on our servers after the
+          response, and it is not used to train any model by us.
+        </p>
+        <p>
+          OpenRouter and the upstream model providers process the text under
+          their own terms. Their retention and training practices are set by
+          them, not by us. Do not submit material you are not allowed to share:
+          in particular, do not paste proprietary source code, personal data of
+          third parties, passwords, credentials or confidential documents.
+        </p>
+        <p>
+          What you choose to publish to the marketplace is different: the skill
+          and your GitHub username become public and remain so until you delete
+          them from your dashboard. Treat publishing as a public act.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Transfers outside the EU</h2>
         <p>
           Some providers are based in the United States. Transfers take place
           under the European Commission&apos;s standard contractual clauses or
@@ -104,17 +133,39 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2>6. For how long</h2>
-        <p>
-          The session cookie lasts until the session expires or you sign out. The
-          material you submit is processed to generate the skill and is not kept
-          permanently by us beyond the time required; technical logs follow the
-          infrastructure provider&apos;s retention periods.
-        </p>
+        <h2>7. For how long</h2>
+        <ul>
+          <li>
+            <strong>Submitted material</strong>: not retained. It lives in the
+            request that produces the skill and is not written to our storage.
+          </li>
+          <li>
+            <strong>Generated skills</strong>: kept in your browser&apos;s local
+            archive, on your device, until you clear it. We hold a copy only if
+            you publish it to the marketplace, until you delete it.
+          </li>
+          <li>
+            <strong>Session cookie</strong>: until the session expires or you
+            sign out.
+          </li>
+          <li>
+            <strong>Generation counter</strong>: 48 hours, then it expires
+            automatically.
+          </li>
+          <li>
+            <strong>Registration record</strong>: username and sign-in dates,
+            until you ask us to delete them.
+          </li>
+          <li>
+            <strong>Technical logs</strong>: for the retention period of our
+            infrastructure provider (Cloudflare), which is kept short and is used
+            for security and diagnostics.
+          </li>
+        </ul>
       </section>
 
       <section>
-        <h2>7. Your rights</h2>
+        <h2>8. Your rights</h2>
         <p>
           You can exercise the rights set out in articles 15-22 of the GDPR:
           access, rectification, erasure, restriction, objection and
@@ -125,7 +176,7 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2>8. Changes</h2>
+        <h2>9. Changes</h2>
         <p>
           We may update this policy; the date at the top indicates the version in
           force.

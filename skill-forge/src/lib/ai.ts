@@ -157,11 +157,17 @@ What is mandatory, what is forbidden. Be blunt.
 ## Common mistakes
 What agents typically get wrong on this task, and how to avoid it.
 
+## Missing information
+Facts you could not verify from the material. For each one, write the targeted
+question whose answer would close it. If nothing is missing, write "None".
+
 ## Final checklist
 - [ ] verifiable item
 - [ ] verifiable item
 
 ## Writing rules
+- Never invent facts, tools, version numbers or steps. If you do not know, list
+  it under "Missing information" and ask, instead of guessing.
 - No em dashes. Use commas, colons, parentheses.
 - No filler words: "elevate", "seamless", "unleash", "delve", "robust" without substance.
 - Every claim must be verifiable by the reader.

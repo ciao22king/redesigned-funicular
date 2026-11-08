@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Nav } from '@/components/Nav';
 import {
+  countWords,
   readFrontmatterDescription,
   readFrontmatterName,
   slugify,
@@ -148,11 +149,16 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
         <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
           {mode === 'from-skills'
-            ? 'Upload documents, notes or draft skills. The model merges them into one detailed document, filling the gaps and keeping every technical detail.'
+            ? 'Upload documents, notes or draft skills. The model merges them into one detailed document: it identifies missing information and asks targeted questions instead of inventing content, and keeps every technical detail.'
             : 'Answer six questions. The model writes the full procedure, with examples, common mistakes and a verification checklist.'}
         </p>
 
         <div className="hairline my-10" />
+
+        <div className="mb-8 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
+          Do not upload proprietary code, customer data, passwords or confidential
+          documents.
+        </div>
 
         {mode === 'from-skills' ? (
           <div className="space-y-7">
@@ -308,6 +314,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
           <ResultPanel
             markdown={result}
             name={name}
+            onEdit={setResult}
             onDownload={download}
           />
         )}
@@ -342,14 +349,28 @@ const inputClass =
 function ResultPanel({
   markdown,
   name,
+  onEdit,
   onDownload,
 }: {
   markdown: string;
   name: string;
+  onEdit: (next: string) => void;
   onDownload: () => void;
 }) {
   const [marketBusy, setMarketBusy] = useState(false);
   const [market, setMarket] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function copyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setMarket('Copy failed. Select the text and copy it manually.');
+    }
+  }
 
   async function publishToMarketplace() {
     setMarketBusy(true);
@@ -384,15 +405,39 @@ function ResultPanel({
           Generated skill
         </h2>
         <span className="font-mono text-xs text-[--ink-muted]">
-          {markdown.split(/\s+/).filter(Boolean).length} words
+          {countWords(markdown)} words
         </span>
       </div>
 
-      <pre className="max-h-[520px] overflow-auto rounded-xl border border-[--line] bg-[oklch(20%_0.02_50)] p-5 font-mono text-[12.5px] leading-relaxed text-[oklch(91%_0.03_70)]">
-        {markdown}
-      </pre>
+      {editing ? (
+        <textarea
+          value={markdown}
+          onChange={(e) => onEdit(e.target.value)}
+          rows={26}
+          spellCheck={false}
+          className="w-full resize-y rounded-xl border border-[--accent] bg-[oklch(20%_0.02_50)] p-5 font-mono text-[12.5px] leading-relaxed text-[oklch(91%_0.03_70)] outline-none"
+        />
+      ) : (
+        <pre className="max-h-[520px] overflow-auto rounded-xl border border-[--line] bg-[oklch(20%_0.02_50)] p-5 font-mono text-[12.5px] leading-relaxed text-[oklch(91%_0.03_70)]">
+          {markdown}
+        </pre>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setEditing((v) => !v)}
+          className="rounded-xl border border-[--line] bg-[--surface-raised] px-5 py-3 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+        >
+          {editing ? 'Done editing' : 'Edit'}
+        </button>
+        <button
+          type="button"
+          onClick={() => void copyMarkdown()}
+          className="rounded-xl border border-[--line] bg-[--surface-raised] px-5 py-3 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+        >
+          {copied ? 'Copied' : 'Copy Markdown'}
+        </button>
         <button
           type="button"
           onClick={onDownload}
@@ -416,9 +461,13 @@ function ResultPanel({
         </span>
       </div>
 
-      {market && (
-        <p className="mt-4 text-sm text-[--ink]">{market}</p>
-      )}
+      <div className="mt-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
+        Do not upload proprietary code, customer data, passwords or confidential
+        documents. The material you submit is sent to the AI provider to generate
+        the skill.
+      </div>
+
+      {market && <p className="mt-4 text-sm text-[--ink]">{market}</p>}
     </section>
   );
 }

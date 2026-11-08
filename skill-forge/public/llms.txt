@@ -12,7 +12,10 @@ requires signing in with GitHub.
 
 ## Core pages
 
-- [Home](https://skillforge.cc.cd/): what the service does and how to start.
+- [Home](https://skillforge.cc.cd/): what the service does, with a before and
+  after example of raw notes turned into a skill.
+- [Live demo](https://skillforge.cc.cd/demo): paste text and get a real skill
+  preview with no account.
 - [Marketplace](https://skillforge.cc.cd/marketplace): browse, search and sort
   the published skills.
 - [Tags](https://skillforge.cc.cd/tags): the skills grouped by topic.
@@ -26,7 +29,10 @@ requires signing in with GitHub.
 Every generated skill contains, in order: YAML frontmatter (`name`,
 `description`), when to use it, when not to use it, prerequisites, procedure,
 rules and constraints, examples with input and expected output, common mistakes,
-and a final checklist.
+missing information with the questions to ask, and a final checklist.
+
+Where the source material is incomplete, the generator does not invent facts: it
+lists the missing information and the questions whose answers would close it.
 
 ## Feeds
 

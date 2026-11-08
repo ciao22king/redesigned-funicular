@@ -13,6 +13,13 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 export const DAILY_LIMIT = 3;
 
 /**
+ * Daily limit for the anonymous demo, counted per IP address. It is stricter
+ * than the signed-in limit: the demo exists to show the output, not to be used
+ * as a free generator.
+ */
+export const DEMO_DAILY_LIMIT = 2;
+
+/**
  * Logins exempt from the limit (normally the owner only). Configured with
  * UNLIMITED_LOGINS, comma-separated ids, without touching the code.
  */
@@ -135,5 +142,47 @@ export async function consumeQuota(
       resetsAt,
       unlimited: false,
     },
+  };
+}
+
+/**
+ * Consumes one demo generation for an anonymous visitor, counted on the IP.
+ *
+ * The key is namespaced (`demo:`) so a visitor cannot collide with a GitHub login
+ * that happens to look like an address, and so the demo counter and the signed-in
+ * counter never share a slot.
+ */
+export async function consumeDemoQuota(
+  ip: string,
+  kv?: KVNamespace,
+): Promise<{ allowed: boolean; quota: Quota }> {
+  const { key, resetsAt } = dayKey();
+  const empty: Quota = {
+    used: 0,
+    remaining: DEMO_DAILY_LIMIT,
+    limit: DEMO_DAILY_LIMIT,
+    resetsAt,
+    unlimited: false,
+  };
+
+  const ns = kv ?? (await store());
+  if (!ns) return { allowed: true, quota: empty };
+
+  const storageKey = `demo:${ip}:${key}`;
+  const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
+
+  if (current >= DEMO_DAILY_LIMIT) {
+    return {
+      allowed: false,
+      quota: { ...empty, used: current, remaining: 0 },
+    };
+  }
+
+  const count = current + 1;
+  await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
+
+  return {
+    allowed: true,
+    quota: { ...empty, used: count, remaining: Math.max(0, DEMO_DAILY_LIMIT - count) },
   };
 }

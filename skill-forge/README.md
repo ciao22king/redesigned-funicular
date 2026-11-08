@@ -8,7 +8,7 @@ marketplace.
 
 | Mode | Input | Output |
 | --- | --- | --- |
-| **A. From existing material** | Up to 20 files (`.md`, `.txt`, `.json`, code) or pasted text | One skill that merges all the material, fills the gaps and keeps the technical details |
+| **A. From existing material** | Up to 20 files (`.md`, `.txt`, `.json`, code) or pasted text | One skill that merges all the material, identifies missing information and asks targeted questions, and keeps the technical details |
 | **B. From scratch** | 6-field wizard (name, domain, goal, tone, constraints, examples) | A complete skill with a numbered procedure, examples, common mistakes, checklist |
 
 Every generated skill has this structure:
