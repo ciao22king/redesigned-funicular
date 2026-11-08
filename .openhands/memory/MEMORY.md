@@ -1488,3 +1488,28 @@ NEXT_PUBLIC_SITE_URL non era impostata.
   default nel codice e' la via. In alternativa, dashboard o `wrangler secret/vars`.
 - `siteUrl` viene **inlinato nel bundle al build time** (NEXT_PUBLIC_*): percio'
   cambiarlo richiede sempre un rebuild+deploy, non basta una var runtime.
+
+### Token Cloudflare nuovo + www + JSON-LD + pubblicazione — 2026-11-08
+**Token**: nuovo `cfat_QpQfIDCiC0ZdNYjzAPA7dVcoh9DTmoIlCQtElZI3a52108c6`
+(senza scadenza, id 5fe3765cf708722707ee88954b25cf3f) aggiornato in
+`/workspace/project/.skill-forge-deploy/deploy-when-ready.sh`. Permessi:
+DNS ✅, zone settings ✅, worker **routes** ✅. NON puo': bindings del Worker
+(10405), Custom Domains (10405).
+**www**: creato CNAME `www` -> workers.dev (proxied) + route
+`www.skillforge.cc.cd/*` -> skill-forge + **redirect rule 301** www->apex
+(ruleset `http_request_dynamic_redirect`, id 07e035fd4a244997af28376276b8c702).
+Verificato: https://www -> 301 -> https://skillforge.cc.cd (path+query preservati),
+TLS ok. Aggiunto anche TXT verifica Google su `www`.
+**SEO nel codice** (`src/app/layout.tsx`): aggiunto JSON-LD site-wide
+`WebSite`+`Organization` (prima c'era solo `CreativeWork` per skill) e aggiunto
+il token di verifica `BdX3KzeudlL_...` alla lista `verification.google`.
+Rebuild+deploy OK (Version ID 63bd5f94-5726-4d7b-b1d0-5cc008bcbb92).
+**Pubblicazione Composio** (2026-11-08): LinkedIn ✅
+(`urn:li:share:7525170261621391360`) + Pinterest ✅ via `daily-social/run_local.py`
+(rotazione a indice 2). YouTube ancora **QUOTA_EXCEEDED** (retry in background).
+dev.to gia' a posto (canonical + 3 link, 0 workers.dev). Reddit/Discord NON usati:
+Reddit richiede subreddit specifico (spam risk), Discord ha solo `discord_*`
+(no canale/bot attivo; `discordbot` non connesso).
+**Slug Composio utili**: `DEVTO_LIST_USER_PUBLISHED_ARTICLES` (non
+`DEVTO_GET_PUBLISHED_ARTICLES`), `REDDIT_CREATE_REDDIT_POST`,
+`DISCORDBOT_CREATE_MESSAGE` (richiede connessione `discordbot`).
