@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { deleteSkill, upsertSkill } from '@/lib/marketplace-db';
 import { skillId, toDetail, validateSkillInput } from '@/lib/marketplace';
+import { submitUrlsInBackground } from '@/lib/indexnow';
+import { legal } from '@/lib/legal';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -43,6 +45,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const row = await upsertSkill(login, check.value);
+    // Tell the engines the new page exists, so it is crawled in minutes instead
+    // of waiting for the next scheduled crawl.
+    submitUrlsInBackground([`${legal.siteUrl}/s/${row.id}`, `${legal.siteUrl}/marketplace`]);
     return NextResponse.json({ ok: true, skill: toDetail(row) });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
