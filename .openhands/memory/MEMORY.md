@@ -1525,6 +1525,12 @@ altrimenti viene spento prima che il fetch parta. Agganciata in
 `/marketplace`. Test in `tests/indexnow.test.ts` (suite totale: **87 test**).
 Endpoint unico `https://api.indexnow.org/indexnow` copre Bing+Yandex+Seznam+Naver.
 Sottomissione iniziale delle 9 URL della sitemap: HTTP 200.
+**ERRORE MIO da non ripetere**: in Bing Webmaster non esiste nessun box dove
+incollare la chiave IndexNow. La voce "IndexNow" nel menu e' solo un *report*
+(submitted/indexed/crawled) con un pulsante "Get Started" che apre la guida.
+Bing scopre e valida la chiave da sola quando si fa il ping (basta che il file
+`<key>.txt` sia servito al root). Ping con chiave gia' nota: HTTP **200** =
+validata, 202 = in corso.
 **Bing Webmaster Tools**: docs ufficiali servite solo via JS. Lo slug della
 pagina Site Scan e' `help/site-scan-623520c9`, ricavato da
 `https://www.bing.com/webmasters/dist/bundle.min.js` (contiene tutti gli slug
