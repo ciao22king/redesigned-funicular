@@ -5,8 +5,12 @@ import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
+import { AudiencePicker, TonePicker } from '@/components/GenerateOptions';
+import { QualityPanel } from '@/components/QualityPanel';
 import { SAMPLES } from '@/lib/samples';
 import { countWords } from '@/lib/skill';
+import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/lib/audience';
+import type { QualityReport } from '@/lib/quality';
 
 /**
  * The public demo. A visitor pastes material (or picks a sample), gets a real
@@ -15,23 +19,32 @@ import { countWords } from '@/lib/skill';
  */
 export default function DemoPage() {
   const [material, setMaterial] = useState(SAMPLES[0].raw);
+  const [audience, setAudience] = useState<AudienceId>(DEFAULT_AUDIENCE);
+  const [register, setRegister] = useState<ToneId>(DEFAULT_TONE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [quality, setQuality] = useState<QualityReport | null>(null);
 
   async function generate() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setQuality(null);
     try {
       const res = await fetch('/api/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'from-skills', sourceMaterial: material }),
+        body: JSON.stringify({ mode: 'from-skills', sourceMaterial: material, audience, register }),
       });
-      const data = (await res.json()) as { markdown?: string; error?: string };
+      const data = (await res.json()) as {
+        markdown?: string;
+        error?: string;
+        quality?: QualityReport;
+      };
       if (!res.ok) throw new Error(data.error ?? 'Generation failed');
       setResult(data.markdown as string);
+      setQuality(data.quality ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
@@ -72,6 +85,11 @@ export default function DemoPage() {
               Try: {s.label}
             </button>
           ))}
+        </div>
+
+        <div className="mt-6 space-y-6">
+          <AudiencePicker value={audience} onChange={setAudience} />
+          <TonePicker value={register} onChange={setRegister} />
         </div>
 
         <label className="mt-6 block">
@@ -125,6 +143,12 @@ export default function DemoPage() {
             <pre className="max-h-[520px] overflow-auto rounded-xl border border-[--line] bg-[oklch(20%_0.02_50)] p-5 font-mono text-[12.5px] leading-relaxed text-[oklch(91%_0.03_70)]">
               {result}
             </pre>
+
+            {quality && (
+              <div className="mt-6">
+                <QualityPanel report={quality} />
+              </div>
+            )}
 
             <div className="mt-6 rounded-xl border border-[--accent] bg-[--accent-soft] px-5 py-4">
               <p className="text-sm text-[--ink]">

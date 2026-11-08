@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
-import { runGeneration, type GenerateBody } from '@/lib/generate';
+import { runGeneration, runQuestions, type GenerateBody } from '@/lib/generate';
 import { consumeQuota, readQuota } from '@/lib/ratelimit';
+import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
 
 export const runtime = 'nodejs';
@@ -14,6 +15,9 @@ export const maxDuration = 60;
  * function limit after spending all the time on the models.
  */
 const TOTAL_BUDGET_MS = 50_000;
+
+/** Slice of the budget reserved for the clarifying questions, after the draft. */
+const QUESTIONS_BUDGET_MS = 12_000;
 
 /** GET: the UI reads the remaining quota without consuming it. */
 export async function GET(req: NextRequest) {
@@ -84,11 +88,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
 
+  // The draft is already valid at this point. The clarifying questions are a
+  // bonus: they get a small slice of the budget and a failure returns none,
+  // never an error, because losing the draft would be far worse.
+  const questions = await runQuestions(result.markdown, QUESTIONS_BUDGET_MS);
+
   return NextResponse.json({
     markdown: result.markdown,
     usage: result.usage,
     model: result.model,
     fallbacks: result.fallbacks,
+    questions,
+    quality: checkQuality(result.markdown),
     quota,
   });
 }

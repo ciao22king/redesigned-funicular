@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { runGeneration, type GenerateBody } from '@/lib/generate';
 import { consumeDemoQuota } from '@/lib/ratelimit';
+import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
 
 export const runtime = 'nodejs';
@@ -85,5 +86,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
 
-  return NextResponse.json({ markdown: result.markdown, model: result.model, quota });
+  return NextResponse.json({
+    markdown: result.markdown,
+    model: result.model,
+    quality: checkQuality(result.markdown),
+    quota,
+  });
 }

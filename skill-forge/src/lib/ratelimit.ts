@@ -146,6 +146,50 @@ export async function consumeQuota(
 }
 
 /**
+ * Daily limit for source fetching, counted per IP. Fetching a URL costs the
+ * server a request to a third party, so it has its own, separate budget: a
+ * visitor cannot spend their generation quota on fetching and then be blocked
+ * from the feature they actually wanted.
+ */
+export const INGEST_DAILY_LIMIT = 20;
+
+/**
+ * Consumes one source fetch for an anonymous visitor, counted on the IP.
+ * Namespaced like the demo counter, so the three budgets never share a slot.
+ */
+export async function consumeIngestQuota(
+  ip: string,
+  kv?: KVNamespace,
+): Promise<{ allowed: boolean; quota: Quota }> {
+  const { key, resetsAt } = dayKey();
+  const empty: Quota = {
+    used: 0,
+    remaining: INGEST_DAILY_LIMIT,
+    limit: INGEST_DAILY_LIMIT,
+    resetsAt,
+    unlimited: false,
+  };
+
+  const ns = kv ?? (await store());
+  if (!ns) return { allowed: true, quota: empty };
+
+  const storageKey = `ingest:${ip}:${key}`;
+  const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
+
+  if (current >= INGEST_DAILY_LIMIT) {
+    return { allowed: false, quota: { ...empty, used: current, remaining: 0 } };
+  }
+
+  const count = current + 1;
+  await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
+
+  return {
+    allowed: true,
+    quota: { ...empty, used: count, remaining: Math.max(0, INGEST_DAILY_LIMIT - count) },
+  };
+}
+
+/**
  * Consumes one demo generation for an anonymous visitor, counted on the IP.
  *
  * The key is namespaced (`demo:`) so a visitor cannot collide with a GitHub login

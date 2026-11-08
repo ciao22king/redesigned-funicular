@@ -1,8 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Nav } from '@/components/Nav';
+import { AudiencePicker, TonePicker } from '@/components/GenerateOptions';
+import { PlanSummary } from '@/components/PlanSummary';
+import { QualityPanel, QuestionsPanel } from '@/components/QualityPanel';
+import { SourceInput, type FetchedSource } from '@/components/SourceInput';
 import {
   countWords,
   readFrontmatterDescription,
@@ -10,6 +14,10 @@ import {
   slugify,
 } from '@/lib/skill';
 import { markPublished, saveLocalSkill } from '@/lib/localstore';
+import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/lib/audience';
+import { buildPlan, type Plan, type PlanMaterial } from '@/lib/plan';
+import { regenerableSections } from '@/lib/sections';
+import type { QualityReport } from '@/lib/quality';
 
 type Mode = 'from-skills' | 'from-scratch';
 
@@ -25,6 +33,8 @@ interface GenerateResponse {
   markdown?: string;
   error?: string;
   quota?: Quota;
+  questions?: string[];
+  quality?: QualityReport;
 }
 
 export default function CreatePage({ mode }: { mode: Mode }) {
@@ -33,6 +43,16 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
+
+  // Shape of the output: chosen before any material is read.
+  const [audience, setAudience] = useState<AudienceId>(DEFAULT_AUDIENCE);
+  const [register, setRegister] = useState<ToneId>(DEFAULT_TONE);
+
+  // The pre-generation summary and the questions that follow the draft.
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [quality, setQuality] = useState<QualityReport | null>(null);
 
   useEffect(() => {
     fetch('/api/generate')
@@ -44,6 +64,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   // "from existing skills" mode fields
   const [files, setFiles] = useState<{ name: string; text: string }[]>([]);
   const [pasted, setPasted] = useState('');
+  const [sources, setSources] = useState<FetchedSource[]>([]);
 
   // "from scratch" mode fields
   const [name, setName] = useState('');
@@ -53,6 +74,18 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   const [constraints, setConstraints] = useState('');
   const [examples, setExamples] = useState('');
 
+  /** The material, assembled the same way for the plan and for the request. */
+  const material = useMemo(() => {
+    if (mode !== 'from-skills') return '';
+    return [
+      ...files.map((f) => `## File: ${f.name}\n\n${f.text}`),
+      ...sources.map((s) => `## Source: ${s.finalUrl ?? s.url}\n\n${s.text}`),
+      pasted.trim() ? `## Pasted text\n\n${pasted}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }, [mode, files, sources, pasted]);
+
   async function onFiles(list: FileList | null) {
     if (!list) return;
     const next: { name: string; text: string }[] = [];
@@ -60,22 +93,37 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       next.push({ name: f.name, text: await f.text() });
     }
     setFiles((prev) => [...prev, ...next]);
+    setPlan(null);
+  }
+
+  /** Builds the summary locally: no model call, so it is instant and free. */
+  function preparePlan() {
+    setError(null);
+    const materials: PlanMaterial[] = [
+      ...files.map((f) => ({ kind: 'file' as const, label: f.name, chars: f.text.length })),
+      ...sources.map((s) => ({
+        kind: 'url' as const,
+        label: s.finalUrl ?? s.url,
+        chars: s.text.length,
+      })),
+      ...(pasted.trim()
+        ? [{ kind: 'text' as const, label: 'pasted text', chars: pasted.length }]
+        : []),
+    ];
+    const text =
+      mode === 'from-skills'
+        ? material
+        : [name, domain, goal, tone, constraints, examples].filter(Boolean).join('\n');
+    setPlan(buildPlan({ text, materials, audience }));
   }
 
   async function generate() {
     setBusy(true);
     setError(null);
     setResult(null);
-
-    const sourceMaterial =
-      mode === 'from-skills'
-        ? [
-            ...files.map((f) => `## File: ${f.name}\n\n${f.text}`),
-            pasted.trim() ? `## Testo incollato\n\n${pasted}` : '',
-          ]
-            .filter(Boolean)
-            .join('\n\n')
-        : undefined;
+    setQuestions([]);
+    setAnswers({});
+    setQuality(null);
 
     try {
       const res = await fetch('/api/generate', {
@@ -83,15 +131,19 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           mode === 'from-skills'
-            ? { mode, sourceMaterial }
-            : { mode, name, domain, goal, tone, constraints, examples },
+            ? { mode, sourceMaterial: material, audience, register }
+            : { mode, name, domain, goal, tone, constraints, examples, audience, register },
         ),
       });
       const data = (await res.json()) as GenerateResponse;
       if (data.quota) setQuota(data.quota);
       if (!res.ok) throw new Error(data.error ?? 'Generation failed');
+
       const markdown = data.markdown as string;
       setResult(markdown);
+      setQuestions(data.questions ?? []);
+      setQuality(data.quality ?? null);
+      setPlan(null);
 
       // Every generated skill enters the local archive right away: it stays
       // findable even if it is not downloaded or committed.
@@ -109,21 +161,76 @@ export default function CreatePage({ mode }: { mode: Mode }) {
     }
   }
 
+  /**
+   * Answers become material, then the skill is generated again. This is what
+   * makes the questions useful instead of decorative.
+   */
+  async function applyAnswers() {
+    const block = questions
+      .map((q, i) => (answers[i]?.trim() ? `- Q: ${q}\n  A: ${answers[i].trim()}` : ''))
+      .filter(Boolean)
+      .join('\n');
+    if (!block) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      const enriched = `${material}\n\n## Answers to the clarifying questions\n\n${block}`;
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, sourceMaterial: enriched, audience, register }),
+      });
+      const data = (await res.json()) as GenerateResponse;
+      if (data.quota) setQuota(data.quota);
+      if (!res.ok) throw new Error(data.error ?? 'Generation failed');
+      setResult(data.markdown as string);
+      setQuestions(data.questions ?? []);
+      setQuality(data.quality ?? null);
+      setAnswers({});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Rewrites one section, leaving the rest of the document untouched. */
+  async function regenerateSection(section: string, instruction: string) {
+    if (!result) return;
+    setError(null);
+    try {
+      const res = await fetch('/api/section', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: result, section, instruction, audience, register }),
+      });
+      const data = (await res.json()) as { markdown?: string; error?: string; quota?: Quota };
+      if (data.quota) setQuota(data.quota);
+      if (!res.ok || !data.markdown) throw new Error(data.error ?? 'The section could not be rewritten.');
+      setResult(data.markdown);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    }
+  }
+
   function download() {
     if (!result) return;
     const blob = new Blob([result], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${slugify(name || 'skill')}.md`;
+    a.download = `${slugify(readFrontmatterName(result) ?? name ?? 'skill')}.md`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
   const ready =
     mode === 'from-skills'
-      ? files.length > 0 || pasted.trim().length > 60
-      : name.trim() && domain.trim() && goal.trim();
+      ? files.length > 0 || sources.length > 0 || pasted.trim().length > 60
+      : Boolean(name.trim() && domain.trim() && goal.trim());
+
+  const outOfQuota = !!quota && !quota.unlimited && quota.remaining === 0;
 
   return (
     <>
@@ -149,7 +256,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
         <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
           {mode === 'from-skills'
-            ? 'Upload documents, notes or draft skills. The model merges them into one detailed document: it identifies missing information and asks targeted questions instead of inventing content, and keeps every technical detail.'
+            ? 'Upload documents, paste text or point at a public source. The model merges everything into one document: it flags what is missing and asks about it instead of inventing content.'
             : 'Answer six questions. The model writes the full procedure, with examples, common mistakes and a verification checklist.'}
         </p>
 
@@ -159,6 +266,13 @@ export default function CreatePage({ mode }: { mode: Mode }) {
           Do not upload proprietary code, customer data, passwords or confidential
           documents.
         </div>
+
+        <div className="space-y-7">
+          <AudiencePicker value={audience} onChange={setAudience} />
+          <TonePicker value={register} onChange={setRegister} />
+        </div>
+
+        <div className="hairline my-10" />
 
         {mode === 'from-skills' ? (
           <div className="space-y-7">
@@ -188,7 +302,44 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                     <span className="truncate text-[--ink]">{f.name}</span>
                     <button
                       type="button"
-                      onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}
+                      onClick={() => {
+                        setFiles((p) => p.filter((_, j) => j !== i));
+                        setPlan(null);
+                      }}
+                      className="ml-3 shrink-0 text-xs text-[--ink-muted] transition-colors hover:text-[--accent]"
+                    >
+                      remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <SourceInput
+              disabled={outOfQuota}
+              onAdd={(s) => {
+                setSources((p) => [...p, s]);
+                setPlan(null);
+              }}
+            />
+
+            {sources.length > 0 && (
+              <ul className="space-y-1.5">
+                {sources.map((s, i) => (
+                  <li
+                    key={`${s.url}-${i}`}
+                    className="flex items-center justify-between rounded-lg bg-[--surface-sunken] px-3 py-2 text-sm"
+                  >
+                    <span className="truncate text-[--ink]">
+                      <span className="mr-2 font-mono text-xs text-[--accent]">{s.kind}</span>
+                      {s.finalUrl ?? s.url}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSources((p) => p.filter((_, j) => j !== i));
+                        setPlan(null);
+                      }}
                       className="ml-3 shrink-0 text-xs text-[--ink-muted] transition-colors hover:text-[--accent]"
                     >
                       remove
@@ -204,7 +355,10 @@ export default function CreatePage({ mode }: { mode: Mode }) {
               </span>
               <textarea
                 value={pasted}
-                onChange={(e) => setPasted(e.target.value)}
+                onChange={(e) => {
+                  setPasted(e.target.value);
+                  setPlan(null);
+                }}
                 rows={9}
                 placeholder="Paste notes, a transcript, a draft skill here..."
                 className="w-full resize-y rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
@@ -238,11 +392,11 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                 className={`${inputClass} resize-y`}
               />
             </Field>
-            <Field label="Tone" hint="Optional">
+            <Field label="Tone notes" hint="Optional, free text">
               <input
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
-                placeholder="e.g. direct, technical, no fluff"
+                placeholder="e.g. direct, no fluff"
                 className={inputClass}
               />
             </Field>
@@ -268,39 +422,43 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         )}
 
         <div className="mt-10">
-          <button
-            type="button"
-            disabled={!ready || busy || (!!quota && !quota.unlimited && quota.remaining === 0)}
-            onClick={generate}
-            className="w-full rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {busy ? 'Generating...' : 'Generate the skill'}
-          </button>
+          {plan ? (
+            <PlanSummary plan={plan} busy={busy} onConfirm={() => void generate()} />
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={!ready || busy || outOfQuota}
+                onClick={preparePlan}
+                className="w-full rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {busy ? 'Generating...' : 'Review and generate'}
+              </button>
 
-          {quota && (
-            <p
-              className={`mt-3 text-center text-sm ${
-                !quota.unlimited && quota.remaining === 0
-                  ? 'text-[oklch(45%_0.14_28)]'
-                  : 'text-[--ink-muted]'
-              }`}
-            >
-              {quota.unlimited
-                ? 'Unlimited generations.'
-                : quota.remaining > 0
-                  ? `${quota.remaining} of ${quota.limit} generations left today.`
-                  : `You have used all ${quota.limit} generations today. The quota resets on ${new Date(
-                      quota.resetsAt,
-                    ).toLocaleString('en-US', { timeZone: 'UTC' })} UTC.`}
-            </p>
-          )}
+              {quota && (
+                <p
+                  className={`mt-3 text-center text-sm ${
+                    outOfQuota ? 'text-[oklch(45%_0.14_28)]' : 'text-[--ink-muted]'
+                  }`}
+                >
+                  {quota.unlimited
+                    ? 'Unlimited generations.'
+                    : quota.remaining > 0
+                      ? `${quota.remaining} of ${quota.limit} generations left today.`
+                      : `You have used all ${quota.limit} generations today. The quota resets on ${new Date(
+                          quota.resetsAt,
+                        ).toLocaleString('en-US', { timeZone: 'UTC' })} UTC.`}
+                </p>
+              )}
 
-          {!ready && (
-            <p className="mt-3 text-center text-sm text-[--ink-muted]">
-              {mode === 'from-skills'
-                ? 'Add at least one file or paste some text.'
-                : 'Fill in name, domain and goal.'}
-            </p>
+              {!ready && (
+                <p className="mt-3 text-center text-sm text-[--ink-muted]">
+                  {mode === 'from-skills'
+                    ? 'Add at least one file, one source or some pasted text.'
+                    : 'Fill in name, domain and goal.'}
+                </p>
+              )}
+            </>
           )}
         </div>
 
@@ -311,12 +469,26 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         )}
 
         {result && (
-          <ResultPanel
-            markdown={result}
-            name={name}
-            onEdit={setResult}
-            onDownload={download}
-          />
+          <>
+            <section className="mt-12 space-y-4">
+              <QuestionsPanel
+                questions={questions}
+                answers={answers}
+                busy={busy}
+                onAnswer={(i, v) => setAnswers((p) => ({ ...p, [i]: v }))}
+                onApply={() => void applyAnswers()}
+              />
+              {quality && <QualityPanel report={quality} />}
+            </section>
+
+            <ResultPanel
+              markdown={result}
+              name={name}
+              onEdit={setResult}
+              onDownload={download}
+              onRegenerateSection={regenerateSection}
+            />
+          </>
         )}
       </main>
     </>
@@ -351,16 +523,23 @@ function ResultPanel({
   name,
   onEdit,
   onDownload,
+  onRegenerateSection,
 }: {
   markdown: string;
   name: string;
   onEdit: (next: string) => void;
   onDownload: () => void;
+  onRegenerateSection: (section: string, instruction: string) => Promise<void>;
 }) {
   const [marketBusy, setMarketBusy] = useState(false);
   const [market, setMarket] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [section, setSection] = useState('');
+  const [instruction, setInstruction] = useState('');
+  const [sectionBusy, setSectionBusy] = useState(false);
+
+  const sections = useMemo(() => regenerableSections(markdown), [markdown]);
 
   async function copyMarkdown() {
     try {
@@ -369,6 +548,17 @@ function ResultPanel({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setMarket('Copy failed. Select the text and copy it manually.');
+    }
+  }
+
+  async function rewriteSection() {
+    if (!section) return;
+    setSectionBusy(true);
+    try {
+      await onRegenerateSection(section, instruction);
+      setInstruction('');
+    } finally {
+      setSectionBusy(false);
     }
   }
 
@@ -459,6 +649,43 @@ function ResultPanel({
         <span className="text-xs text-[--ink-muted]">
           Other people will be able to download it and star it.
         </span>
+      </div>
+
+      {/* Rewrite one section only: the rest of the document is preserved. */}
+      <div className="mt-8 rounded-xl border border-[--line] bg-[--surface-raised] p-5">
+        <h3 className="text-sm font-medium text-[--ink]">Rewrite one section</h3>
+        <p className="mt-1 text-xs text-[--ink-muted]">
+          Regenerates the chosen section and leaves everything else untouched.
+        </p>
+
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <select
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            className="rounded-xl border border-[--line] bg-[--surface-raised] px-3 py-2.5 text-sm text-[--ink] outline-none focus:border-[--accent]"
+          >
+            <option value="">Choose a section</option>
+            {sections.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <input
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            placeholder="Optional: how to change it"
+            className="flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-3 py-2.5 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
+          />
+          <button
+            type="button"
+            disabled={!section || sectionBusy}
+            onClick={() => void rewriteSection()}
+            className="rounded-xl bg-[--accent] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {sectionBusy ? 'Rewriting...' : 'Rewrite'}
+          </button>
+        </div>
       </div>
 
       <div className="mt-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
