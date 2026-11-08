@@ -1696,3 +1696,36 @@ branch `cloudflare-workers`, commit `310b287`).
 - Deploy con `CLOUDFLARE_API_TOKEN` già in env → `npx wrangler whoami` mostra
   l'account; nessun `wrangler login` necessario. Bindings: `RATE_LIMIT` (KV),
   `MARKETPLACE` (D1), `ASSETS`, `GITHUB_ID`, `UNLIMITED_LOGINS="ciao22king"`.
+
+## Fix login OAuth: "redirect_uri is not associated with this application" (2026-11-08)
+
+**Sintomo**: dopo il passaggio a `skillforge.cc.cd`, il login GitHub falliva con la
+pagina GitHub *"Be careful! The redirect_uri is not associated with this
+application"*.
+
+**Causa**: il secret del Worker `NEXTAUTH_URL` era rimasto
+`https://skill-forge.ciao22king.workers.dev`, quindi NextAuth costruiva
+`redirect_uri=https://skill-forge.ciao22king.workers.dev/api/auth/callback/github`,
+che l'OAuth App GitHub (registrata per `skillforge.cc.cd`) non riconosce. NextAuth
+**ignora l'Host della richiesta** e usa `NEXTAUTH_URL` per costruire il callback:
+cambiare dominio senza aggiornare quel secret rompe il login.
+
+**Fix applicato** (nessun deploy di codice, basta il secret):
+`printf 'https://skillforge.cc.cd' | npx wrangler secret put NEXTAUTH_URL`
+→ nuova Worker Version `0e448681-0080-4a8b-bf80-cdb2739c54c1`.
+
+**Verifica rapida del redirect_uri** (senza autenticarsi):
+```
+CSRF=$(curl -s -c cj.txt https://skillforge.cc.cd/api/auth/csrf | python3 -c 'import sys,json;print(json.load(sys.stdin)["csrfToken"])')
+curl -s -b cj.txt -X POST https://skillforge.cc.cd/api/auth/signin/github \
+  -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode "csrfToken=$CSRF" \
+  -D - -o /dev/null | grep -i '^location'
+```
+Deve contenere `redirect_uri=https%3A%2F%2Fskillforge.cc.cd%2Fapi%2Fauth%2Fcallback%2Fgithub`.
+Controllo definitivo: `GET /api/auth/providers` → `callbackUrl` con l'host giusto.
+
+**Nota**: `GET https://api.github.com/applications/<client_id>` → **404** con il
+`$GITHUB_TOKEN` di questo ambiente: la config dell'OAuth App (callback URL) **non**
+e' leggibile ne' scrivibile via API con questo token. Va verificata a mano su
+`github.com/settings/developers` → l'app deve avere registrato
+`https://skillforge.cc.cd/api/auth/callback/github`.
