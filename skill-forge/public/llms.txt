@@ -1,0 +1,40 @@
+# Skill Forge
+
+> Skill Forge turns scattered notes, documents or a single idea into a complete,
+> detailed skill for AI agents. Each skill is a Markdown file with a numbered
+> procedure, rules, examples, common mistakes and a final checklist. Skills can
+> be downloaded as `.md` or published to a public marketplace.
+
+Skill Forge is a web application and a CLI. Generation uses OpenRouter as the AI
+gateway, with automatic fallback across free models. The marketplace is public:
+anyone can browse, search and download skills without an account; publishing
+requires signing in with GitHub.
+
+## Core pages
+
+- [Home](https://skillforge.cc.cd/): what the service does and how to start.
+- [Marketplace](https://skillforge.cc.cd/marketplace): browse, search and sort
+  the published skills.
+- [Tags](https://skillforge.cc.cd/tags): the skills grouped by topic.
+- [Create from material](https://skillforge.cc.cd/create/from-skills): merge up
+  to 20 files or pasted text into one skill.
+- [Create from scratch](https://skillforge.cc.cd/create/from-scratch): a 6-field
+  wizard (name, domain, goal, tone, constraints, examples).
+
+## Output format
+
+Every generated skill contains, in order: YAML frontmatter (`name`,
+`description`), when to use it, when not to use it, prerequisites, procedure,
+rules and constraints, examples with input and expected output, common mistakes,
+and a final checklist.
+
+## Feeds
+
+- [Sitemap](https://skillforge.cc.cd/sitemap.xml)
+- [RSS feed](https://skillforge.cc.cd/feed.xml)
+
+## Legal
+
+- [Terms of service](https://skillforge.cc.cd/terms)
+- [Privacy policy](https://skillforge.cc.cd/privacy)
+- [Cookie policy](https://skillforge.cc.cd/cookie)
