@@ -14,8 +14,9 @@
     // Owner logins: operator access (the /stats dashboard) and no quota.
     "UNLIMITED_LOGINS": "ciao22king",
     // Founding testers: no daily quota and a badge, no operator access.
+    // The logins of the people invited to try it before the wider release.
     // Add a login here to grant the perk; it takes effect at the next sign-in.
-    "FOUNDING_TESTERS": ""
+    "FOUNDING_TESTERS": "hxreborn,akkie76,eliasoulkadi,aaddrick,croffasia,dean9703111,seb1n,langgpt,danielvm-git,athola,matank001,nisabmohd,flyeric0212,ashishpatel26,favorpan,nledford,j-nowcow,ajhcs,chihebnabil,anchildress1,umair,yschimke,jianshuo,eddietyp,goldziher,primefoldtools,vaibhavarora14"
   },
   // Do not clear the variables set from the dashboard on every CLI deploy.
   "keep_vars": true,
