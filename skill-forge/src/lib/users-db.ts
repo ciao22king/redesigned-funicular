@@ -68,33 +68,3 @@ export async function readRole(login: string, injected?: D1Like): Promise<Role> 
     return fallback;
   }
 }
-
-/**
- * Number of registered users.
- *
- * `first_seen` is kept out of the answer on purpose: the landing page needs a
- * number, not a list.
- */
-export async function countUsers(injected?: D1Like): Promise<number> {
-  const database = await getDatabase(injected);
-  const row = await database
-    .prepare('SELECT COUNT(*) AS n FROM users')
-    .first<{ n: number }>();
-  return Number(row?.n ?? 0);
-}
-
-/**
- * The count as shown on the landing page, or `undefined` when it cannot be
- * read (missing binding in local development, empty table).
- *
- * Returning `undefined` rather than 0 lets the hero hide the number entirely
- * instead of claiming "0 users" when the data is simply not available.
- */
-export async function publicUserCount(injected?: D1Like): Promise<number | undefined> {
-  try {
-    const n = await countUsers(injected);
-    return n > 0 ? n : undefined;
-  } catch {
-    return undefined;
-  }
-}

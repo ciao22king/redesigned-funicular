@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isLogin, userCountLabel, userNoun } from '../src/lib/users';
-import { countUsers, publicUserCount, readRole, recordUser } from '../src/lib/users-db';
+import { isLogin } from '../src/lib/users';
+import { readRole, recordUser } from '../src/lib/users-db';
 import type { D1Like } from '../src/lib/d1';
 
 /** Minimal fake D1 that remembers rows in a Map, enough for the users queries. */
@@ -50,26 +50,6 @@ function fakeD1() {
   return { db, users };
 }
 
-test('userCountLabel pluralizza al singolare e al plurale', () => {
-  assert.equal(userCountLabel(0), '0 users');
-  assert.equal(userCountLabel(1), '1 user');
-  assert.equal(userCountLabel(2), '2 users');
-  assert.equal(userCountLabel(1234), '1234 users');
-});
-
-test('userNoun dà solo il nome, per lo stile separato dal numero', () => {
-  assert.equal(userNoun(1), 'user');
-  assert.equal(userNoun(0), 'users');
-  assert.equal(userNoun(2), 'users');
-});
-
-test('userCountLabel tratta valori non validi come zero', () => {
-  assert.equal(userCountLabel(-5), '0 users');
-  assert.equal(userCountLabel(Number.NaN), '0 users');
-  assert.equal(userCountLabel(Number.POSITIVE_INFINITY), '0 users');
-  assert.equal(userCountLabel(3.9), '3 users');
-});
-
 test('isLogin accetta un login GitHub valido e rifiuta il resto', () => {
   assert.equal(isLogin('ciao22king'), true);
   assert.equal(isLogin('a-b-c'), true);
@@ -81,12 +61,12 @@ test('isLogin accetta un login GitHub valido e rifiuta il resto', () => {
   assert.equal(isLogin(undefined), false);
 });
 
-test('recordUser conta utenti distinti, non accessi', async () => {
-  const { db } = fakeD1();
+test('recordUser tiene una riga per utente, non una per accesso', async () => {
+  const { db, users } = fakeD1();
   await recordUser('alice', db);
   await recordUser('bob', db);
   await recordUser('alice', db);
-  assert.equal(await countUsers(db), 2);
+  assert.equal(users.size, 2);
 });
 
 test('recordUser conserva first_seen e sposta last_seen', async () => {
@@ -101,30 +81,6 @@ test('recordUser ignora un login non valido senza toccare il database', async ()
   const { db, users } = fakeD1();
   await recordUser('bad--login', db);
   assert.equal(users.size, 0);
-});
-
-test('countUsers parte da zero', async () => {
-  const { db } = fakeD1();
-  assert.equal(await countUsers(db), 0);
-});
-
-test('publicUserCount nasconde lo zero', async () => {
-  const { db } = fakeD1();
-  assert.equal(await publicUserCount(db), undefined);
-  await recordUser('alice', db);
-  assert.equal(await publicUserCount(db), 1);
-});
-
-test('publicUserCount non lancia se il database manca', async () => {
-  // No injected database and no binding: must degrade, not throw.
-  const previous = process.env.NEXT_PHASE;
-  try {
-    delete process.env.NEXT_PHASE;
-    const result = await publicUserCount();
-    assert.ok(result === undefined || typeof result === 'number');
-  } finally {
-    if (previous !== undefined) process.env.NEXT_PHASE = previous;
-  }
 });
 
 test('recordUser assegna owner a chi e in lista, a prescindere dalla data', async () => {

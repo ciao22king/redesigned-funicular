@@ -5,22 +5,15 @@ import { Footer } from '@/components/Footer';
 import { BeforeAfter } from '@/components/BeforeAfter';
 import Link from 'next/link';
 import { signIn, useSession } from 'next-auth/react';
-import { userNoun } from '@/lib/users';
 import type { FeaturedCandidate } from '@/lib/creator';
 
 /**
  * Landing page body. It is a client component because of the session state
- * (`useSession`/`signIn`); the registered-user count is passed in from the
- * server component `app/page.tsx`, so it is rendered in the HTML and visible to
+ * (`useSession`/`signIn`); the featured skills are passed in from the server
+ * component `app/page.tsx`, so they are rendered in the HTML and visible to
  * search engines, not fetched after hydration.
  */
-export function Landing({
-  userCount,
-  featured = [],
-}: {
-  userCount?: number;
-  featured?: FeaturedCandidate[];
-}) {
+export function Landing({ featured = [] }: { featured?: FeaturedCandidate[] }) {
   const { status } = useSession();
 
   return (
@@ -85,19 +78,6 @@ export function Landing({
                 </>
               )}
             </div>
-
-            {userCount !== undefined && (
-              <div className="mt-10 flex items-center gap-4 border-t border-[--line] pt-6">
-                <span className="font-display text-4xl font-semibold leading-none text-[--accent]">
-                  {userCount}
-                </span>
-                <span className="font-mono text-[11px] uppercase leading-tight tracking-[0.14em] text-[--ink-muted]">
-                  {userNoun(userCount)}
-                  <br />
-                  registered
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Side panel: a sample output, not a decorative card */}
