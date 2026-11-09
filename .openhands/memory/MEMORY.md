@@ -824,13 +824,34 @@ irrilevante la review della PR.
 `skill-forge/` ed e' **ignorato da GitHub**. I deploy sono **manuali**:
 `CLOUDFLARE_API_TOKEN=<cfat_> CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551 npm run deploy`.
 
-**Il token di deploy e' ancora invalido (2026-11-09, riconfermato).**
-`$Cloudflare` = `"CLOUDFLARE_API_TOKEN cfut_..."` (74 char, separato da **spazio**);
-`/user/tokens/verify` -> 401 code 1000, `wrangler whoami` -> code 9109. Il token
-MCP OAuth ha scope `workers-scripts.write`+`d1.write` ma e' **cifrato a riposo**
-(`gAAAAABq...` = Fernet), quindi inutilizzabile come bearer. **Serve che l'utente
-rigeneri un API token Cloudflare** (scope Workers Scripts:Edit + D1:Edit) e lo
-passi; senza quello il deploy non e' possibile da qui.
+**Deploy SBLOCCATO e riuscito (2026-11-09).** L'utente ha fornito un token
+`cfat_...` **account-scoped** che funziona. Version ID
+**`51443167-720c-4b9b-b4e6-e07db896f472`**, live su
+`https://skill-forge.ciao22king.workers.dev` e su `https://skillforge.cc.cd`.
+
+**LEZIONE CHIAVE (aveva fuorviato una sessione intera): un token `cfat_` e'
+account-scoped, quindi si verifica su
+`GET /accounts/<ACC>/tokens/verify` -> `success:true, status:"active"`.
+Su `/user/tokens/verify` restituisce **"Invalid API Token" code 1000** — che NON
+significa token morto. Verificare sempre con l'account, e usare
+`wrangler whoami` con `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`.**
+
+Il vecchio `$Cloudflare` (env) resta invalido: `"CLOUDFLARE_API_TOKEN cfut_..."`
+(74 char, separato da **spazio**, non `=`). Il token MCP OAuth ha scope
+`workers-scripts.write`+`d1.write` ma e' **cifrato a riposo** (`gAAAAABq...`,
+Fernet) -> inutilizzabile come bearer.
+
+**Deploy manuale** (dopo `git push` su `cloudflare-workers`):
+```
+CLOUDFLARE_API_TOKEN=<cfat_> CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551   npx wrangler d1 migrations apply skill-forge-marketplace --remote   # prima
+CLOUDFLARE_API_TOKEN=<cfat_> CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551   npm run deploy
+```
+
+**Dominio: NON e' un Custom Domain.** `skillforge.cc.cd` e' una **zona attiva**
+(id `bfc64fb636f77ec4b0f9707737aecd17`) collegata con **CNAME** verso
+`skill-forge.ciao22king.workers.dev` + **Workers routes** `skillforge.cc.cd/*` e
+`www.skillforge.cc.cd/*` -> script `skill-forge`. `www` -> 301. Il token usato
+NON puo' creare custom domains (errore 10405), quindi non provarci.
 
 ### Deploy bloccato: token Cloudflare non valido
 - Il secret **`Cloudflare`** = stringa `"CLOUDFLARE_API_TOKEN cfut_..."` (74
