@@ -1991,3 +1991,11 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
 - Report audit in `~/security-audit-skill/skill-forge/run-1/`: `findings.json` ha ora `remediation`
   per finding; `REPORT.md`/`NEEDS-VALIDATION.md` hanno la sezione Remediation (commit 9931560).
 - Health check post-deploy: `/`,`/marketplace`,`/demo` = 200; `/api/metrics` GET = 405.
+
+## skill-forge - pubblicazione social via Composio (2026-11-09)
+- Pipeline: `.skill-forge-deploy/daily-social/` (`python3 run_local.py`, `DRY_RUN=1` per anteprima).
+  Canali: LinkedIn (account `linkedin_wearer-delhi`) + Pinterest (board 1125548200563604519).
+  Copy a rotazione in `main.py`; indice in `daily-social/local_kv.json`.
+- dev.to: script separato `devto_post2.py`, account `imadev22`; 2 articoli gia' online.
+- Composio MCP: `connect.composio.dev/mcp`, creds in `.skill-forge-deploy/creds/`.
+- **Attenzione:** `COMPOSIO_MANAGE_CONNECTIONS` con `toolkits=[...]` AVVIA OAuth (non e' read-only).
