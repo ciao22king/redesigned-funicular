@@ -2016,3 +2016,11 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   `dailyLimitFor` in `ratelimit.ts`; scadenza programma 15/12/2026 in `src/lib/preProgram.ts`.
 - Il brand e' **chiaro e caldo** (surface ambra, accento terracotta #c25a3a): mai descriverlo come
   viola/nero.
+
+## skill-forge - founding tester e' una regola DATA, non una lista (2026-11-09)
+- Vantaggio founding tester = account creati **entro il 15/12/2026** (o invitati per nome),
+  poi **mantenuto per sempre**. Il ruolo si decide da `users.first_seen` all'iscrizione;
+  `readRole` ricalcola da `first_seen` (self-healing). `roleForSignup` in `roles.ts`,
+  `withinPreProgram`/`preProgramCutoff` in `src/lib/preProgram.ts`.
+- `ratelimit` ora prende il **ruolo** (non il login): `readQuota/consumeQuota(login, role, kv)`.
+- Deploy `6f32bc88` (commit `f16b7ce`). 293 test.
