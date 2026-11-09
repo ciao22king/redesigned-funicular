@@ -18,7 +18,8 @@ import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/
 import { buildPlan, type Plan, type PlanMaterial } from '@/lib/plan';
 import { regenerableSections } from '@/lib/sections';
 import type { QualityReport } from '@/lib/quality';
-import { ACCEPT_ATTRIBUTE, MAX_FILES, MAX_TOTAL_BYTES, formatBytes, uploadRulesLabel, validateFile } from '@/lib/uploads';
+import { ACCEPT_ATTRIBUTE, MAX_FILES, MAX_TOTAL_BYTES, formatBytes, isPdf, uploadRulesLabel, validateFile } from '@/lib/uploads';
+import { extractPdfText } from '@/lib/pdf';
 import { scanMessages, scanUpload } from '@/lib/scans';
 import { track } from '@/lib/track';
 import { Feedback } from '@/components/Feedback';
@@ -39,6 +40,8 @@ interface GenerateResponse {
   quota?: Quota;
   questions?: string[];
   quality?: QualityReport;
+  normalizations?: string[];
+  refined?: boolean;
 }
 
 export default function CreatePage({ mode }: { mode: Mode }) {
@@ -57,6 +60,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   const [questions, setQuestions] = useState<string[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [quality, setQuality] = useState<QualityReport | null>(null);
+  const [normalizations, setNormalizations] = useState<string[]>([]);
+  const [refined, setRefined] = useState(false);
 
   useEffect(() => {
     fetch('/api/generate')
@@ -121,6 +126,20 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         blocked.push(...scanMessages(scan));
         continue;
       }
+
+      // A PDF is not decoded as UTF-8: its text is pulled out of the content
+      // streams. If extraction yields nothing usable, the file is skipped with
+      // an explanation instead of contributing binary noise to the material.
+      if (isPdf(f.name)) {
+        const pdf = await extractPdfText(bytes);
+        if (!pdf.ok) {
+          blocked.push(pdf.error ?? `${f.name}: the PDF text could not be read.`);
+          continue;
+        }
+        next.push({ name: f.name, text: pdf.text });
+        continue;
+      }
+
       if (scan.level === 'warn') warned.push(...scanMessages(scan));
       next.push({ name: f.name, text: new TextDecoder().decode(bytes) });
     }
@@ -167,6 +186,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
     setQuestions([]);
     setAnswers({});
     setQuality(null);
+    setNormalizations([]);
+    setRefined(false);
     track('funnel_submit');
 
     const startedAt = Date.now();
@@ -188,6 +209,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       setResult(markdown);
       setQuestions(data.questions ?? []);
       setQuality(data.quality ?? null);
+      setNormalizations(data.normalizations ?? []);
+      setRefined(Boolean(data.refined));
       setPlan(null);
 
       // Funnel: a skill arrived, and how long the wait took. The duration is
@@ -239,6 +262,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       setResult(data.markdown as string);
       setQuestions(data.questions ?? []);
       setQuality(data.quality ?? null);
+      setNormalizations(data.normalizations ?? []);
+      setRefined(Boolean(data.refined));
       setAnswers({});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -335,7 +360,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                 Source files
               </span>
               <span className="mb-3 block text-sm text-[--ink-muted]">
-                Markdown, text, JSON, code. {uploadRulesLabel()}
+                Markdown, text, JSON, code, PDF, transcripts. {uploadRulesLabel()}
               </span>
               <input
                 type="file"
@@ -550,6 +575,8 @@ export default function CreatePage({ mode }: { mode: Mode }) {
               markdown={result}
               name={name}
               mode={mode}
+              normalizations={normalizations}
+              refined={refined}
               onEdit={setResult}
               onDownload={download}
               onRegenerateSection={regenerateSection}
@@ -588,6 +615,8 @@ function ResultPanel({
   markdown,
   name,
   mode,
+  normalizations,
+  refined,
   onEdit,
   onDownload,
   onRegenerateSection,
@@ -595,6 +624,8 @@ function ResultPanel({
   markdown: string;
   name: string;
   mode: Mode;
+  normalizations: string[];
+  refined: boolean;
   onEdit: (next: string) => void;
   onDownload: () => void;
   onRegenerateSection: (section: string, instruction: string) => Promise<void>;
@@ -669,6 +700,25 @@ function ResultPanel({
           {countWords(markdown)} words
         </span>
       </div>
+
+      {(refined || normalizations.length > 0) && (
+        <details className="mb-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
+          <summary className="cursor-pointer select-none">
+            What the system fixed after the first draft
+          </summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {refined && (
+              <li>
+                A self-review pass rewrote the draft against a rubric (actionable
+                steps, no invented facts, concrete examples, no hedging).
+              </li>
+            )}
+            {normalizations.map((n) => (
+              <li key={n}>{n}.</li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {editing ? (
         <textarea

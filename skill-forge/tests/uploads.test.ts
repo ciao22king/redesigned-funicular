@@ -8,6 +8,7 @@ import {
   extensionOf,
   formatBytes,
   isAllowedExtension,
+  isPdf,
   uploadRulesLabel,
   validateFile,
   validateFileBatch,
@@ -27,9 +28,18 @@ test('le estensioni di testo sono ammesse', () => {
 });
 
 test('binari e archivi sono rifiutati per estensione', () => {
-  for (const name of ['a.exe', 'b.zip', 'c.png', 'd.pdf', 'e.sh.bin', 'noext']) {
+  for (const name of ['a.exe', 'b.zip', 'c.png', 'e.sh.bin', 'noext']) {
     assert.equal(isAllowedExtension(name), false, name);
   }
+});
+
+test('pdf e trascrizioni sono ammessi per estensione', () => {
+  for (const name of ['doc.pdf', 'call.srt', 'call.vtt']) {
+    assert.equal(isAllowedExtension(name), true, name);
+  }
+  assert.equal(isPdf('doc.pdf'), true);
+  assert.equal(isPdf('doc.PDF'), true);
+  assert.equal(isPdf('doc.md'), false);
 });
 
 test('un file troppo grande e rifiutato con il limite leggibile', () => {

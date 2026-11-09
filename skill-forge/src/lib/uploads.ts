@@ -13,14 +13,23 @@
 export const MAX_FILES = 20;
 /** Maximum size of one file. */
 export const MAX_FILE_BYTES = 256 * 1024;
+/**
+ * Maximum size of one PDF. A technical document is routinely several megabytes,
+ * so the text cap would make PDF support useless; the extraction in `pdf.ts`
+ * caps the *text* it produces (200k characters), so a large file cannot blow up
+ * the request even though it is accepted here.
+ */
+export const MAX_PDF_BYTES = 5 * 1024 * 1024;
 /** Maximum combined size of all files, material and sources included. */
 export const MAX_TOTAL_BYTES = 2 * 1024 * 1024;
 
 /**
  * Extensions we accept, mapped to the MIME type they normally carry.
  *
- * The list is deliberately text-only: the generator reads text, and accepting
- * archives or binaries would only widen the attack surface.
+ * The list is text-only, plus PDF: a technical document or a company procedure
+ * is very often a PDF, and its text is extracted with the built-in parser in
+ * `pdf.ts` rather than decoded as UTF-8. Archives and other binaries would only
+ * widen the attack surface, so they stay out.
  */
 export const ALLOWED_EXTENSIONS = [
   '.md',
@@ -31,6 +40,9 @@ export const ALLOWED_EXTENSIONS = [
   '.yml',
   '.toml',
   '.csv',
+  '.pdf',
+  '.srt',
+  '.vtt',
   '.ts',
   '.tsx',
   '.js',
@@ -51,6 +63,11 @@ const ALLOWED = new Set<string>(ALLOWED_EXTENSIONS);
 
 /** The `accept` attribute for the file input, built from the same list. */
 export const ACCEPT_ATTRIBUTE = ALLOWED_EXTENSIONS.join(',');
+
+/** True when the file is a PDF, which takes the extraction path, not decode. */
+export function isPdf(name: string): boolean {
+  return extensionOf(name) === '.pdf';
+}
 
 export interface FileCheck {
   ok: boolean;
@@ -82,10 +99,11 @@ export function validateFile(file: { name: string; size: number }): FileCheck {
       error: `${file.name}: ${ext} is not accepted. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}.`,
     };
   }
-  if (file.size > MAX_FILE_BYTES) {
+  const limit = isPdf(file.name) ? MAX_PDF_BYTES : MAX_FILE_BYTES;
+  if (file.size > limit) {
     return {
       ok: false,
-      error: `${file.name} is ${formatBytes(file.size)}. The limit per file is ${formatBytes(MAX_FILE_BYTES)}.`,
+      error: `${file.name} is ${formatBytes(file.size)}. The limit per file is ${formatBytes(limit)}.`,
     };
   }
   return { ok: true };
@@ -119,7 +137,7 @@ export function formatBytes(bytes: number): string {
 
 /** Label for the UI, built from the same constants the server enforces. */
 export function uploadRulesLabel(): string {
-  return `Up to ${MAX_FILES} files, ${formatBytes(MAX_FILE_BYTES)} each, ${formatBytes(
-    MAX_TOTAL_BYTES,
-  )} in total.`;
+  return `Up to ${MAX_FILES} files, ${formatBytes(MAX_FILE_BYTES)} each (${formatBytes(
+    MAX_PDF_BYTES,
+  )} for a PDF), ${formatBytes(MAX_TOTAL_BYTES)} of text in total.`;
 }

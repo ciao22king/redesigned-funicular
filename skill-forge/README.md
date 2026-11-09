@@ -8,7 +8,7 @@ marketplace.
 
 | Mode | Input | Output |
 | --- | --- | --- |
-| **A. From existing material** | Up to 20 files (`.md`, `.txt`, `.json`, code) or pasted text | One skill that merges all the material, identifies missing information and asks targeted questions, and keeps the technical details |
+| **A. From existing material** | Up to 20 files (`.md`, `.txt`, `.json`, `.pdf`, code, SRT/VTT transcripts) or pasted text | One skill that merges all the material, identifies missing information and asks targeted questions, and keeps the technical details |
 | **B. From scratch** | 6-field wizard (name, domain, goal, tone, constraints, examples) | A complete skill with a numbered procedure, examples, common mistakes, checklist |
 
 Every generated skill has this structure:
@@ -23,6 +23,41 @@ Examples (input + expected output)
 Common mistakes
 Final checklist
 ```
+
+## Why the output is better than a one-shot chat
+
+The same model, asked in a chat window, returns a plausible answer. Here it goes
+through three deterministic layers that a chat prompt does not have:
+
+1. **Pre-processing** (`lib/preprocess.ts`). A transcript is converted from SRT
+   or VTT into prose, with consecutive turns from one speaker merged and the cue
+   numbers and timestamps removed. Messy notes are tidied: BOM, decorative
+   separator lines and page markers are dropped. The model then spends its
+   budget on the procedure, not on re-formatting the input.
+2. **A self-review pass** (`runRefine` in `lib/generate.ts`). After the draft,
+   the model critiques and rewrites it against a rubric (each step one action, no
+   invented facts, concrete examples, no hedging). Best-effort and on a fixed
+   slice of the budget: if it fails, the draft stands.
+3. **Deterministic normalisation** (`lib/normalize.ts`). Whatever the model
+   returns, the result is guaranteed to have canonical frontmatter, the required
+   sections in the required order, no em dashes, and a final checklist
+   synthesised from the procedure when the model forgot one. The pass is
+   idempotent, so it can run after both the draft and the review without drift.
+
+A draft that is still missing the sections that carry the content (When to use
+it, Procedure, Examples) is rejected and the model ladder moves on, rather than
+shipping a document that reads well and executes nothing.
+
+## Real-world input
+
+Beyond plain text and code, two input shapes are handled exactly rather than by
+asking the model to guess:
+
+- **PDF** (`lib/pdf.ts`): the text is extracted from the content streams, with
+  FlateDecode inflated through the platform's own `DecompressionStream`. No
+  dependency, and it works in the Worker runtime. A scan or an exotic font CMap
+  is reported as unreadable instead of producing noise.
+- **Transcripts** (`.srt`, `.vtt`): converted to prose before generation.
 
 ## Stack
 
@@ -173,10 +208,31 @@ src/
     ├── ai.ts                        OpenRouter client, model ladder and system prompt
     ├── auth.ts                      NextAuth configuration
     ├── feed.ts                      RSS building and XML escaping
+    ├── generate.ts                  Prompt building, model fallback, self-review pass
+    ├── guardrails.ts                Output validation (frontmatter, real procedure)
+    ├── normalize.ts                 Deterministic shape of the output
+    ├── pdf.ts                       PDF text extraction, no dependency
+    ├── preprocess.ts                Transcript and messy-notes clean-up
+    ├── quality.ts                   Post-generation quality check
+    ├── feedback.ts                  Feedback and rating model (pure)
+    ├── feedback-db.ts               D1 access for feedback
     ├── marketplace.ts               Pure marketplace logic (tags, sorting, validation)
     ├── marketplace-db.ts            D1 access for the marketplace
     └── skill.ts                     Slug, fences, frontmatter
 ```
+
+## Feedback and ratings
+
+Right after a skill is generated the user is asked two things, both optional and
+independent: a verdict (useful, partly, missed the point) and a 1 to 5 rating.
+The verdict answers "was it useful?", the rating answers "how good was it?", and
+keeping both means the numbers mean something on their own. No sign-in is
+required and nothing identifying is stored, because the answer is about the
+skill, not the person (migration `0008_feedback_rating.sql`).
+
+The owner dashboard at `/stats` shows the verdict counters, the useful share, the
+average rating and its distribution. Aggregation is pure (`summarizeFeedback`),
+so it is testable without D1.
 
 ## Discovery
 

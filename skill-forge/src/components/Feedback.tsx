@@ -1,30 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import { FEEDBACK_VERDICTS, VERDICT_LABELS, type FeedbackVerdict } from '@/lib/feedback';
+import {
+  FEEDBACK_VERDICTS,
+  MAX_RATING,
+  VERDICT_LABELS,
+  type FeedbackVerdict,
+} from '@/lib/feedback';
 
 /**
  * The feedback prompt shown right after a skill is generated.
  *
- * It appears once, is two fields long, and disappears after an answer: a long
- * form here would get no answers, and a form that keeps reappearing would be an
- * annoyance. The note is optional, so the verdict alone is a complete answer.
+ * It appears once and is short on purpose: a verdict, an optional 1 to 5 star
+ * rating, and an optional note. A long form here would get no answers, and a
+ * form that keeps reappearing would be an annoyance. Each field is optional on
+ * its own, so answering only the verdict is already a complete answer, and the
+ * rating is sent the moment it is chosen (once a verdict exists).
  */
 export function Feedback({ mode }: { mode: string }) {
   const [verdict, setVerdict] = useState<FeedbackVerdict | null>(null);
+  const [rating, setRating] = useState(0);
   const [note, setNote] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(choice: FeedbackVerdict, withNote = false) {
+  async function send(choice: FeedbackVerdict, withNote = false, withRating = rating) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verdict: choice, note: withNote ? note : '', mode }),
+        body: JSON.stringify({
+          verdict: choice,
+          note: withNote ? note : '',
+          rating: withRating,
+          mode,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -72,6 +85,38 @@ export function Feedback({ mode }: { mode: string }) {
             {VERDICT_LABELS[v]}
           </button>
         ))}
+      </div>
+
+      <div className="mt-4">
+        <span className="mb-1.5 block text-xs text-[--ink-muted]">
+          Rate the skill (optional)
+        </span>
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Skill rating">
+          {Array.from({ length: MAX_RATING }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={rating === n}
+              aria-label={`${n} of ${MAX_RATING}`}
+              disabled={busy}
+              onClick={() => {
+                setRating(n);
+                if (verdict) void send(verdict, false, n);
+              }}
+              className={`text-2xl leading-none transition-colors disabled:opacity-50 ${
+                n <= rating ? 'text-[--accent]' : 'text-[--ink-muted] hover:text-[--accent]'
+              }`}
+            >
+              {n <= rating ? '\u2605' : '\u2606'}
+            </button>
+          ))}
+          {rating > 0 && (
+            <span className="ml-2 font-mono text-xs text-[--ink-muted]">
+              {rating}/{MAX_RATING}
+            </span>
+          )}
+        </div>
       </div>
 
       {verdict && verdict !== 'yes' && (

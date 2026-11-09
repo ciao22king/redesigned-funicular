@@ -10,16 +10,18 @@ interface Body {
   verdict?: string;
   note?: string;
   mode?: string;
+  rating?: number | string;
 }
 
 /**
- * Feedback on a generation: "was this useful, and what is missing?".
+ * Feedback on a generation: "was this useful, and what is missing?" plus an
+ * optional 1 to 5 rating.
  *
  * No sign-in is required: the question is asked of anyone who just generated a
  * skill, including in the anonymous demo, and requiring an account would bias
  * the answers towards the people who already have one. The body carries only a
- * verdict, an optional note and the mode, so there is nothing identifying to
- * protect.
+ * verdict, an optional note, an optional rating and the mode, so there is
+ * nothing identifying to protect.
  */
 export async function POST(req: NextRequest) {
   let body: Body;

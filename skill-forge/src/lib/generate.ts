@@ -1,6 +1,8 @@
 import { ATTEMPT_TIMEOUT_MS, chatCompletion, MODELS, SYSTEM_PROMPT } from './ai';
 import { stripFences } from './skill';
 import { audienceInstruction, toneInstruction } from './audience';
+import { normalizeSkill } from './normalize';
+import { preprocessMaterial } from './preprocess';
 import {
   MAX_OUTPUT_TOKENS,
   GUARDRAIL_PROMPT,
@@ -41,6 +43,10 @@ export interface GenerateOk {
   usage: unknown;
   model: string;
   fallbacks: string[];
+  /** Deterministic changes applied on top of the model output. */
+  normalizations?: string[];
+  /** True when the critique/revise pass ran and improved the draft. */
+  refined?: boolean;
 }
 
 export interface GenerateErr {
@@ -54,6 +60,10 @@ export function buildUserPrompt(body: GenerateBody): string {
   const framing = `\n\n## Audience\n${audience}\n\n## Tone\n${register}`;
 
   if (body.mode === 'from-skills') {
+    // Mechanical clean-up first: a transcript becomes prose and messy notes are
+    // tidied, so the model spends its budget on the procedure, not on stripping
+    // cue numbers or separator lines.
+    const { text } = preprocessMaterial(body.sourceMaterial ?? '');
     return `Turn the following material into ONE complete, ultra-detailed skill.
 
 Rules:
@@ -65,7 +75,7 @@ Rules:
 - Write the skill in English, whatever the language of the material.
 ${framing}
 
-${wrapUntrusted('source-material', body.sourceMaterial ?? '')}`;
+${wrapUntrusted('source-material', text)}`;
   }
 
   const name = clampField(body.name);
@@ -94,6 +104,11 @@ Write the skill in English.`;
  *
  * The budget must stay below the platform limit, so the response (even an
  * error) always goes out instead of being cut off by the function timeout.
+ *
+ * Every draft is passed through `normalizeSkill` before it is accepted: the
+ * shape is guaranteed deterministically, so a draft that is good in content but
+ * sloppy in structure is repaired rather than rejected. A draft missing the
+ * sections that carry the content is still rejected, and the ladder moves on.
  */
 export async function runGeneration(
   body: GenerateBody,
@@ -124,14 +139,25 @@ export async function runGeneration(
         Math.min(ATTEMPT_TIMEOUT_MS, left),
       );
 
-      const markdown = stripFences(raw);
-      const check = validateSkillOutput(markdown);
+      const normalized = normalizeSkill(stripFences(raw));
+      if (normalized.unresolved.length > 0) {
+        errors.push(`${model}: missing essential sections (${normalized.unresolved.join(', ')})`);
+        continue;
+      }
+
+      const check = validateSkillOutput(normalized.markdown);
       if (!check.ok) {
         errors.push(`${model}: ${check.reason}`);
         continue;
       }
 
-      return { markdown, usage, model, fallbacks: errors };
+      return {
+        markdown: normalized.markdown,
+        usage,
+        model,
+        fallbacks: errors,
+        normalizations: normalized.applied,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown error';
       errors.push(`${model}: ${message}`);
@@ -139,6 +165,72 @@ export async function runGeneration(
   }
 
   return { error: `No free model produced a valid skill. Details: ${errors.join('; ')}`, fallbacks: errors };
+}
+
+/**
+ * Second, self-review pass: the model critiques its own draft against a short
+ * rubric and rewrites it. This is the step a single chat prompt skips, and it is
+ * where most of the quality over a one-shot answer comes from.
+ *
+ * It is best-effort. If it fails or overruns its slice of the budget, the draft
+ * is returned unchanged, because the draft is already valid and losing it would
+ * be far worse than shipping it without a polish.
+ */
+export async function runRefine(
+  markdown: string,
+  body: GenerateBody,
+  budgetMs: number,
+): Promise<{ markdown: string; refined: boolean }> {
+  const deadline = Date.now() + budgetMs;
+
+  for (const model of MODELS) {
+    const left = deadline - Date.now();
+    if (left <= 1_000) break;
+
+    try {
+      const { content } = await chatCompletion(
+        model,
+        [
+          {
+            role: 'system',
+            content:
+              `${SYSTEM_PROMPT}\n\nYou are now the reviewer of a draft skill. Fix it against the rubric, then output the corrected document ONLY, in the same structure. If the draft is already good, return it unchanged.`,
+          },
+          {
+            role: 'user',
+            content: `Critique and fix this draft against the rubric:
+- every procedure step is one action, actionable and verifiable;
+- no invented facts, versions, paths or tools: anything unknown goes under "Missing information" with a targeted question;
+- the examples are concrete, not placeholders;
+- the final checklist is verifiable;
+- no hedging words (consider, maybe, try to, if possible);
+- no em dashes.
+
+Return the corrected skill document only, starting with the frontmatter.
+${audienceInstruction(body.audience)}
+${toneInstruction(body.register)}
+
+${wrapUntrusted('draft-skill', markdown.slice(0, 12_000))}`,
+          },
+        ],
+        0.3,
+        MAX_OUTPUT_TOKENS,
+        Math.min(ATTEMPT_TIMEOUT_MS, left),
+      );
+
+      const normalized = normalizeSkill(stripFences(content));
+      if (normalized.unresolved.length > 0) continue;
+      const check = validateSkillOutput(normalized.markdown);
+      // Only accept the revision when it is not shorter than the draft: a
+      // truncated rewrite would be a regression, not an improvement.
+      if (!check.ok || normalized.markdown.length < markdown.length * 0.7) continue;
+
+      return { markdown: normalized.markdown, refined: normalized.markdown !== markdown };
+    } catch {
+      // A failed refine is not worth a retry: the draft stands.
+    }
+  }
+  return { markdown, refined: false };
 }
 
 /**

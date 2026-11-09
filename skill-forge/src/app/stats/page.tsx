@@ -132,6 +132,32 @@ export default function StatsPage() {
               <p className="mt-4 text-sm text-[--ink-muted]">
                 Useful or partly useful: {formatPercent(data.feedback.usefulShare)}.
               </p>
+              <p className="mt-2 text-sm text-[--ink-muted]">
+                {data.feedback.rated > 0
+                  ? `Average rating ${data.feedback.averageRating.toFixed(1)}/5 over ${data.feedback.rated} rated answer(s).`
+                  : 'No ratings yet. The 1 to 5 stars are optional, next to the verdict.'}
+              </p>
+              {data.feedback.rated > 0 && (
+                <ul className="mt-3 space-y-1">
+                  {data.feedback.distribution
+                    .map((count, score) => ({ count, score }))
+                    .filter((r) => r.score > 0)
+                    .reverse()
+                    .map((r) => (
+                      <li key={r.score} className="flex items-center gap-3 text-sm text-[--ink-muted]">
+                        <span className="w-14 font-mono">{r.score} star{r.score === 1 ? '' : 's'}</span>
+                        <span
+                          aria-hidden
+                          className="h-2 rounded-full bg-[--accent]"
+                          style={{
+                            width: `${data.feedback.rated > 0 ? (r.count / data.feedback.rated) * 60 : 0}%`,
+                          }}
+                        />
+                        <span>{r.count}</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
             </section>
 
             <p className="mt-12 text-sm text-[--ink-muted]">

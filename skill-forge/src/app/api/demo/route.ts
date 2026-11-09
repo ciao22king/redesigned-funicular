@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { runGeneration, type GenerateBody } from '@/lib/generate';
+import { runGeneration, runRefine, type GenerateBody } from '@/lib/generate';
 import { consumeDemoQuota, quotaMessage, rateLimitHeaders } from '@/lib/ratelimit';
 import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
@@ -17,7 +17,8 @@ export const maxDuration = 60;
  * preview is never a watered-down version. Only the budget is smaller and the
  * material is capped harder, because the caller is anonymous.
  */
-const DEMO_BUDGET_MS = 40_000;
+const DEMO_BUDGET_MS = 30_000;
+const DEMO_REFINE_BUDGET_MS = 15_000;
 const DEMO_MAX_CHARS = 4_000;
 const DEMO_MAX_TOKENS = 1_800;
 
@@ -94,11 +95,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
 
+  // Same self-review pass as the signed-in flow, so the preview is the real
+  // output and not an approximation of it.
+  const refined = await runRefine(result.markdown, { mode: 'from-skills' }, DEMO_REFINE_BUDGET_MS);
+
   return NextResponse.json(
     {
-      markdown: result.markdown,
+      markdown: refined.markdown,
       model: result.model,
-      quality: checkQuality(result.markdown),
+      quality: checkQuality(refined.markdown),
+      normalizations: result.normalizations ?? [],
+      refined: refined.refined,
       quota,
       warnings: scanMessages(scan),
     },

@@ -30,8 +30,17 @@ OpenHands is not one of its named agents, so the "other agents" path applies.
   Verify with `npx -y skills list -g`. **These do NOT survive a new container**:
   re-run the command each session (2026-11-07: re-run, 22 skills, was 19).
   The Cloudflare MCP (`mcp_config.cloudflare` -> `https://mcp.cloudflare.com/mcp`,
-  oauth2) is in `/home/openhands/.openhands/settings.json` under `mcp_config`
-  (NOT `mcpServers`) and did persist.
+  oauth2) lives in the agent-server's `agent_settings.mcp_config` (NOT
+  `mcpServers`, and NOT a file on disk).
+  **2026-11-09: fully authorized and verified.** `mcp_config` was actually `{}`
+  (an earlier note wrongly said it persisted), so it was re-registered via
+  `POST /api/settings/mcp/cloudflare`, OAuth completed, and the state persisted
+  with `PATCH` (see the OAuth recipe below). End-to-end check:
+  `POST /api/mcp/test` with `tool_call {name:"whoami"}` -> `ok:true`,
+  tools `docs, search, execute, whoami`, and `whoami` returned
+  `user:54cf8f0b68c015465faba7726d324d7f` / `ciao22king@gmail.com`.
+  NB: the tool-listing step times out often and is **transient** — three jobs in
+  a row failed with `tool listing timed out after 120s` before one succeeded.
 - **MCP**: the local agent-server (pid 1, `--port 60000`) owns MCP config and is
   the canonical store — docs say there is *no* per-project MCP config file, so do
   not hand-edit one. Register servers over its REST API:
@@ -1729,3 +1738,140 @@ Controllo definitivo: `GET /api/auth/providers` → `callbackUrl` con l'host giu
 e' leggibile ne' scrivibile via API con questo token. Va verificata a mano su
 `github.com/settings/developers` → l'app deve avere registrato
 `https://skillforge.cc.cd/api/auth/callback/github`.
+
+## Outreach creatori via Gmail/Composio (2026-11-08)
+
+Inviate **10 email** di contatto a creatori reali, firmate **"ciao"**, **senza**
+riga di disclosure AI (l'utente ha scelto l'opzione "b": la richiesta era che non
+sembrassero scritte da AI, quindi niente nota).
+
+- **Tavily era a secco** (`432 set usage limit`): per trovare i creatori ho usato
+  l'**API GitHub** (`/search/repositories`, poi `/users/<login>`), che è anche più
+  precisa — dà stelle, attività recente e **email pubbliche del profilo**. Il token
+  `$GITHUB_TOKEN` ha 30 ricerche/min e 5000 core/h.
+- **Destinatari scelti** (email pubbliche GitHub, non indovinate): PatrickJS
+  `github@patrickjs.com`; blefnk `blefnk@gmail.com`; Addy Osmani
+  `addyosmani@gmail.com`; hesreallyhim `git-public@hesreallyhim.com`; Jesse
+  Vincent (obra) `jesse@fsck.com`; Affaan Mustafa `me@affaanmustafa.com`; Nutlope
+  `hassan4709@gmail.com`; libukai `xiaobuyao@gmail.com`; VoltAgent
+  `info@voltagent.dev`; xixu-me `i@xi-xu.me`. Ogni testo cita un dettaglio **vero**
+  del loro repo (nome progetto, angolo specifico), CTA unica = `/demo`.
+- **Script riutilizzabile**: `/workspace/project/.skill-forge-deploy/send_outreach.py`
+  (usa `devto_helper.connect()`; `python3 send_outreach.py <N>` per un singolo invio,
+  senza argomento manda tutti con `sleep 30` tra uno e l'altro per non far scattare
+  l'antispam). Verifica: `GMAIL_FETCH_EMAILS {query:"in:sent newer_than:1h"}`.
+- **Gmail Composio** è **attivo** (`gmail_quet-ketch`, `ciao22king@gmail.com`,
+  is_default). `GMAIL_GET_PROFILE` → 811 messaggi. Esiste anche
+  `gmail_pobby-bong` in stato `initializing` (secondario, non usato).
+- **Tool Gmail Composio**: `GMAIL_SEND_EMAIL` con body piatto
+  `{recipient_email, subject, body, is_html}` → `data.id` + `labelIds:["SENT"]`.
+  `GMAIL_FETCH_EMAILS` richiede `query` in sintassi Gmail.
+- Nota: l'utente ha chiesto di non far sembrare le mail scritte da AI; ho quindi
+  evitato formule di cortesia generiche ("I hope this finds you well"), aggettivi
+  gonfiati e CTA multiple. **Regola di sicurezza**: non usare Gmail per spam di
+  massa — qui sono 10 contatti uno-a-uno mirati, con contenuto specifico.
+
+### Promozione via Composio — canali, esiti (2026-11-08)
+
+Promozione richiesta "usando Composio". **8 connessioni attive**, ma solo alcune
+pubblicabili in sicurezza:
+
+- **Pubblicato**: LinkedIn (`linkedin_wearer-delhi`, share
+  `urn:li:share:7525289084949491712`) + Pinterest (`pinterest_labor-arrie`, board
+  `1125548200563604519`, pin 2026-11-08T20:12) via `daily-social/run_local.py`
+  (rotazione idx 2 → "A prompt is not a skill"). Poi **2° articolo dev.to**
+  id `5000252`: "Anatomy of a skill file an AI agent will actually follow"
+  (angolo tecnico autonomo, non un secondo pitch; il 1° articolo id `4992961`
+  resta). Script: `.skill-forge-deploy/devto_post2.py`.
+- **Hashnode: BLOCCATO**. La publication `forgeskill` (id `6aeeff4928099f0e17145849`)
+  esiste, ma `HASHNODE_PUBLISH_POST` → *"Publication does not have an active Pro
+  plan"*. API di scrittura richiede piano Pro. Non insistere.
+- **dev.to: canonical_url NON riutilizzabile**. `DEVTO_CREATE_ARTICLE` con
+  `canonical_url` già preso da un altro articolo → 422 "Canonical url has already
+  been taken". Pubblicare **senza** `canonical_url` (come fatto nel 2°).
+- **Reddit**: tool solo `REDDIT_ADS_*` + `REDDIT_CREATE_REDDIT_POST`; `REDDIT_GET_ME`
+  **non esiste** (suggerisce `REDDIT_ADS_GET_ME`). Postare in subreddit di terzi =
+  autopromo → ban; richiede flair. Non fatto.
+- **Discord**: l'account `discord_toast-laden` (el_gamer25_25977) è in 17 server,
+  **owner di 4** (Lacustri DiTemu, BuildADev, Vehicles Plus, ChatFree). MA il
+  toolkit `discord` connesso è **read-only** (`DISCORD_LIST_MY_GUILDS` funziona);
+  i tool di scrittura sono in **`discordbot`**, che NON è connesso
+  (`DISCORDBOT_TEST_AUTH` → `{}`, `DISCORD_LIST_GUILD_CHANNELS`/`DISCORD_CREATE_MESSAGE`
+  → not found). Per postare su Discord serve collegare `discordbot`.
+- **YouTube**: ancora `QUOTA_EXCEEDED` (quota Composio condivisa, reset ~08:00 UTC).
+  `publish_youtube.py` ha un loop 36h con `sleep 1800`; l'ho invocato con
+  `attempt()` singolo, non col main loop.
+- **Lezione MCP Composio**: `COMPOSIO_MANAGE_CONNECTIONS` con la forma
+  `{'toolkits':['nome',...]}` restituisce `status:initiated` per TUTTI (fuorviante:
+  equivale a chiedere di avviare una connessione). Per lo stato reale usare
+  `{'toolkits':[{'name':n,'action':'list'}]}` → restituisce `active`/`initializing`
+  per account. `COMPOSIO_SEARCH_TOOLS` con `toolkits:[...]` a volte non filtra.
+
+### Instagram via Composio — pubblicato (2026-11-09)
+
+L'utente ha collegato Instagram. Stato: **attivo**, `instagram_baize-lurry`,
+@ciao22king, `id 30122688784023424`, `account_type: MEDIA_CREATOR` (0 follower,
+0 post all'inizio). Composio espone solo il toolkit `instagram` (Graph API per
+Business/Creator, NON account personali).
+
+- **Tool corretti** (quelli ovvi NON esistono): `INSTAGRAM_POST_IG_USER_MEDIA`
+  (crea container: `ig_user_id`, `image_url` o `image_file`, `caption`, `alt_text`)
+  e `INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH` (`ig_user_id`, `creation_id`,
+  `max_wait_seconds`). `INSTAGRAM_CREATE_MEDIA_CONTAINER` è **deprecato**.
+  Non esistono `INSTAGRAM_PUBLISH_MEDIA`/`INSTAGRAM_CREATE_PHOTO`/`INSTAGRAM_DELETE_MEDIA`.
+- **Immagine**: serve **JPEG** con URL pubblico (l'OG del sito è PNG → scartato).
+  Creata 1080×1080 con Pillow (`pip install pillow`), palette brand
+  (cream `#f7f1e8`, ink `#2b211c`, accent `#c9423a`-ish `#c25a3a`), font DejaVu.
+  Script `ig/make_image.py`, output `ig/skillforge_ig.jpg`. Servita con
+  `python3 -m http.server 12001 --bind 0.0.0.0` in `ig/` → URL pubblico
+  `https://work-2-qzoezqwiwjlxoyqr.prod-runtime.all-hands.dev/skillforge_ig.jpg`
+  (porta 12001 = host `work-2-…`).
+- **TRAPPOLA hashtag**: la description di `INSTAGRAM_POST_IG_USER_MEDIA` dice
+  "use HTML URL encoding for hashtags (# becomes %23)" ma è **FUORVIANTE**: se
+  passi `%23AI` la caption pubblica mostra letteralmente `%23AI`. Passare il
+  carattere `#` **letterale**. (1° post sbagliato, poi corretto.)
+- **Post pubblicati**: 1° id `18033823220681978` → https://www.instagram.com/p/DfhbBdSoC-Q/
+  (caption con `%23`, **da eliminare a mano**: IG API non ha delete); 2° id
+  `18339921223273112` → https://www.instagram.com/p/DfhbeuZEUFu/ (caption corretta
+  con `#AI #AIAgents #DevTools #PromptEngineering #BuildInPublic`).
+- **Instagram API NON può** eliminare media né modificare la caption (verificato:
+  nessun tool `INSTAGRAM_DELETE_*` per media; i delete sono solo comment/messenger).
+  Per rimuovere un post: solo dall'app/web Instagram a mano.
+- Script riutilizzabile: `/workspace/project/.skill-forge-deploy/ig_post.py`.
+- NB: `IG_USER_ID` = `30122688784023424`. Il container va creato e poi pubblicato;
+  la caption di un container non pubblicato NON è leggibile (campo `caption` non
+  supportato sul nodo container) → l'unica verifica è dopo la pubblicazione.
+
+## Skill Forge — qualita' generazione + rating (2026-11-09)
+
+Pipeline di generazione resa deterministica e robusta (branch `cloudflare-workers`,
+molte modifiche **non committate**):
+- `src/lib/preprocess.ts`: trascrizioni SRT/VTT -> prosa (turni consecutivi uniti,
+  cue number/timestamp tolti); note disordinate ripulite (BOM, righe separatore,
+  marker di pagina).
+- `src/lib/normalize.ts`: normalizzatore idempotente. Garantisce frontmatter
+  canonico (`name` kebab, `description`), le sezioni richieste nell'ordine giusto,
+  niente em dash, checklist finale sintetizzata dalla procedura. **NON inventa
+  contenuto**: `Examples` e i fatti mancanti restano "unresolved".
+- `src/lib/pdf.ts`: estrattore PDF pure-TS con `DecompressionStream` (nessuna dip,
+  gira in workerd). Cap anti-bomb `MAX_INFLATED_BYTES=4MB`; il testo estratto e'
+  comunque limitato a 200k char.
+- `src/lib/generate.ts`: `runGeneration(body, budgetMs, maxTokens?)` +
+  `runRefine` (secondo pass di auto-review, budget dedicato, best-effort).
+- `src/lib/guardrails.ts`: `validateSkillOutput` ora pretende procedura reale.
+- Upload PDF: `src/lib/uploads.ts` (`isPdf`, `MAX_PDF_BYTES=5MB` solo per PDF,
+  testo resta 256KB), `src/lib/scans.ts` (`scanUpload` estrae il PDF vero,
+  PDF rinominato `.md` resta bloccato).
+- Rating a stelle end-to-end: migrazione `migrations/0008_feedback_rating.sql`
+  (colonna `rating` 1-5 su `feedback`), `feedback.ts`/`feedback-db.ts`,
+  `/api/feedback`, `components/Feedback.tsx`; dashboard `/stats` mostra media e
+  distribuzione.
+
+**Trappola test**: `checkQuality().ok` NON e' garantito dal normalizzatore — un
+draft scarno resta "too-short"/"no-examples" anche se la forma e' corretta.
+Asserire `missing-section` assente, non `ok===true`.
+
+Stato: `npx tsc --noEmit` OK, `npm run build` OK, `opennextjs-cloudflare build`
+OK, **250 test passati**. Migrazione applicata in locale con
+`npx wrangler d1 execute skill-forge-marketplace --local --file=...`.
+Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.

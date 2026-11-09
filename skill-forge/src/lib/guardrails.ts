@@ -58,9 +58,10 @@ export interface OutputCheck {
 
 /**
  * Checks that the output really is a skill: frontmatter with name and
- * description, a title, and a length within limits. It is not enough for it to
- * be arbitrary Markdown, otherwise the generator could be bent into producing
- * something else.
+ * description, a title, a real procedure, and a length within limits. It is not
+ * enough for it to be arbitrary Markdown, otherwise the generator could be bent
+ * into producing something else, or into returning a plausible paragraph of
+ * generic advice that reads well and executes nothing.
  */
 export function validateSkillOutput(md: string): OutputCheck {
   const text = md.trim();
@@ -78,5 +79,13 @@ export function validateSkillOutput(md: string): OutputCheck {
   if (!/^#\s+\S+/m.test(text)) {
     return { ok: false, reason: 'missing title' };
   }
+
+  // A skill is a procedure. Without numbered steps it is advice, which is the
+  // exact failure mode we are trying to beat.
+  const steps = text.split('\n').filter((l) => /^\s*\d+[.)]\s+\S/.test(l)).length;
+  if (steps < 3) {
+    return { ok: false, reason: `only ${steps} numbered step(s): this is not an executable procedure` };
+  }
+
   return { ok: true };
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { LegalShell } from '@/components/LegalShell';
 import { legal } from '@/lib/legal';
-import { MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES, formatBytes } from '@/lib/uploads';
+import { MAX_FILES, MAX_FILE_BYTES, MAX_PDF_BYTES, MAX_TOTAL_BYTES, formatBytes } from '@/lib/uploads';
 import { MAX_SOURCE_CHARS, MAX_OUTPUT_CHARS } from '@/lib/guardrails';
 import { OPT_OUT_EFFECT } from '@/lib/preferences';
 
@@ -193,16 +193,18 @@ export default function SecurityPage() {
         </p>
         <ul>
           <li>
-            <strong>Formats</strong>: text only. Markdown, plain text, JSON,
-            YAML, TOML, CSV and common source-code extensions. Anything else is
-            refused by extension and again by content.
+            <strong>Formats</strong>: text, plus PDF. Markdown, plain text, JSON,
+            YAML, TOML, CSV, subtitle transcripts (SRT, VTT) and common
+            source-code extensions. A PDF is accepted and its text is extracted;
+            anything else is refused by extension and again by content.
           </li>
           <li>
             <strong>Number of files</strong>: at most {MAX_FILES} per
             generation.
           </li>
           <li>
-            <strong>Size per file</strong>: at most {formatBytes(MAX_FILE_BYTES)}.
+            <strong>Size per file</strong>: at most {formatBytes(MAX_FILE_BYTES)},
+            or {formatBytes(MAX_PDF_BYTES)} for a PDF.
           </li>
           <li>
             <strong>Combined size</strong>: at most {formatBytes(MAX_TOTAL_BYTES)}{' '}
@@ -228,7 +230,10 @@ export default function SecurityPage() {
             <strong>Binary detection</strong>: the first bytes of each file are
             compared against the signatures of executables, archives, images and
             documents (ELF, PE, PDF, ZIP, GZIP, PNG, JPEG, and others). A binary
-            renamed to <code>.md</code> is refused, not read.
+            renamed to <code>.md</code> is refused, not read. A file named{' '}
+            <code>.pdf</code> is the one exception, and only when its magic bytes
+            confirm it really is a PDF: its text is then extracted from the
+            content streams, never decoded as if it were source text.
           </li>
           <li>
             <strong>Harmful payloads</strong>: shell and script patterns that are

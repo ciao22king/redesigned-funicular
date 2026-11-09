@@ -15,10 +15,10 @@ export async function createFeedback(
     const database = await getDatabase(injected);
     const result = (await database
       .prepare(
-        `INSERT INTO feedback (verdict, note, mode, created_at)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT INTO feedback (verdict, note, mode, rating, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
       )
-      .bind(feedback.verdict, feedback.note, feedback.mode, new Date().toISOString())
+      .bind(feedback.verdict, feedback.note, feedback.mode, feedback.rating, new Date().toISOString())
       .run()) as { meta?: { last_row_id?: number } } | undefined;
     return Number(result?.meta?.last_row_id ?? 0) || null;
   } catch {
@@ -33,21 +33,21 @@ export async function listFeedback(
 ): Promise<FeedbackRow[]> {
   const database = await getDatabase(injected);
   const result = await database
-    .prepare('SELECT id, verdict, note, mode, created_at FROM feedback ORDER BY id DESC LIMIT ?')
+    .prepare('SELECT id, verdict, note, mode, rating, created_at FROM feedback ORDER BY id DESC LIMIT ?')
     .bind(Math.min(Math.max(limit, 1), 1000))
     .all<FeedbackRow>();
   return result.results ?? [];
 }
 
-/** Only the verdicts, which is all the summary needs. */
+/** Only the verdict and the rating, which is all the summary needs. */
 export async function feedbackVerdicts(
   limit = 5000,
   injected?: D1Like,
-): Promise<{ verdict: string }[]> {
+): Promise<{ verdict: string; rating: number }[]> {
   const database = await getDatabase(injected);
   const result = await database
-    .prepare('SELECT verdict FROM feedback LIMIT ?')
+    .prepare('SELECT verdict, rating FROM feedback LIMIT ?')
     .bind(Math.min(Math.max(limit, 1), 50000))
-    .all<{ verdict: string }>();
+    .all<{ verdict: string; rating: number }>();
   return result.results ?? [];
 }

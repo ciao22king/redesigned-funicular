@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
-import { runGeneration, runQuestions, type GenerateBody } from '@/lib/generate';
+import { runGeneration, runQuestions, runRefine, type GenerateBody } from '@/lib/generate';
 import { consumeQuota, quotaMessage, rateLimitHeaders, readQuota } from '@/lib/ratelimit';
 import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
@@ -18,8 +18,11 @@ export const maxDuration = 60;
  */
 const TOTAL_BUDGET_MS = 50_000;
 
+/** Slice of the budget reserved for the self-review pass, after the draft. */
+const REFINE_BUDGET_MS = 18_000;
+
 /** Slice of the budget reserved for the clarifying questions, after the draft. */
-const QUESTIONS_BUDGET_MS = 12_000;
+const QUESTIONS_BUDGET_MS = 10_000;
 
 /** GET: the UI reads the remaining quota without consuming it. */
 export async function GET(req: NextRequest) {
@@ -103,10 +106,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
 
+  // Second pass: the model reviews and fixes its own draft. Best-effort, on a
+  // fixed slice of the budget; if it fails the draft is returned as it is.
+  const refined = await runRefine(result.markdown, body, REFINE_BUDGET_MS);
+  const markdown = refined.markdown;
+
   // The draft is already valid at this point. The clarifying questions are a
   // bonus: they get a small slice of the budget and a failure returns none,
   // never an error, because losing the draft would be far worse.
-  const questions = await runQuestions(result.markdown, QUESTIONS_BUDGET_MS);
+  const questions = await runQuestions(markdown, QUESTIONS_BUDGET_MS);
 
   // The opt-out is read here, after the generation: it is reported back so the
   // UI can confirm the choice is in force. It changes nothing about the request
@@ -115,12 +123,14 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     {
-      markdown: result.markdown,
+      markdown,
       usage: result.usage,
       model: result.model,
       fallbacks: result.fallbacks,
       questions,
-      quality: checkQuality(result.markdown),
+      quality: checkQuality(markdown),
+      normalizations: result.normalizations ?? [],
+      refined: refined.refined,
       quota,
       warnings: scanMessages(scan),
       trainOptOut: preferences.trainOptOut,

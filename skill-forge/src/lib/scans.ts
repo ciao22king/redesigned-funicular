@@ -58,6 +58,14 @@ export function detectBinary(head: Uint8Array): string | null {
   return null;
 }
 
+/** The PDF magic bytes, which are allowed only for a file named `.pdf`. */
+const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46];
+
+/** True when the bytes start with `%PDF-`. */
+export function isPdfBytes(head: Uint8Array): boolean {
+  return PDF_SIGNATURE.every((b, i) => head[i] === b);
+}
+
 /**
  * Harmful shell and script patterns. These are `block`: a document that carries
  * a fork bomb or a disk wipe is not material to document, it is a payload.
@@ -160,7 +168,24 @@ export function scanText(text: string): ScanResult {
 
 /** Combines a text verdict with a binary check done on the raw bytes. */
 export function scanUpload(name: string, bytes: Uint8Array): ScanResult {
+  // A real PDF is expected to be binary: its text is extracted separately, not
+  // decoded here. The extension check has already restricted it to `.pdf`, and
+  // the magic bytes confirm it is a PDF rather than an executable renamed.
+  const pdf = /\.pdf$/i.test(name);
   const binary = detectBinary(bytes);
+  if (pdf) {
+    if (isPdfBytes(bytes)) return { level: 'ok', findings: [] };
+    return {
+      level: 'block',
+      findings: [
+        {
+          level: 'block',
+          kind: 'binary',
+          message: `${name} has a .pdf extension but is not a PDF file. Only real PDFs are accepted.`,
+        },
+      ],
+    };
+  }
   if (binary) {
     return {
       level: 'block',
