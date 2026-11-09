@@ -1983,3 +1983,11 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
 - Verifica sempre dal vivo dopo il deploy (es. POST a /api/metrics + SELECT su D1).
 - Fix audit chiusi (commit 9931560): beacon filtro eventi + quota IP; normalizeHost
   (punto finale / IPv4-mapped IPv6); isGitHubName su owner/repo. 275 test.
+
+## skill-forge - FOUNDING_TESTERS e report audit (2026-11-09)
+- 27 login dei tester invitati sono in `wrangler.jsonc` -> `FOUNDING_TESTERS` (deploy b1057c42,
+  commit c0b5ea5). I login vengono dal 3o campo delle tuple di `send_tester_invites.py`; le email
+  NON vanno nel repo (restano in `.skill-forge-deploy/`).
+- Report audit in `~/security-audit-skill/skill-forge/run-1/`: `findings.json` ha ora `remediation`
+  per finding; `REPORT.md`/`NEEDS-VALIDATION.md` hanno la sezione Remediation (commit 9931560).
+- Health check post-deploy: `/`,`/marketplace`,`/demo` = 200; `/api/metrics` GET = 405.
