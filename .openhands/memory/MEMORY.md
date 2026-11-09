@@ -1973,3 +1973,13 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   (JSON-LD XSS, sanificato). Dettagli in `2026-11-09.md`.
 - **Positivi:** identita' sempre da getServerAuth; nessun dangerouslySetInnerHTML su input utente;
   SQL parametrizzato; escaping XML nel feed; quota prima della chiamata LLM.
+
+## skill-forge - TRAPPOLA DEPLOY (imparata a caro prezzo)
+- **`opennextjs-cloudflare deploy` NON builda.** Dopo modifiche al codice serve
+  `npm run deploy` (= `opennextjs-cloudflare build && ... deploy`), altrimenti si
+  pubblica un bundle vecchio e sembra che la modifica "non funzioni".
+- Flusso sicuro: `npm run deploy` in background (`nohup ... > /tmp/deploy.log 2>&1 &`),
+  poll del log; il build dura ~90s, il timeout foreground e' ~1080s.
+- Verifica sempre dal vivo dopo il deploy (es. POST a /api/metrics + SELECT su D1).
+- Fix audit chiusi (commit 9931560): beacon filtro eventi + quota IP; normalizeHost
+  (punto finale / IPv4-mapped IPv6); isGitHubName su owner/repo. 275 test.
