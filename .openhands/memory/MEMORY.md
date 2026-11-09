@@ -2007,3 +2007,12 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   --bind 0.0.0.0` in `.skill-forge-deploy/ig/` -> host work-2; fermarlo dopo la pubblicazione.
 - Nota: nel file `IMAGE_URL` ha una riga duplicata con hostname errato; quello valido e'
   `https://work-2-qzoezqwiwjlxoyqr.prod-runtime.all-hands.dev/skillforge_ig.jpg`.
+
+## skill-forge - video TikTok + founding tester program (2026-11-09)
+- Video: `.skill-forge-deploy/tiktok/make_tiktok.py` -> `skillforge_tiktok_{en,it}.mp4`
+  (1080x1920, 30fps, ~24.6s, muto con sottotitoli; ffmpeg via `imageio-ffmpeg`, non apt).
+  Deploy `099d1bfc` (commit 844d527) porta la pagina `/pre-program`.
+- Founding tester = **5 generazioni/giorno** (non illimitato); owner illimitato; member 3.
+  `dailyLimitFor` in `ratelimit.ts`; scadenza programma 15/12/2026 in `src/lib/preProgram.ts`.
+- Il brand e' **chiaro e caldo** (surface ambra, accento terracotta #c25a3a): mai descriverlo come
+  viola/nero.
