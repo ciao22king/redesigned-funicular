@@ -1051,6 +1051,16 @@ login.
 **Email = "piccoli tester"**, non i grandi (addyosmani, pbakaus, hesreallyhim,
 f/prompts.chat gia' contattati il 2026-11-07 con `send_outreach.py`).
 
+**"Piccoli" = RAGGIUNGIBILI, non solo poco noti** (chiarimento utente). Criteri
+usati per il lotto 2: repo **<=200 stelle**, `pushedAt` **<45 giorni**, owner
+`type=="User"` con email pubblica, esclusi i duplicati gia' nel lotto 1. Ordinati
+per stelle crescenti. 14 inviati, 14/14 ok (**27 email in totale**).
+
+Lo script ora ha **due lotti** (`BATCH1`, `BATCH2`) e `--batch 1|2`. Senza
+`--batch` li unisce. **Dedupe automatico**: legge `tester-invites.log` e salta chi
+ha gia' ricevuto (`--allow-repeat` per forzare). Opzioni: `--dry-run`, `--limit`,
+`--gap`.
+
 ### Composio OAuth COMPLETATO + YouTube (2026-11-07) — svolta
 - **OAuth Composio riuscito!** Il flusso MCP di OpenHands usa `redirect_uri=http://localhost:<porta>/callback`
   **dentro il container**; il browser dell'utente NON lo raggiunge, ma l'URL col `code`
