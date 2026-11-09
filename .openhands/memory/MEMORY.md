@@ -1999,3 +1999,11 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
 - dev.to: script separato `devto_post2.py`, account `imadev22`; 2 articoli gia' online.
 - Composio MCP: `connect.composio.dev/mcp`, creds in `.skill-forge-deploy/creds/`.
 - **Attenzione:** `COMPOSIO_MANAGE_CONNECTIONS` con `toolkits=[...]` AVVIA OAuth (non e' read-only).
+
+## skill-forge - Instagram via Composio (2026-11-09)
+- `ig_post.py`: container `INSTAGRAM_POST_IG_USER_MEDIA` + publish `..._PUBLISH`, account
+  `instagram_baize-lurry`, ig_user_id 30122688784023424.
+- L'immagine (`ig/skillforge_ig.jpg`) va servita su URL pubblico: `python3 -m http.server 12001
+  --bind 0.0.0.0` in `.skill-forge-deploy/ig/` -> host work-2; fermarlo dopo la pubblicazione.
+- Nota: nel file `IMAGE_URL` ha una riga duplicata con hostname errato; quello valido e'
+  `https://work-2-qzoezqwiwjlxoyqr.prod-runtime.all-hands.dev/skillforge_ig.jpg`.
