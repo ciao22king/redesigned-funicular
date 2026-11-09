@@ -105,8 +105,9 @@ export default function Dashboard() {
 
         {session?.user?.role === 'founding_tester' && (
           <p className="mt-4 rounded-xl border border-[--accent] bg-[--accent-soft] px-4 py-3 text-sm text-[--ink]">
-            You are a founding tester. Thank you for trying Skill Forge early:
-            your account has no daily generation limit.
+            You are a founding tester. Thank you for trying Skill Forge early: your
+            account keeps a raised daily generation limit of 5, and the Founding
+            tester badge.
           </p>
         )}
 

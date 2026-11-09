@@ -1,5 +1,5 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { isUnlimitedRole, roleFor } from './roles';
+import { isFoundingTesterRole, isUnlimitedRole, roleFor } from './roles';
 
 /**
  * Daily generation limit per user, counted on Cloudflare KV.
@@ -12,6 +12,12 @@ import { isUnlimitedRole, roleFor } from './roles';
  */
 
 export const DAILY_LIMIT = 3;
+
+/**
+ * Daily limit for a founding tester: the badge perk. Higher than a normal
+ * member, but a real number, so the perk is concrete and can be shown.
+ */
+export const FOUNDING_DAILY_LIMIT = 5;
 
 /**
  * Daily limit for the anonymous demo, counted per IP address. It is stricter
@@ -27,6 +33,15 @@ export const DEMO_DAILY_LIMIT = 2;
  */
 export function isUnlimited(login: string): boolean {
   return isUnlimitedRole(roleFor(login));
+}
+
+/**
+ * The daily generation limit for a login: unbounded for the owner, the founding
+ * tester perk for an early tester, the standard limit for everyone else. Kept
+ * next to `isUnlimited` so the number shown and the number enforced are one rule.
+ */
+export function dailyLimitFor(login: string): number {
+  return isFoundingTesterRole(roleFor(login)) ? FOUNDING_DAILY_LIMIT : DAILY_LIMIT;
 }
 
 export interface Quota {
@@ -74,12 +89,13 @@ export async function readQuota(login: string, kv?: KVNamespace): Promise<Quota>
     return { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true };
   }
 
+  const limit = dailyLimitFor(login);
   const ns = kv ?? (await store());
   const used = ns ? Number((await ns.get<Counter>(`rl:${login}:${key}`, 'json'))?.count ?? 0) : 0;
   return {
     used,
-    remaining: Math.max(0, DAILY_LIMIT - used),
-    limit: DAILY_LIMIT,
+    remaining: Math.max(0, limit - used),
+    limit,
     resetsAt,
     unlimited: false,
   };
@@ -103,22 +119,23 @@ export async function consumeQuota(
     };
   }
 
+  const limit = dailyLimitFor(login);
   const ns = kv ?? (await store());
 
   if (!ns) {
     return {
       allowed: true,
-      quota: { used: 0, remaining: DAILY_LIMIT, limit: DAILY_LIMIT, resetsAt, unlimited: false },
+      quota: { used: 0, remaining: limit, limit, resetsAt, unlimited: false },
     };
   }
 
   const storageKey = `rl:${login}:${key}`;
   const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
 
-  if (current >= DAILY_LIMIT) {
+  if (current >= limit) {
     return {
       allowed: false,
-      quota: { used: current, remaining: 0, limit: DAILY_LIMIT, resetsAt, unlimited: false },
+      quota: { used: current, remaining: 0, limit, resetsAt, unlimited: false },
     };
   }
 
@@ -131,8 +148,8 @@ export async function consumeQuota(
     allowed: true,
     quota: {
       used: count,
-      remaining: Math.max(0, DAILY_LIMIT - count),
-      limit: DAILY_LIMIT,
+      remaining: Math.max(0, limit - count),
+      limit,
       resetsAt,
       unlimited: false,
     },

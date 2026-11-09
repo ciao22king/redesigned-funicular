@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  isFoundingTesterRole,
   isOperatorRole,
   isRole,
   isUnlimitedRole,
@@ -38,10 +39,16 @@ test("l'owner vince se un login compare in entrambe le liste", () => {
   assert.equal(roleFor('x', both), 'owner');
 });
 
-test('owner e founding tester non hanno quota', () => {
+test('solo owner e esente dalla quota', () => {
   assert.equal(isUnlimitedRole('owner'), true);
-  assert.equal(isUnlimitedRole('founding_tester'), true);
+  assert.equal(isUnlimitedRole('founding_tester'), false);
   assert.equal(isUnlimitedRole('member'), false);
+});
+
+test('il founding tester ha un ruolo dedicato per la quota maggiorata', () => {
+  assert.equal(isFoundingTesterRole('founding_tester'), true);
+  assert.equal(isFoundingTesterRole('owner'), false);
+  assert.equal(isFoundingTesterRole('member'), false);
 });
 
 test('solo owner e operatore', () => {

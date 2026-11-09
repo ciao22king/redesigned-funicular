@@ -49,6 +49,12 @@ export function Nav() {
           >
             Use cases
           </Link>
+          <Link
+            href="/pre-program"
+            className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+          >
+            Early access
+          </Link>
           {status === 'authenticated' ? (
             <>
               <Link

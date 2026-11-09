@@ -41,9 +41,14 @@ export function roleFor(login: string, sources: RoleSources = roleSources()): Ro
   return 'member';
 }
 
-/** True when the role is exempt from the daily generation quota. */
+/** True when the role has no daily generation limit at all. */
 export function isUnlimitedRole(role: Role): boolean {
-  return role === 'owner' || role === 'founding_tester';
+  return role === 'owner';
+}
+
+/** True when the role is an early tester: a badge and a boosted daily quota. */
+export function isFoundingTesterRole(role: Role): boolean {
+  return role === 'founding_tester';
 }
 
 /** True when the role may see service-wide operator data. */

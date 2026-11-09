@@ -5,8 +5,10 @@ import {
   consumeMetricsQuota,
   consumeQuota,
   DAILY_LIMIT,
+  dailyLimitFor,
   dayKey,
   DEMO_DAILY_LIMIT,
+  FOUNDING_DAILY_LIMIT,
   isUnlimited,
   METRICS_DAILY_LIMIT,
   quotaMessage,
@@ -14,6 +16,10 @@ import {
   readQuota,
   secondsUntilReset,
 } from '../src/lib/ratelimit';
+
+// The role lists come from the environment; set a founding tester so the
+// per-role limit can be exercised without touching the real configuration.
+process.env.FOUNDING_TESTERS = 'hxreborn,akkie76';
 
 /** In-memory KV: the logic does not depend on Cloudflare to be tested. */
 function fakeKV() {
@@ -67,6 +73,34 @@ test('l esente non si blocca mai, nemmeno oltre il limite', async () => {
     const { allowed } = await consumeQuota('ciao22king', ns);
     assert.equal(allowed, true, `bloccato al giro ${i}`);
   }
+});
+
+test('il founding tester ha un limite piu alto, non illimitato', async () => {
+  assert.equal(isUnlimited('hxreborn'), false);
+  assert.equal(dailyLimitFor('hxreborn'), FOUNDING_DAILY_LIMIT);
+  assert.equal(dailyLimitFor('utente-qualsiasi'), DAILY_LIMIT);
+});
+
+test('il founding tester consuma fino a 5 al giorno e poi si blocca', async () => {
+  const { ns } = fakeKV();
+  for (let i = 0; i < FOUNDING_DAILY_LIMIT; i++) {
+    const { allowed, quota } = await consumeQuota('hxreborn', ns);
+    assert.equal(allowed, true);
+    assert.equal(quota.unlimited, false);
+    assert.equal(quota.limit, FOUNDING_DAILY_LIMIT);
+  }
+  const { allowed, quota } = await consumeQuota('hxreborn', ns);
+  assert.equal(allowed, false);
+  assert.equal(quota.remaining, 0);
+  assert.equal(quota.limit, FOUNDING_DAILY_LIMIT);
+});
+
+test('la quota letta del founding tester riporta il limite maggiorato', async () => {
+  const { ns } = fakeKV();
+  await consumeQuota('hxreborn', ns);
+  const quota = await readQuota('hxreborn', ns);
+  assert.equal(quota.limit, FOUNDING_DAILY_LIMIT);
+  assert.equal(quota.remaining, FOUNDING_DAILY_LIMIT - 1);
 });
 
 test('un utente normale consuma la quota e poi viene bloccato', async () => {
