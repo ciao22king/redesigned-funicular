@@ -1,4 +1,5 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { isUnlimitedRole, roleFor } from './roles';
 
 /**
  * Daily generation limit per user, counted on Cloudflare KV.
@@ -20,19 +21,12 @@ export const DAILY_LIMIT = 3;
 export const DEMO_DAILY_LIMIT = 2;
 
 /**
- * Logins exempt from the limit (normally the owner only). Configured with
- * UNLIMITED_LOGINS, comma-separated ids, without touching the code.
+ * Logins exempt from the limit: the owner and the early testers. The list comes
+ * from `roles`, so the quota exemption and the role badge are decided by the
+ * same rule and cannot disagree.
  */
-const UNLIMITED_LOGINS = new Set(
-  (process.env.UNLIMITED_LOGINS ?? 'ciao22king')
-    .split(',')
-    .map((l) => l.trim().toLowerCase())
-    .filter(Boolean),
-);
-
-/** True if the login is exempt from the daily limit. */
 export function isUnlimited(login: string): boolean {
-  return UNLIMITED_LOGINS.has(login.toLowerCase());
+  return isUnlimitedRole(roleFor(login));
 }
 
 export interface Quota {

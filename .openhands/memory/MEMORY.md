@@ -1961,3 +1961,15 @@ Stato: `npx tsc --noEmit` OK, `npm run build` OK, `opennextjs-cloudflare build`
 OK, **250 test passati**. Migrazione applicata in locale con
 `npx wrangler d1 execute skill-forge-marketplace --local --file=...`.
 Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
+
+## skill-forge (redesigned-funicular) - audit e ruoli (2026-11-09)
+- **Deploy bloccato:** nessun token Cloudflare valido nel container. Il secret `Cloudflare` e'
+  un placeholder; il `cfat_...` in `.skill-forge-deploy/deploy-when-ready.sh` e' invalido
+  (code 1000). Serve un token nuovo per `wrangler d1 migrations apply --remote` / `deploy`.
+- **Ruoli** pronti ma non deployati: `roles.ts` + `migrations/0009_user_roles.sql`; 264 test ok.
+- **Security audit** (quick) in `~/security-audit-skill/skill-forge/run-1/`: 1 confirmed medium
+  (beacon `/api/metrics` gonfiabile, nessuna quota), 2 needs_validation (filtro host SSRF non
+  normalizza trailing-dot/IPv6-mapped; escape path API GitHub con token server), 1 rejected
+  (JSON-LD XSS, sanificato). Dettagli in `2026-11-09.md`.
+- **Positivi:** identita' sempre da getServerAuth; nessun dangerouslySetInnerHTML su input utente;
+  SQL parametrizzato; escaping XML nel feed; quota prima della chiamata LLM.

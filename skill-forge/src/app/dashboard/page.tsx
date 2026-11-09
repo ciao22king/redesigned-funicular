@@ -12,6 +12,7 @@ import {
 } from '@/lib/localstore';
 import { PrivacySettings } from '@/components/PrivacySettings';
 import { CreatorStats } from '@/components/CreatorStats';
+import { RoleBadge } from '@/components/RoleBadge';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -97,9 +98,17 @@ export default function Dashboard() {
     <>
       <Nav />
       <main id="content" className="mx-auto max-w-3xl px-6 py-14">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-[--ink]">
+        <h1 className="flex flex-wrap items-center gap-3 font-display text-4xl font-semibold tracking-tight text-[--ink]">
           My creations
+          <RoleBadge role={session?.user?.role} className="translate-y-1" />
         </h1>
+
+        {session?.user?.role === 'founding_tester' && (
+          <p className="mt-4 rounded-xl border border-[--accent] bg-[--accent-soft] px-4 py-3 text-sm text-[--ink]">
+            You are a founding tester. Thank you for trying Skill Forge early:
+            your account has no daily generation limit.
+          </p>
+        )}
 
         <p className="mt-6 max-w-prose text-[17px] text-[--ink-muted]">
           Every skill you generate is saved in this browser, even if you do not

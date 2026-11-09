@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isLogin, userCountLabel, userNoun } from '../src/lib/users';
-import { countUsers, publicUserCount, recordUser } from '../src/lib/users-db';
+import { countUsers, publicUserCount, readRole, recordUser } from '../src/lib/users-db';
 import type { D1Like } from '../src/lib/d1';
 
 /** Minimal fake D1 that remembers rows in a Map, enough for the users queries. */
 function fakeD1() {
-  const users = new Map<string, { first_seen: string; last_seen: string }>();
+  const users = new Map<string, { first_seen: string; last_seen: string; role: string }>();
   const db = {
     prepare(sql: string) {
       let params: unknown[] = [];
@@ -22,16 +22,18 @@ function fakeD1() {
           if (/COUNT\(\*\)/i.test(sql)) return { n: users.size } as T;
           const login = params[0] as string;
           const v = users.get(login);
+          if (/SELECT role/i.test(sql)) return (v ? { role: v.role } : null) as T | null;
           return (v ? { login, ...v } : null) as T | null;
         },
         async run() {
           if (/INSERT INTO users/i.test(sql)) {
-            const [login, first, last] = params as [string, string, string];
+            const [login, first, last, role] = params as [string, string, string, string];
             const existing = users.get(login);
-            // Mirrors ON CONFLICT: first_seen is kept, last_seen moves.
+            // Mirrors ON CONFLICT: first_seen is kept, last_seen and role move.
             users.set(login, {
               first_seen: existing?.first_seen ?? first,
               last_seen: last,
+              role: role ?? existing?.role ?? 'member',
             });
           }
           return {};
@@ -121,4 +123,19 @@ test('publicUserCount non lancia se il database manca', async () => {
   } finally {
     if (previous !== undefined) process.env.NEXT_PHASE = previous;
   }
+});
+
+test('recordUser scrive il ruolo configurato', async () => {
+  const { db, users } = fakeD1();
+  await recordUser('ciao22king', db);
+  assert.equal(users.get('ciao22king')?.role, 'owner');
+  await recordUser('sconosciuto', db);
+  assert.equal(users.get('sconosciuto')?.role, 'member');
+});
+
+test('readRole ricade sul ruolo configurato quando la riga manca', async () => {
+  const { db } = fakeD1();
+  // Nessuna riga salvata: il ruolo arriva dalla configurazione.
+  assert.equal(await readRole('ciao22king', db), 'owner');
+  assert.equal(await readRole('sconosciuto', db), 'member');
 });

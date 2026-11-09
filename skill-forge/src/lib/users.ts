@@ -10,6 +10,7 @@ export interface UserRow {
   login: string;
   first_seen: string;
   last_seen: string;
+  role?: string;
 }
 
 /** The noun alone, so the UI can style the number and the label separately. */

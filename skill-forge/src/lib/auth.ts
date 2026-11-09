@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 import { loginForToken, readBearer } from './github-token';
 import { recordUser } from './users-db';
 import { isLogin } from './users';
+import { roleFor, type Role } from './roles';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -44,6 +45,11 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token;
         token.login = (profile as { login?: string } | undefined)?.login;
       }
+      // The role is recomputed on every call, so a configuration change (a new
+      // founding tester) shows up on the next request without a re-login.
+      if (token.login) {
+        token.role = roleFor(token.login);
+      }
       return token;
     },
     async session({ session, token }) {
@@ -53,6 +59,7 @@ export const authOptions: NextAuthOptions = {
       // getServerToken().
       if (session.user) {
         session.user.login = token.login as string | undefined;
+        session.user.role = token.role as Role | undefined;
       }
       return session;
     },

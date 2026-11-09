@@ -3,6 +3,7 @@
 import { signIn, signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { RoleBadge } from '@/components/RoleBadge';
 
 export function Nav() {
   const { data: session, status } = useSession();
@@ -94,8 +95,9 @@ export function Nav() {
                       <p className="truncate text-sm font-medium text-[--ink]">
                         {session?.user?.name ?? 'User'}
                       </p>
-                      <p className="truncate text-xs text-[--ink-muted]">
+                      <p className="flex items-center gap-1.5 truncate text-xs text-[--ink-muted]">
                         @{session?.user?.login ?? 'github'}
+                        <RoleBadge role={session?.user?.role} />
                       </p>
                     </div>
                     <div className="hairline my-1" />

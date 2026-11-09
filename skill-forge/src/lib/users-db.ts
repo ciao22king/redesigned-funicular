@@ -1,5 +1,6 @@
 import { getDatabase, type D1Like } from './d1';
 import { isLogin } from './users';
+import { isRole, roleFor, type Role } from './roles';
 
 /**
  * D1 access for the registered users.
@@ -15,6 +16,10 @@ import { isLogin } from './users';
  * One row per login: the first insert sets `first_seen`, every later sign-in
  * only moves `last_seen`. The count is therefore the number of distinct people
  * who have registered, not the number of sign-ins.
+ *
+ * The role is recomputed from configuration on every sign-in, so promoting or
+ * demoting a login is a configuration change that takes effect at the next
+ * sign-in, without a manual database update.
  */
 export async function recordUser(
   login: string,
@@ -23,14 +28,37 @@ export async function recordUser(
 ): Promise<void> {
   if (!isLogin(login)) return;
   const database = await getDatabase(injected);
+  const role = roleFor(login);
   await database
     .prepare(
-      `INSERT INTO users (login, first_seen, last_seen)
-       VALUES (?, ?, ?)
-       ON CONFLICT(login) DO UPDATE SET last_seen = excluded.last_seen`,
+      `INSERT INTO users (login, first_seen, last_seen, role)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(login) DO UPDATE SET last_seen = excluded.last_seen, role = excluded.role`,
     )
-    .bind(login, now, now)
+    .bind(login, now, now, role)
     .run();
+}
+
+/**
+ * The stored role of a login, or the configured role when the row is missing.
+ *
+ * The fallback matters on the very first request after a sign-in: the row is
+ * written in the background and may not be visible yet, but the person must
+ * still be recognised as an owner or a tester straight away.
+ */
+export async function readRole(login: string, injected?: D1Like): Promise<Role> {
+  const configured = roleFor(login);
+  if (!isLogin(login)) return configured;
+  try {
+    const database = await getDatabase(injected);
+    const row = await database
+      .prepare('SELECT role FROM users WHERE login = ?')
+      .bind(login)
+      .first<{ role?: string }>();
+    return isRole(row?.role) ? row.role : configured;
+  } catch {
+    return configured;
+  }
 }
 
 /**
