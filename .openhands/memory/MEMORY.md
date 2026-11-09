@@ -1025,6 +1025,32 @@ via Composio **aggirando il limite di 10 upload/mese di Upload-Post**.
   l'utente apre su un suo device → `composio login --poll`. Install:
   `curl -fsSL https://composio.dev/install | sh` (curl|bash: richiede consenso).
 
+### Tester cercati via GitHub (2026-11-09) — Tavily esaurito
+
+**Tavily ha il piano ESAURITO** (HTTP 432 su `/search` *e* `/research`, e su
+tavily_search/research/extract). Non c'e' una chiave alternativa. Per trovare
+persone, usare invece **GitHub API** (funziona, e' la fonte migliore per questa
+nicchia):
+```
+gh search repos --topic agent-skills --limit 20 --json fullName,stargazersCount
+gh api users/<owner>          # .email e' pubblico solo se l'utente l'ha esposto
+```
+Filtrare `type == "User"` (no org) e `email != null`. Da 6 topic
+(agent-skills, claude-skills, ai-agent-skills, cursor-rules, prompt-engineering,
+awesome-claude-code) si ottengono ~28 contatti reali di **piccoli maintainer**.
+
+**13 inviti "founding tester" INViati (2026-11-09), 13/13 ok.**
+Script: `/workspace/project/.skill-forge-deploy/send_tester_invites.py`
+(`--dry-run`, `--limit N`, `--gap N`; log in `tester-invites.log`). Lista
+`TESTERS` inline: (nome, email, login GitHub, repo). L'email e' personalizzata
+sul repo del destinatario e offre il perk **Founding Tester = quota illimitata**,
+realizzato con `UNLIMITED_LOGINS` in `wrangler.jsonc` (comma-separated, oggi solo
+`ciao22king`). Il perk e' vero e non richiede codice nuovo: basta aggiungere il
+login.
+
+**Email = "piccoli tester"**, non i grandi (addyosmani, pbakaus, hesreallyhim,
+f/prompts.chat gia' contattati il 2026-11-07 con `send_outreach.py`).
+
 ### Composio OAuth COMPLETATO + YouTube (2026-11-07) — svolta
 - **OAuth Composio riuscito!** Il flusso MCP di OpenHands usa `redirect_uri=http://localhost:<porta>/callback`
   **dentro il container**; il browser dell'utente NON lo raggiunge, ma l'URL col `code`
