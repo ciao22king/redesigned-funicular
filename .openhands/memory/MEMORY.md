@@ -803,6 +803,35 @@ migrazione `0001_marketplace.sql` + skill demo): `/s/ciao22king/demo-skill` →
 `/opengraph-image` → PNG 1200×630; sitemap elenca le skill; `npm install`
 assente. Commit `c39add0` su branch `cloudflare-workers`.
 
+### Topologia dei branch (verificata 2026-11-09)
+
+Il repo **root** e' `redesigned-funicular` (non `skill-forge/`, che e' solo una
+sottocartella). Origini reali:
+- `origin/main` = `50f9d77` = **merge della PR #1** (`cloudflare-workers`), piu'
+  il lavoro CLI (device flow). Questa e' la **linea principale**, piu' avanti del
+  vecchio branch di feature.
+- `origin/cloudflare-workers` = `1ed35a8`, ramo del **contenuto del sito**.
+- PR **#2** (`cloudflare-workers` -> `main`) e' **OPEN e DRAFT** dal 2026-11-06.
+- Il branch locale `cloudflare-workers` era **55 commit avanti** su `1ed35a8`
+  (fast-forward, nessuna divergenza). Push `1ed35a8..b58da39` riuscito.
+
+**Conseguenza**: per "mettere le cose sul sito" si pusha su `cloudflare-workers`
+(aggiorna la PR #2). **NON** fare merge su `main` senza chiedere: renderebbe
+irrilevante la review della PR.
+
+**Nessun deploy CI.** `.github/` NON e' alla radice del repo remoto (404 su
+`contents/.github`) e `gh workflow list` e' vuoto: il `deploy.yml` sta sotto
+`skill-forge/` ed e' **ignorato da GitHub**. I deploy sono **manuali**:
+`CLOUDFLARE_API_TOKEN=<cfat_> CLOUDFLARE_ACCOUNT_ID=69e8820212c184a7fb5ed2f0b913d551 npm run deploy`.
+
+**Il token di deploy e' ancora invalido (2026-11-09, riconfermato).**
+`$Cloudflare` = `"CLOUDFLARE_API_TOKEN cfut_..."` (74 char, separato da **spazio**);
+`/user/tokens/verify` -> 401 code 1000, `wrangler whoami` -> code 9109. Il token
+MCP OAuth ha scope `workers-scripts.write`+`d1.write` ma e' **cifrato a riposo**
+(`gAAAAABq...` = Fernet), quindi inutilizzabile come bearer. **Serve che l'utente
+rigeneri un API token Cloudflare** (scope Workers Scripts:Edit + D1:Edit) e lo
+passi; senza quello il deploy non e' possibile da qui.
+
 ### Deploy bloccato: token Cloudflare non valido
 - Il secret **`Cloudflare`** = stringa `"CLOUDFLARE_API_TOKEN cfut_..."` (74
   char, separato da **spazio**, non `=`). Estrarre il token con
