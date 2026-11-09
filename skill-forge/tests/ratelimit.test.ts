@@ -2,11 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   consumeDemoQuota,
+  consumeMetricsQuota,
   consumeQuota,
   DAILY_LIMIT,
   dayKey,
   DEMO_DAILY_LIMIT,
   isUnlimited,
+  METRICS_DAILY_LIMIT,
   quotaMessage,
   rateLimitHeaders,
   readQuota,
@@ -169,4 +171,25 @@ test('il messaggio di quota dice quando si azzera e cosa fare', () => {
   assert.match(message, /3 generations/);
   assert.match(message, /UTC/);
   assert.match(message, /Sign in with GitHub/);
+});
+
+test('il beacon metriche consuma la quota per IP e poi si blocca', async () => {
+  const { ns, writes } = fakeKV();
+  for (let i = 0; i < METRICS_DAILY_LIMIT; i++) {
+    const { allowed } = await consumeMetricsQuota('203.0.113.7', ns);
+    assert.equal(allowed, true, `bloccato al giro ${i}`);
+  }
+  const blocked = await consumeMetricsQuota('203.0.113.7', ns);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.quota.remaining, 0);
+  // Un altro IP non e' toccato dal limite del primo.
+  const other = await consumeMetricsQuota('203.0.113.8', ns);
+  assert.equal(other.allowed, true);
+  assert.ok(writes.every((k) => k.startsWith('metrics:')));
+});
+
+test('senza binding KV il beacon non viene bloccato', async () => {
+  // In `next dev` non c'e' KV: il limite non si applica, come per le altre quote.
+  const { allowed } = await consumeMetricsQuota('203.0.113.9', undefined as unknown as KVNamespace);
+  assert.equal(allowed, true);
 });

@@ -150,6 +150,30 @@ export function normalizeBatch(inputs: MetricInput[]): NormalizedMetric[] {
   return [...merged.values()];
 }
 
+/**
+ * Events a client may assert about itself.
+ *
+ * The outcome events that feed the creator and operator numbers (`download`,
+ * `publish`, `generate`, `demo_generate`) are recorded server-side by the routes
+ * that actually observe them, so they are never taken from the anonymous beacon:
+ * otherwise anyone could inflate any skill's counters.
+ */
+export const CLIENT_ASSERTABLE_EVENTS: readonly MetricEvent[] = [
+  'visit',
+  'returning',
+  'funnel_start',
+  'funnel_material',
+  'funnel_submit',
+  'funnel_result',
+  'funnel_download',
+  'generation_ms',
+] as const;
+
+/** Keeps only the events a client is allowed to report; drops the rest. */
+export function filterClientAssertable(metrics: NormalizedMetric[]): NormalizedMetric[] {
+  return metrics.filter((m) => CLIENT_ASSERTABLE_EVENTS.includes(m.event));
+}
+
 /** A ratio in [0, 1]; 0 when the denominator is 0. */
 export function conversionRate(part: number, whole: number): number {
   if (!Number.isFinite(part) || !Number.isFinite(whole) || whole <= 0) return 0;

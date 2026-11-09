@@ -226,6 +226,49 @@ export async function consumeDemoQuota(
 }
 
 /**
+ * Daily limit for the anonymous metrics beacon, counted per IP. It is generous
+ * because a page sends several events per visit, but it stops a caller from
+ * looping the endpoint to skew the aggregate numbers.
+ */
+export const METRICS_DAILY_LIMIT = 200;
+
+/**
+ * Consumes one beacon request for an anonymous visitor, counted on the IP.
+ * Namespaced like the other anonymous budgets, so they never share a slot.
+ */
+export async function consumeMetricsQuota(
+  ip: string,
+  kv?: KVNamespace,
+): Promise<{ allowed: boolean; quota: Quota }> {
+  const { key, resetsAt } = dayKey();
+  const empty: Quota = {
+    used: 0,
+    remaining: METRICS_DAILY_LIMIT,
+    limit: METRICS_DAILY_LIMIT,
+    resetsAt,
+    unlimited: false,
+  };
+
+  const ns = kv ?? (await store());
+  if (!ns) return { allowed: true, quota: empty };
+
+  const storageKey = `metrics:${ip}:${key}`;
+  const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
+
+  if (current >= METRICS_DAILY_LIMIT) {
+    return { allowed: false, quota: { ...empty, used: current, remaining: 0 } };
+  }
+
+  const count = current + 1;
+  await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
+
+  return {
+    allowed: true,
+    quota: { ...empty, used: count, remaining: Math.max(0, METRICS_DAILY_LIMIT - count) },
+  };
+}
+
+/**
  * Rate-limit headers for a response, so the limit is transparent instead of a
  * surprise. A client can read exactly how much is left and when it comes back,
  * which is also what the UI shows. An unlimited user gets no headers, because a

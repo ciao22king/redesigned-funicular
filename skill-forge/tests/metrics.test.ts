@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   computeDropoff,
   conversionRate,
+  filterClientAssertable,
   formatPercent,
   FUNNEL_STEPS,
   isMetricEvent,
@@ -12,6 +13,7 @@ import {
   normalizeBatch,
   normalizeMetric,
   summarizeMetrics,
+  CLIENT_ASSERTABLE_EVENTS,
 } from '../src/lib/metrics';
 
 test('tutti gli eventi noti sono accettati', () => {
@@ -115,4 +117,26 @@ test('il riepilogo senza dati non divide per zero', () => {
   const summary = summarizeMetrics({ events: {}, generationMs: 0, generationSamples: 0 });
   assert.equal(summary.visitToGeneration, 0);
   assert.equal(summary.averageGenerationMs, 0);
+});
+
+test('gli eventi di esito non sono asseribili dal client', () => {
+  // Regressione: dal beacon anonimo si poteva gonfiare qualsiasi contatore,
+  // perche' anche `download`/`publish`/`generate` erano accettati.
+  for (const event of ['download', 'publish', 'generate', 'demo_generate']) {
+    assert.equal(CLIENT_ASSERTABLE_EVENTS.includes(event as never), false, `${event} non deve essere asseribile`);
+  }
+  for (const event of ['visit', 'returning', 'funnel_download', 'generation_ms']) {
+    assert.equal(CLIENT_ASSERTABLE_EVENTS.includes(event as never), true, `${event} deve essere asseribile`);
+  }
+});
+
+test('il filtro scarta un download anonimo ma tiene le visite', () => {
+  const batch = normalizeBatch([
+    { event: 'download', target: 'attacker/skill' },
+    { event: 'visit', target: 'attacker/skill' },
+    { event: 'publish', target: 'attacker/skill' },
+    { event: 'funnel_download' },
+  ]);
+  const kept = filterClientAssertable(batch).map((m) => m.event).sort();
+  assert.deepEqual(kept, ['funnel_download', 'visit']);
 });

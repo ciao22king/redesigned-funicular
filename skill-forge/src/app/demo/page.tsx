@@ -49,7 +49,6 @@ export default function DemoPage() {
       if (!res.ok) throw new Error(data.error ?? 'Generation failed');
       setResult(data.markdown as string);
       setQuality(data.quality ?? null);
-      track('demo_generate');
       track('generation_ms', { value: Date.now() - startedAt });
       track('funnel_result');
     } catch (e) {

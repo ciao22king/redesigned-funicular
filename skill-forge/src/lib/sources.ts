@@ -87,7 +87,7 @@ export function validatePublicUrl(raw: string): string | null {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
     return 'Only http and https URLs are accepted.';
   }
-  const host = url.hostname.toLowerCase();
+  const host = normalizeHost(url.hostname);
   if (BLOCKED_HOSTNAMES.has(host) || host.endsWith('.local') || host.endsWith('.internal')) {
     return 'That host is not reachable from here.';
   }
@@ -95,6 +95,23 @@ export function validatePublicUrl(raw: string): string | null {
     return 'Private and internal addresses are not accepted.';
   }
   return null;
+}
+
+/**
+ * Normalises a hostname so equivalent spellings cannot slip past the checks:
+ * a fully-qualified name may carry a trailing dot (`localhost.` == `localhost`),
+ * and the URL parser canonicalises an IPv4-mapped IPv6 literal to hex
+ * (`[::ffff:7f00:1]`), which `isPrivateIp` would not recognise as `127.0.0.1`.
+ */
+export function normalizeHost(host: string): string {
+  const h = host.toLowerCase().replace(/\.+$/, '');
+  const mapped = h.replace(/^\[|\]$/g, '').match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (mapped) {
+    const hi = parseInt(mapped[1], 16);
+    const lo = parseInt(mapped[2], 16);
+    return `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+  }
+  return h;
 }
 
 /** Strips tags, scripts and styles, and collapses whitespace. */
@@ -195,6 +212,12 @@ export async function fetchGitHubRepo(raw: string): Promise<FetchResult> {
 
   const owner = match[1];
   const repo = match[2].replace(/\.git$/, '');
+  // GitHub logins and repository names are a bounded character set. Without this
+  // check, `..` would collapse the API path (`/repos/../..` -> `/`) and the
+  // request would leave `/repos/` carrying the server token.
+  if (!isGitHubName(owner) || !isGitHubName(repo)) {
+    return { ok: false, error: 'Not a GitHub repository URL.' };
+  }
   const api = `https://api.github.com/repos/${owner}/${repo}`;
   const headers = {
     Accept: 'application/vnd.github+json',
@@ -298,4 +321,13 @@ export function isGoogleUrl(raw: string): boolean {
 /** True when the source is a GitHub repository link. */
 export function isGitHubUrl(raw: string): boolean {
   return /^https?:\/\/github\.com\/[^/]+\/[^/]+/i.test(raw);
+}
+
+/**
+ * A GitHub owner or repository name. Owner: alphanumeric or hyphen, no leading
+ * or trailing hyphen, up to 39 chars. Repository: those plus `_` and `.`, up to
+ * 100. Deliberately excludes `.` and `..`, which would escape the API path.
+ */
+export function isGitHubName(value: string): boolean {
+  return /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,98}[A-Za-z0-9])?$/.test(value) && !value.includes('..');
 }

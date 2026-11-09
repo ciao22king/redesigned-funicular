@@ -7,6 +7,8 @@ import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
 import { getPreferences } from '@/lib/preferences-db';
 import { scanText, scanMessages } from '@/lib/scans';
+import { normalizeBatch } from '@/lib/metrics';
+import { recordMetrics } from '@/lib/metrics-db';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -115,6 +117,10 @@ export async function POST(req: NextRequest) {
   // bonus: they get a small slice of the budget and a failure returns none,
   // never an error, because losing the draft would be far worse.
   const questions = await runQuestions(markdown, QUESTIONS_BUDGET_MS);
+
+  // The generation succeeded, so the outcome event is recorded here, on the
+  // server, where it cannot be faked by the client.
+  await recordMetrics(normalizeBatch([{ event: 'generate' }]));
 
   // The opt-out is read here, after the generation: it is reported back so the
   // UI can confirm the choice is in force. It changes nothing about the request

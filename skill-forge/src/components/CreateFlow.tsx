@@ -215,8 +215,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
       // Funnel: a skill arrived, and how long the wait took. The duration is
       // sent as a value, so the server accumulates an average and nothing
-      // per-request is stored.
-      track('generate');
+      // per-request is stored. The `generate` outcome is recorded server-side.
       track('generation_ms', { value: Date.now() - startedAt });
       track('funnel_result');
 
@@ -293,7 +292,6 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
   function download() {
     if (!result) return;
-    track('download');
     track('funnel_download');
     const blob = new Blob([result], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -676,8 +674,7 @@ function ResultPanel({
       };
       if (!res.ok || !data.skill) throw new Error(data.error ?? 'Publishing failed');
 
-      track('publish', { target: data.skill.id });
-      track('funnel_publish');
+      track('funnel_publish', { target: data.skill.id });
 
       // The local copy also remembers it was published.
       const localName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';

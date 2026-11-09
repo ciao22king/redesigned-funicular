@@ -12,7 +12,9 @@
  *     wrapped so a failure is silent.
  *
  * The event names are the closed set in `metrics.ts`; sending anything else is
- * dropped server-side.
+ * dropped server-side. The outcome events (`generate`, `download`, `publish`,
+ * `demo_generate`) are recorded by the server routes, not from here, so this
+ * client only ever reports what it can honestly observe about itself.
  */
 
 import type { MetricEvent } from './metrics';

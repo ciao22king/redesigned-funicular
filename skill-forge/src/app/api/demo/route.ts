@@ -5,6 +5,8 @@ import { consumeDemoQuota, quotaMessage, rateLimitHeaders } from '@/lib/ratelimi
 import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
 import { scanText, scanMessages } from '@/lib/scans';
+import { normalizeBatch } from '@/lib/metrics';
+import { recordMetrics } from '@/lib/metrics-db';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -98,6 +100,9 @@ export async function POST(req: NextRequest) {
   // Same self-review pass as the signed-in flow, so the preview is the real
   // output and not an approximation of it.
   const refined = await runRefine(result.markdown, { mode: 'from-skills' }, DEMO_REFINE_BUDGET_MS);
+
+  // The demo generation succeeded: recorded here, not from the client beacon.
+  await recordMetrics(normalizeBatch([{ event: 'demo_generate' }]));
 
   return NextResponse.json(
     {

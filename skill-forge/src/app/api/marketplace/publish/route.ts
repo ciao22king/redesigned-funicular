@@ -6,6 +6,8 @@ import { skillId, toDetail, validateSkillInput } from '@/lib/marketplace';
 import { submitUrlsInBackground } from '@/lib/indexnow';
 import { legal } from '@/lib/legal';
 import { recordAudit } from '@/lib/audit-db';
+import { normalizeBatch } from '@/lib/metrics';
+import { recordMetrics } from '@/lib/metrics-db';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -66,6 +68,8 @@ export async function POST(req: NextRequest) {
       detail: row.name,
       ip: clientIp(req),
     });
+    // Outcome event, recorded server-side where it cannot be faked.
+    await recordMetrics(normalizeBatch([{ event: 'publish', target: row.id }]));
     return NextResponse.json({ ok: true, skill: toDetail(row) });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
