@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { readQuota } from '@/lib/ratelimit';
-import { roleBadge, roleFor, roleLabel } from '@/lib/roles';
+import { roleBadge, roleLabel } from '@/lib/roles';
+import { readRole } from '@/lib/users-db';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -19,12 +20,12 @@ export async function GET(req: NextRequest) {
   if (!login) {
     return NextResponse.json({ error: 'Missing or invalid token.' }, { status: 401 });
   }
-  const role = roleFor(login);
+  const role = await readRole(login);
   return NextResponse.json({
     login,
     role,
     roleLabel: roleLabel(role),
     badge: roleBadge(role),
-    quota: await readQuota(login),
+    quota: await readQuota(login, role),
   });
 }

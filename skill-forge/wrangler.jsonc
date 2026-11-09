@@ -13,14 +13,16 @@
     "GITHUB_ID": "Ov23li3WNZ0SwllP72tP",
     // Owner logins: operator access (the /stats dashboard) and no quota.
     "UNLIMITED_LOGINS": "ciao22king",
-    // Founding testers: no daily quota and a badge, no operator access.
-    // The logins of the people invited to try it before the wider release.
-    // Add a login here to grant the perk; it takes effect at the next sign-in.
+    // Founding testers: a badge and a raised daily quota (5/day), no operator
+    // access. The perk is decided at sign-up from the account's creation date,
+    // so anyone who creates an account on or before the deadline keeps it. This
+    // list stays for the people invited by name, who qualify regardless of when
+    // they sign up.
     "FOUNDING_TESTERS": "hxreborn,akkie76,eliasoulkadi,aaddrick,croffasia,dean9703111,seb1n,langgpt,danielvm-git,athola,matank001,nisabmohd,flyeric0212,ashishpatel26,favorpan,nledford,j-nowcow,ajhcs,chihebnabil,anchildress1,umair,yschimke,jianshuo,eddietyp,goldziher,primefoldtools,vaibhavarora14"
   },
   // Do not clear the variables set from the dashboard on every CLI deploy.
   "keep_vars": true,
-  // Daily generation counter per user (3/day).
+  // Daily generation counter per user, by role (3/day, 5/day for a founding tester).
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT",

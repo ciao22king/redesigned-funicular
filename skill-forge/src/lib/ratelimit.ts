@@ -1,5 +1,5 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { isFoundingTesterRole, isUnlimitedRole, roleFor } from './roles';
+import { isFoundingTesterRole, isUnlimitedRole, type Role } from './roles';
 
 /**
  * Daily generation limit per user, counted on Cloudflare KV.
@@ -27,21 +27,21 @@ export const FOUNDING_DAILY_LIMIT = 5;
 export const DEMO_DAILY_LIMIT = 2;
 
 /**
- * Logins exempt from the limit: the owner and the early testers. The list comes
- * from `roles`, so the quota exemption and the role badge are decided by the
- * same rule and cannot disagree.
+ * Logins exempt from the limit: the owner. The check takes the role the caller
+ * read from the user row, so the quota follows the stored role and not a config
+ * list that could disagree with it.
  */
-export function isUnlimited(login: string): boolean {
-  return isUnlimitedRole(roleFor(login));
+export function isUnlimited(role: Role): boolean {
+  return isUnlimitedRole(role);
 }
 
 /**
- * The daily generation limit for a login: unbounded for the owner, the founding
+ * The daily generation limit for a role: unbounded for the owner, the founding
  * tester perk for an early tester, the standard limit for everyone else. Kept
  * next to `isUnlimited` so the number shown and the number enforced are one rule.
  */
-export function dailyLimitFor(login: string): number {
-  return isFoundingTesterRole(roleFor(login)) ? FOUNDING_DAILY_LIMIT : DAILY_LIMIT;
+export function dailyLimitFor(role: Role): number {
+  return isFoundingTesterRole(role) ? FOUNDING_DAILY_LIMIT : DAILY_LIMIT;
 }
 
 export interface Quota {
@@ -80,16 +80,16 @@ async function store(): Promise<KVNamespace | undefined> {
 }
 
 /** Reads the quota without consuming it. */
-export async function readQuota(login: string, kv?: KVNamespace): Promise<Quota> {
+export async function readQuota(login: string, role: Role, kv?: KVNamespace): Promise<Quota> {
   const { key, resetsAt } = dayKey();
 
   // An unlimited user has no counter: no need to read KV, and the UI does not
   // show a number that does not concern them.
-  if (isUnlimited(login)) {
+  if (isUnlimited(role)) {
     return { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true };
   }
 
-  const limit = dailyLimitFor(login);
+  const limit = dailyLimitFor(role);
   const ns = kv ?? (await store());
   const used = ns ? Number((await ns.get<Counter>(`rl:${login}:${key}`, 'json'))?.count ?? 0) : 0;
   return {
@@ -107,19 +107,20 @@ export async function readQuota(login: string, kv?: KVNamespace): Promise<Quota>
  */
 export async function consumeQuota(
   login: string,
+  role: Role,
   kv?: KVNamespace,
 ): Promise<{ allowed: boolean; quota: Quota }> {
   const { key, resetsAt } = dayKey();
 
   // No counter to touch: the exemption neither consumes nor writes to KV.
-  if (isUnlimited(login)) {
+  if (isUnlimited(role)) {
     return {
       allowed: true,
       quota: { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true },
     };
   }
 
-  const limit = dailyLimitFor(login);
+  const limit = dailyLimitFor(role);
   const ns = kv ?? (await store());
 
   if (!ns) {

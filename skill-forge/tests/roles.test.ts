@@ -7,6 +7,7 @@ import {
   isUnlimitedRole,
   roleBadge,
   roleFor,
+  roleForSignup,
   roleLabel,
   roleSources,
   type RoleSources,
@@ -37,6 +38,22 @@ test('il confronto ignora maiuscole e spazi', () => {
 test("l'owner vince se un login compare in entrambe le liste", () => {
   const both: RoleSources = { owners: ['x'], foundingTesters: ['x'] };
   assert.equal(roleFor('x', both), 'owner');
+});
+
+test('roleForSignup: owner sempre owner, a prescindere dalla data', () => {
+  assert.equal(roleForSignup('ciao22king', '2027-06-01T00:00:00.000Z', SOURCES), 'owner');
+});
+
+test('roleForSignup: invitato per nome resta founding tester anche dopo', () => {
+  assert.equal(roleForSignup('hxreborn', '2027-06-01T00:00:00.000Z', SOURCES), 'founding_tester');
+});
+
+test('roleForSignup: chi si iscrive entro la scadenza diventa founding tester', () => {
+  assert.equal(roleForSignup('nuovo', '2026-12-15T23:59:00.000Z', SOURCES), 'founding_tester');
+});
+
+test('roleForSignup: chi si iscrive dopo la scadenza e member', () => {
+  assert.equal(roleForSignup('tardi', '2026-12-16T00:00:00.000Z', SOURCES), 'member');
 });
 
 test('solo owner e esente dalla quota', () => {

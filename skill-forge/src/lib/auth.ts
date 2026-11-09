@@ -3,9 +3,9 @@ import { getToken } from 'next-auth/jwt';
 import GitHubProvider from 'next-auth/providers/github';
 import type { NextRequest } from 'next/server';
 import { loginForToken, readBearer } from './github-token';
-import { recordUser } from './users-db';
+import { readRole, recordUser } from './users-db';
 import { isLogin } from './users';
-import { roleFor, type Role } from './roles';
+import type { Role } from './roles';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -45,10 +45,11 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token;
         token.login = (profile as { login?: string } | undefined)?.login;
       }
-      // The role is recomputed on every call, so a configuration change (a new
-      // founding tester) shows up on the next request without a re-login.
+      // The role comes from the account row (its creation date decides the
+      // founding tester perk), so a returning tester keeps it past the
+      // deadline. It is read on every call: the row is the source of truth.
       if (token.login) {
-        token.role = roleFor(token.login);
+        token.role = await readRole(token.login);
       }
       return token;
     },

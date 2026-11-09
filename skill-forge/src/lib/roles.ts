@@ -1,12 +1,12 @@
 /**
  * Roles: who the person is, and what that entitles them to.
  *
- * A role is decided from configuration rather than from a database write, so
- * the entitlement check stays pure and synchronous: it cannot fail or slow down
- * when D1 is busy, which matters because it runs on the request path. The same
- * value is written to the user row at sign-in, so the badge the person sees and
- * the entitlement they get cannot drift apart.
+ * A role is decided from configuration and from the account's creation time,
+ * then written once to the user row at sign-up and read back from there, so the
+ * entitlement check stays cheap and cannot drift from the badge the person sees.
  */
+
+import { withinPreProgram } from './preProgram';
 
 export type Role = 'owner' | 'founding_tester' | 'member';
 
@@ -39,6 +39,27 @@ export function roleFor(login: string, sources: RoleSources = roleSources()): Ro
   if (sources.owners.includes(id)) return 'owner';
   if (sources.foundingTesters.includes(id)) return 'founding_tester';
   return 'member';
+}
+
+/**
+ * The role to store for a login at sign-up time.
+ *
+ * The owner is always the owner. Everyone else becomes a founding tester in one
+ * of two ways, and keeps the perk for good once the role is written:
+ *   - they were invited by name (the configured list), or
+ *   - their account is created inside the program window (before the cutoff).
+ * A login that matches neither and signs up after the window is an ordinary
+ * member: the perk is not granted retroactively and does not come back.
+ */
+export function roleForSignup(
+  login: string,
+  createdAt: Date | string | number,
+  sources: RoleSources = roleSources(),
+): Role {
+  const configured = roleFor(login, sources);
+  if (configured === 'owner') return 'owner';
+  if (configured === 'founding_tester') return 'founding_tester';
+  return withinPreProgram(createdAt) ? 'founding_tester' : 'member';
 }
 
 /** True when the role has no daily generation limit at all. */

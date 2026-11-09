@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { runSectionRegeneration, type GenerateBody } from '@/lib/generate';
 import { consumeQuota, readQuota } from '@/lib/ratelimit';
+import { readRole } from '@/lib/users-db';
 import { replaceSection, regenerableSections } from '@/lib/sections';
 
 export const runtime = 'nodejs';
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `The document has no section "${section}".` }, { status: 400 });
   }
 
-  const { allowed, quota } = await consumeQuota(login);
+  const { allowed, quota } = await consumeQuota(login, await readRole(login));
   if (!allowed) {
     return NextResponse.json({ error: 'You have used all your generations today.', quota }, { status: 429 });
   }
@@ -79,5 +80,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'You must sign in with GitHub.' }, { status: 401 });
   }
   const markdown = req.nextUrl.searchParams.get('markdown') ?? '';
-  return NextResponse.json({ sections: regenerableSections(markdown), quota: await readQuota(login) });
+  return NextResponse.json({ sections: regenerableSections(markdown), quota: await readQuota(login, await readRole(login)) });
 }

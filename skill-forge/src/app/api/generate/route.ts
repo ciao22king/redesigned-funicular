@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { runGeneration, runQuestions, runRefine, type GenerateBody } from '@/lib/generate';
 import { consumeQuota, quotaMessage, rateLimitHeaders, readQuota } from '@/lib/ratelimit';
+import { readRole } from '@/lib/users-db';
 import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
 import { getPreferences } from '@/lib/preferences-db';
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   if (!token || !login) {
     return NextResponse.json({ error: 'You must sign in with GitHub.' }, { status: 401 });
   }
-  const quota = await readQuota(login);
+  const quota = await readQuota(login, await readRole(login));
   return NextResponse.json(quota, { headers: rateLimitHeaders(quota) });
 }
 
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
 
   // The quota is consumed only when the request is valid and the model is
   // about to start: a rejected input does not cost the user a generation.
-  const { allowed, quota } = await consumeQuota(login);
+  const { allowed, quota } = await consumeQuota(login, await readRole(login));
   if (!allowed) {
     return NextResponse.json(
       { error: quotaMessage(quota), quota },

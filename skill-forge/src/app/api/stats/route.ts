@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
-import { isOperatorRole, roleFor } from '@/lib/roles';
+import { isOperatorRole } from '@/lib/roles';
+import { readRole } from '@/lib/users-db';
 import { readMetrics } from '@/lib/metrics-db';
 import { summarizeMetrics } from '@/lib/metrics';
 import { feedbackVerdicts } from '@/lib/feedback-db';
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   if (!login) {
     return NextResponse.json({ error: 'Missing or invalid token.' }, { status: 401 });
   }
-  if (!isOperatorRole(roleFor(login))) {
+  if (!isOperatorRole(await readRole(login))) {
     return NextResponse.json({ error: 'Not available.' }, { status: 403 });
   }
 

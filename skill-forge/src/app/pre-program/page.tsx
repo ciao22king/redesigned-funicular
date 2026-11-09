@@ -36,16 +36,19 @@ export default function PreProgramPage() {
         </h1>
         <p className="mt-4 max-w-prose text-[17px] leading-relaxed text-[--ink-muted]">
           Skill Forge opens wider soon. Until{' '}
-          <strong className="text-[--ink]">{preProgram.deadlineLabel}</strong>, anyone
-          who signs in with GitHub becomes a founding tester. The perk is tied to the
-          account you sign in with, so it is only yours if the username you use here
-          is the one you sign in with.
+          <strong className="text-[--ink]">{preProgram.deadlineLabel}</strong>, create
+          your account and you become a founding tester. The perk is decided once, at
+          sign-up: an account created inside the window keeps the badge and the raised
+          limit for good, while an account created after the deadline never gets them.
+          It is tied to the account you sign in with, so it is only yours if the
+          username you use here is the one you sign in with.
         </p>
 
         <div className="mt-8 rounded-2xl border border-[--accent] bg-[--accent-soft] px-5 py-4">
           <p className="text-sm text-[--ink]">
-            <strong>Deadline:</strong> {preProgram.deadlineLabel}. After that date the
-            program closes and the badge and the raised limit are no longer granted.
+            <strong>Deadline:</strong> {preProgram.deadlineLabel}. Accounts created on
+            or before that date keep the badge and the raised limit permanently;
+            accounts created after it are ordinary members.
           </p>
         </div>
 
