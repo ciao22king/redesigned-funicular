@@ -2045,3 +2045,30 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   l'OAuth salvato basta `CLOUDFLARE_ACCOUNT_ID` (niente `CLOUDFLARE_API_TOKEN`).
 - Deploy: `npm run deploy` (NON `npx opennextjs-cloudflare deploy` nudo). Next 16:
   per un redirect 308 serve `permanentRedirect()` (redirect nudo = 307).
+
+## skill-forge - pagine skill `/skills/[owner]/[slug]` (2026-11-10)
+- **Rotta unica catch-all** `src/app/skills/[[...slug]]/page.tsx`: Next NON permette
+  un segmento statico `category` accanto a uno dinamico allo stesso livello, quindi
+  una sola rotta serve `/skills`, `/skills/category/<id>`, `/skills/<slug>`,
+  `/skills/<owner>/<slug>`. La forma a un segmento risolve via `resolveSlug()` e fa
+  **308** verso l'URL canonico. `/s/[owner]/[slug]` e' ora un `permanentRedirect`
+  nudo. Un componente di rotta che fa solo redirect NON deve finire in `void`
+  (TS2786): chiudi con `return null`.
+- Migration `0011_skill_pages.sql`: `skills.category` (tassonomia chiusa, default
+  `other`, indicizzata) + `skill_versions` (changelog). `categoryFor()` in
+  `src/lib/skill-page.ts`: **se un tag matcha, decide lui**, altrimenti il testo
+  (match a confine di parola). `upsertSkill` -> `recordVersion`, che aggiunge solo
+  se cambia l'hash FNV-1a del contenuto (ripubblicare = no-op). `deleteSkill` pulisce
+  anche `skill_versions`. Applicata + backfillata sul D1 remoto (`plan`→code,
+  `no-ai-slop`→design).
+- Contatori pubblici: `skillCounters()` somma `download`/`copy` su **tutta la vita**
+  della skill (nessuna finestra giornaliera). `copy` e' l'unico evento "outcome"
+  che il client puo' asserire (`CLIENT_ASSERTABLE_EVENTS`), perche' solo il browser
+  vede la clipboard e gonfiarlo non cambia ranking; `download` resta server-side.
+- Fork: `/create/from-skills?fork=<owner/slug>`; `CreateFlow` legge la query con
+  `new URLSearchParams(window.location.search)` (NON `useSearchParams`, che
+  imporrebbe un Suspense boundary).
+- **DEPLOYATA** (version `5240c0e3`, commit `a15d366`). 335 test, tsc e build puliti.
+  Live: `/skills`, `/skills/<owner>/<slug>`, `/skills/category/<id>` 200;
+  `/skills/<slug>` e `/s/...` 308; skill inesistente 404. JSON-LD `@graph` =
+  CreativeWork + Person + BreadcrumbList (piu' il `WebSite` del layout).
