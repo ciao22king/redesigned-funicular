@@ -239,7 +239,7 @@ export default function MarketplacePage() {
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="font-display text-lg font-semibold leading-snug text-[--ink]">
                       <Link
-                        href={`/s/${skill.id}`}
+                        href={`/skills/${skill.id}`}
                         className="transition-colors hover:text-[--accent]"
                       >
                         {skill.name}

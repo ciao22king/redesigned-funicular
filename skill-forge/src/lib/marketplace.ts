@@ -1,6 +1,7 @@
 import { readFrontmatterDescription, readFrontmatterName, slugify } from './skill';
 import { MAX_OUTPUT_CHARS } from './guardrails';
 import { sanitizeField } from './sanitize';
+import { categoryFor, type CategoryId } from './skill-page';
 
 /**
  * Marketplace: pure logic, without database access.
@@ -60,6 +61,7 @@ export interface NormalizedSkill {
   description: string;
   markdown: string;
   tags: string;
+  category: CategoryId;
 }
 
 export interface ValidationResult {
@@ -199,6 +201,7 @@ export function validateSkillInput(input: SkillInput): ValidationResult {
     return { ok: false, error: 'The description is too long.' };
   }
   const description = sanitizeField(rawDescription, MAX_DESCRIPTION_CHARS);
+  const tags = serializeTags(parseTags(input.tags));
 
   return {
     ok: true,
@@ -207,7 +210,8 @@ export function validateSkillInput(input: SkillInput): ValidationResult {
       name,
       description,
       markdown,
-      tags: serializeTags(parseTags(input.tags)),
+      tags,
+      category: categoryFor({ tags: deserializeTags(tags), name, description, markdown }),
     },
   };
 }
@@ -221,6 +225,7 @@ export interface SkillRow {
   markdown: string;
   tags: string;
   stars: number;
+  category: string;
   created_at: string;
   updated_at: string;
 }
@@ -233,6 +238,7 @@ export interface SkillSummary {
   description: string;
   tags: string[];
   stars: number;
+  category: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -250,6 +256,7 @@ export function toSummary(row: SkillRow, starred = false): SkillSummary & { star
     description: row.description,
     tags: deserializeTags(row.tags),
     stars: Number(row.stars) || 0,
+    category: row.category || 'other',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     starred,

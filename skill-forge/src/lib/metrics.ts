@@ -35,6 +35,7 @@ export const METRIC_EVENTS = [
   'generate',
   'demo_generate',
   'download',
+  'copy',
   'publish',
   // Timing: carries a duration in milliseconds.
   'generation_ms',
@@ -166,6 +167,10 @@ export const CLIENT_ASSERTABLE_EVENTS: readonly MetricEvent[] = [
   'funnel_submit',
   'funnel_result',
   'funnel_download',
+  // A clipboard copy can only be observed in the browser, so unlike `download`
+  // it has to be asserted by the client. It is a low-value number to inflate
+  // (it changes no ranking and grants nothing), which is why it is allowed here.
+  'copy',
   'generation_ms',
 ] as const;
 

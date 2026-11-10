@@ -90,3 +90,32 @@ export async function readDailySeries(
 
   return (result.results ?? []).map((r) => ({ day: r.day, count: Number(r.n) || 0 }));
 }
+
+/**
+ * The public counters of one skill: how many times it was downloaded and how
+ * many times its markdown was copied.
+ *
+ * Both are aggregates over the whole life of the skill (no day window): a skill
+ * page shows totals, and a total that shrank every morning would be a lie. A
+ * missing binding yields zeros, so the page still renders.
+ */
+export async function skillCounters(
+  id: string,
+  injected?: D1Like,
+): Promise<{ downloads: number; copies: number }> {
+  const database = await getDatabase(injected);
+  const result = await database
+    .prepare(
+      "SELECT event, SUM(count) AS n FROM metrics WHERE target = ? AND event IN ('download', 'copy') GROUP BY event",
+    )
+    .bind(id)
+    .all<{ event: string; n: number }>();
+
+  let downloads = 0;
+  let copies = 0;
+  for (const row of result.results ?? []) {
+    if (row.event === 'download') downloads = Number(row.n) || 0;
+    if (row.event === 'copy') copies = Number(row.n) || 0;
+  }
+  return { downloads, copies };
+}

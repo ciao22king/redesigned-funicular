@@ -6,7 +6,7 @@ import { ImageResponse } from 'next/og';
  * It is a static file convention (not a runtime route): `next build` renders it
  * with Node, so it works on Cloudflare Workers too, where rendering an image on
  * demand from `next/og` can stall the runtime. Every page without its own card
- * — including each `/s/[owner]/[slug]` skill page — inherits this one, so a
+ * — including each `/skills/[owner]/[slug]` skill page — inherits this one, so a
  * shared link shows a real image instead of a bare URL.
  */
 export const alt = 'Skill Forge — from scattered notes to complete skills for AI agents';

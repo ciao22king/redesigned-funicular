@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const row = await upsertSkill(login, check.value);
     // Tell the engines the new page exists, so it is crawled in minutes instead
     // of waiting for the next scheduled crawl.
-    submitUrlsInBackground([`${legal.siteUrl}/s/${row.id}`, `${legal.siteUrl}/marketplace`]);
+    submitUrlsInBackground([`${legal.siteUrl}/skills/${row.id}`, `${legal.siteUrl}/marketplace`]);
     // Audit: who published what. No material, only the identity and the target.
     await recordAudit({
       actor: login,

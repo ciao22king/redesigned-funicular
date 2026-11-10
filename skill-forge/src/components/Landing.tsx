@@ -222,7 +222,7 @@ export function Landing({ featured = [] }: { featured?: FeaturedCandidate[] }) {
                 {featured.map((s) => (
                   <li key={s.id}>
                     <Link
-                      href={`/s/${s.id}`}
+                      href={`/skills/${s.id}`}
                       className="flex h-full flex-col rounded-2xl border border-[--line] bg-[--surface-raised] p-5 transition-colors hover:border-[--accent]"
                     >
                       <span className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-[--accent] bg-[--accent-soft] px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[--accent]">

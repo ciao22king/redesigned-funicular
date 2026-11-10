@@ -24,7 +24,7 @@ export interface FeedMeta {
 
 /** One `<item>` per skill, linking to its public page. */
 function item(s: SkillSummary, base: string): string {
-  const url = `${base}/s/${s.id}`;
+  const url = `${base}/skills/${s.id}`;
   const pub = new Date(s.createdAt).toUTCString();
   const categories = s.tags
     .map((t) => `      <category>${escapeXml(t)}</category>`)

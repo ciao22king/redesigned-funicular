@@ -17,6 +17,7 @@ function skill(over: Partial<SkillSummary> = {}): SkillSummary {
     description: 'A demo skill.',
     tags: [],
     stars: 0,
+    category: 'code',
     createdAt: '2026-11-06T10:00:00.000Z',
     updatedAt: '2026-11-06T10:00:00.000Z',
     ...over,
@@ -41,7 +42,7 @@ test('buildFeed produce un documento RSS valido', () => {
   assert.match(feed, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
   assert.match(feed, /<rss version="2\.0"/);
   assert.match(feed, /<item>/);
-  assert.match(feed, /https:\/\/skillforge\.eu\.org\/s\/ciao22king\/demo/);
+  assert.match(feed, /https:\/\/skillforge\.eu\.org\/skills\/ciao22king\/demo/);
 });
 
 test('buildFeed senza skill resta un canale valido e vuoto', () => {

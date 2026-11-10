@@ -73,6 +73,36 @@ export default function CreatePage({ mode }: { mode: Mode }) {
     track('funnel_start');
   }, []);
 
+  // Fork: `/create/from-skills?fork=owner/slug` starts from a published skill's
+  // markdown instead of an empty form. The value is read from the URL on mount
+  // (not with `useSearchParams`, which would force a Suspense boundary) and
+  // loaded through the public detail endpoint, so only published skills can be
+  // forked. The forked text is offered as editable material, never republished
+  // automatically.
+  const [forkedFrom, setForkedFrom] = useState<string | null>(null);
+  useEffect(() => {
+    if (mode !== 'from-skills') return;
+    let id: string | null = null;
+    try {
+      id = new URLSearchParams(window.location.search).get('fork');
+    } catch {
+      id = null;
+    }
+    if (!id) return;
+    let active = true;
+    fetch(`/api/marketplace/detail?id=${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ skill?: { markdown: string; name: string } }>) : null))
+      .then((d) => {
+        if (!active || !d?.skill) return;
+        setPasted(d.skill.markdown);
+        setForkedFrom(d.skill.name);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [mode]);
+
   // "from existing skills" mode fields
   const [files, setFiles] = useState<{ name: string; text: string }[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -435,6 +465,12 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {forkedFrom && (
+              <p className="rounded-lg border border-[--accent] bg-[--accent-soft] px-3 py-2 text-sm text-[--accent]">
+                Forked from &ldquo;{forkedFrom}&rdquo;. Edit it, then generate a new skill.
+              </p>
             )}
 
             <label className="block">

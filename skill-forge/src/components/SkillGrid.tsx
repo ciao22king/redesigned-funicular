@@ -23,7 +23,7 @@ export function SkillGrid({ skills }: { skills: SkillCardItem[] }) {
       {skills.map((skill) => (
         <li key={skill.id} className="surface-card flex flex-col p-6">
           <h2 className="font-display text-lg font-semibold leading-snug text-[--ink]">
-            <Link href={`/s/${skill.id}`} className="transition-colors hover:text-[--accent]">
+            <Link href={`/skills/${skill.id}`} className="transition-colors hover:text-[--accent]">
               {skill.name}
             </Link>
           </h2>

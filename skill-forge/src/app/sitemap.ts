@@ -1,8 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { siteBase } from '@/lib/site-url';
-import { listSkillRefs, tagCounts } from '@/lib/marketplace-db';
+import { listSkillRefs, tagCounts, categoryCounts } from '@/lib/marketplace-db';
 import { listIndexableCreators } from '@/lib/profile-db';
 import { aggregateTags } from '@/lib/marketplace';
+import { CATEGORIES, skillPath } from '@/lib/skill-page';
 
 // Per request: the skills come from D1, bound on the Worker only at runtime.
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/demo',
     '/pre-program',
     '/marketplace',
+    '/skills',
     '/creators',
     '/tags',
     '/use-cases',
@@ -38,19 +40,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let skillEntries: MetadataRoute.Sitemap = [];
   let tagEntries: MetadataRoute.Sitemap = [];
   let authorEntries: MetadataRoute.Sitemap = [];
+  let categoryEntries: MetadataRoute.Sitemap = [];
   try {
-    const [refs, tags, owners] = await Promise.all([
+    const [refs, tags, owners, cats] = await Promise.all([
       listSkillRefs(),
       tagCounts().then((rows) => aggregateTags(rows)),
       listIndexableCreators(),
+      categoryCounts().catch(() => []),
     ]);
 
-    skillEntries = refs.map((r) => ({
-      url: `${base}/s/${r.id}`,
-      lastModified: r.updated_at ? new Date(r.updated_at) : lastModified,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }));
+    skillEntries = refs
+      .filter((r) => r.id.includes('/'))
+      .map((r) => {
+        const [owner, slug] = r.id.split('/');
+        return {
+          url: `${base}${skillPath(owner, slug)}`,
+          lastModified: r.updated_at ? new Date(r.updated_at) : lastModified,
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        };
+      });
 
     tagEntries = tags.map((t) => ({
       url: `${base}/tags/${t.tag}`,
@@ -65,11 +74,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly' as const,
       priority: 0.5,
     }));
+
+    const usedCategories = new Set(cats.filter((c) => c.count > 0).map((c) => c.category));
+    categoryEntries = CATEGORIES.filter((c) => usedCategories.has(c)).map((c) => ({
+      url: `${base}/skills/category/${c}`,
+      lastModified,
+      changeFrequency: 'weekly' as const,
+      priority: 0.4,
+    }));
   } catch {
     skillEntries = [];
     tagEntries = [];
     authorEntries = [];
+    categoryEntries = [];
   }
 
-  return [...staticEntries, ...skillEntries, ...tagEntries, ...authorEntries];
+  return [...staticEntries, ...skillEntries, ...tagEntries, ...categoryEntries, ...authorEntries];
 }
