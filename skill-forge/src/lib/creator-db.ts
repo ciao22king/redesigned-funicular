@@ -134,3 +134,66 @@ export async function isFeaturedAuthor(
     .first<{ ok: number }>();
   return Boolean(row);
 }
+
+/**
+ * Stats for many authors at once, keyed by owner.
+ *
+ * A grid of cards needs every author's totals; one grouped query returns them
+ * instead of one per author. Downloads are summed per owner with a correlated
+ * subquery, so the whole thing stays a single round trip. An owner with no rows
+ * is simply absent and the caller falls back to zeros.
+ */
+export async function creatorStatsFor(
+  owners: string[],
+  injected?: D1Like,
+): Promise<Map<string, CreatorStats>> {
+  const out = new Map<string, CreatorStats>();
+  const wanted = [...new Set(owners.filter(Boolean))];
+  if (wanted.length === 0) return out;
+
+  const database = await getDatabase(injected);
+  const placeholders = wanted.map(() => '?').join(',');
+  const result = await database
+    .prepare(
+      `SELECT s.owner AS owner, COUNT(*) AS published, COALESCE(SUM(s.stars), 0) AS stars,
+              COALESCE((SELECT SUM(m.count) FROM metrics m
+                        WHERE m.event = 'download' AND m.target IN
+                          (SELECT id FROM skills WHERE owner = s.owner)), 0) AS downloads
+       FROM skills s WHERE s.owner IN (${placeholders}) GROUP BY s.owner`,
+    )
+    .bind(...wanted)
+    .all<{ owner: string; published: number; stars: number; downloads: number }>();
+
+  for (const row of result.results ?? []) {
+    out.set(row.owner, {
+      published: Number(row.published) || 0,
+      stars: Number(row.stars) || 0,
+      downloads: Number(row.downloads) || 0,
+    });
+  }
+  return out;
+}
+
+/**
+ * The subset of the given authors who have at least one featured skill.
+ *
+ * A set rather than a boolean per author: the caller asks about a page of
+ * authors at once and only needs to know which of them qualify.
+ */
+export async function featuredOwners(
+  owners: string[],
+  injected?: D1Like,
+): Promise<Set<string>> {
+  const wanted = [...new Set(owners.filter(Boolean))];
+  if (wanted.length === 0) return new Set();
+
+  const database = await getDatabase(injected);
+  const placeholders = wanted.map(() => '?').join(',');
+  const result = await database
+    .prepare(
+      `SELECT DISTINCT owner FROM skills WHERE owner IN (${placeholders}) AND stars >= ?`,
+    )
+    .bind(...wanted, FEATURED_MIN_STARS)
+    .all<{ owner: string }>();
+  return new Set((result.results ?? []).map((r) => r.owner));
+}

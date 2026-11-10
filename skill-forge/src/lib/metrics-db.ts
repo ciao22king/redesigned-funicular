@@ -119,3 +119,34 @@ export async function skillCounters(
   }
   return { downloads, copies };
 }
+
+/**
+ * Download totals for many skills at once, keyed by skill id.
+ *
+ * A grid of cards shows a download count per skill; one grouped query returns
+ * them all instead of one per card. As in `skillCounters`, the total is over the
+ * whole life of the skill, and a skill with no recorded downloads is absent from
+ * the map, so the caller falls back to zero.
+ */
+export async function downloadsForSkills(
+  ids: string[],
+  injected?: D1Like,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const wanted = [...new Set(ids.filter(Boolean))];
+  if (wanted.length === 0) return out;
+
+  const database = await getDatabase(injected);
+  const placeholders = wanted.map(() => '?').join(',');
+  const result = await database
+    .prepare(
+      `SELECT target, SUM(count) AS n FROM metrics
+       WHERE event = 'download' AND target IN (${placeholders}) GROUP BY target`,
+    )
+    .bind(...wanted)
+    .all<{ target: string; n: number }>();
+  for (const row of result.results ?? []) {
+    out.set(row.target, Number(row.n) || 0);
+  }
+  return out;
+}

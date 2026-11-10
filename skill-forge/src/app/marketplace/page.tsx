@@ -4,22 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Nav } from '@/components/Nav';
+import { SkillCard } from '@/components/SkillCard';
 import { saveLocalSkill } from '@/lib/localstore';
+import type { SkillCardData } from '@/lib/skill-cards';
 
-interface SkillSummary {
-  id: string;
-  owner: string;
-  name: string;
-  description: string;
-  tags: string[];
-  stars: number;
+interface CardItem extends SkillCardData {
   starred: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface ListResponse {
-  skills?: SkillSummary[];
+  skills?: CardItem[];
   total?: number;
   pages?: number;
   page?: number;
@@ -37,7 +31,7 @@ const SORTS: { key: Sort; label: string }[] = [
 
 export default function MarketplacePage() {
   const { data: session, status } = useSession();
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  const [skills, setSkills] = useState<CardItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -79,7 +73,7 @@ export default function MarketplacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, sort, load]);
 
-  async function toggleStar(skill: SkillSummary) {
+  async function toggleStar(skill: CardItem) {
     if (status !== 'authenticated') {
       setNotice('Sign in with GitHub to star a skill.');
       return;
@@ -106,7 +100,7 @@ export default function MarketplacePage() {
     }
   }
 
-  async function download(skill: SkillSummary) {
+  async function download(skill: CardItem) {
     setBusyId(skill.id);
     setNotice(null);
     try {
@@ -235,23 +229,17 @@ export default function MarketplacePage() {
             </p>
             <ul className="mt-4 grid gap-4 sm:grid-cols-2">
               {skills.map((skill) => (
-                <li key={skill.id} className="surface-card flex flex-col p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="font-display text-lg font-semibold leading-snug text-[--ink]">
-                      <Link
-                        href={`/skills/${skill.id}`}
-                        className="transition-colors hover:text-[--accent]"
-                      >
-                        {skill.name}
-                      </Link>
-                    </h2>
+                <SkillCard
+                  key={skill.id}
+                  skill={skill}
+                  starControl={
                     <button
                       type="button"
                       disabled={busyId === skill.id}
                       onClick={() => void toggleStar(skill)}
                       aria-pressed={skill.starred}
                       aria-label={skill.starred ? 'Remove star' : 'Add star'}
-                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
                         skill.starred
                           ? 'border-[--accent] bg-[--accent-soft] text-[--accent]'
                           : 'border-[--line] text-[--ink-muted] hover:text-[--ink]'
@@ -260,46 +248,18 @@ export default function MarketplacePage() {
                       <Star filled={skill.starred} />
                       {skill.stars}
                     </button>
-                  </div>
-
-                  {skill.description && (
-                    <p className="mt-3 flex-1 text-sm leading-relaxed text-[--ink-muted]">
-                      {skill.description}
-                    </p>
-                  )}
-
-                  {skill.tags.length > 0 && (
-                    <ul className="mt-4 flex flex-wrap gap-1.5">
-                      {skill.tags.map((tag) => (
-                        <li key={tag}>
-                          <Link
-                            href={`/tags/${tag}`}
-                            className="rounded-full bg-[--surface-sunken] px-2.5 py-1 font-mono text-[11px] text-[--ink-muted] transition-colors hover:text-[--accent]"
-                          >
-                            {tag}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  <div className="mt-5 flex items-center justify-between gap-3">
-                    <Link
-                      href={`/creators/${skill.owner}`}
-                      className="truncate text-xs text-[--ink-muted] hover:text-[--accent]"
-                    >
-                      @{skill.owner}
-                    </Link>
+                  }
+                  actions={
                     <button
                       type="button"
                       disabled={busyId === skill.id}
                       onClick={() => void download(skill)}
-                      className="shrink-0 rounded-lg border border-[--line] bg-[--surface-raised] px-3.5 py-2 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-50"
+                      className="rounded-lg border border-[--line] bg-[--surface-raised] px-3.5 py-2 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-50"
                     >
                       Download .md
                     </button>
-                  </div>
-                </li>
+                  }
+                />
               ))}
             </ul>
 

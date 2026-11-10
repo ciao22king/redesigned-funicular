@@ -82,16 +82,7 @@ export default async function TagPage({ params }: { params: Promise<Params> }) {
             </Link>
           </div>
         ) : (
-          <SkillGrid
-            skills={data.skills.map((s) => ({
-              id: s.id,
-              owner: s.owner,
-              name: s.name,
-              description: s.description,
-              tags: s.tags,
-              stars: s.stars,
-            }))}
-          />
+          <SkillGrid skills={data.skills} />
         )}
 
         <p className="mt-12 text-sm text-[--ink-muted]">

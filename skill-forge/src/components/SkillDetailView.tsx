@@ -253,16 +253,7 @@ export function SkillDetailView({ data, base }: { data: SkillPageData; base: str
         <section aria-label="Related skills" className="mt-12">
           <div className="hairline mb-8" />
           <h2 className="font-display text-xl font-semibold text-[--ink]">Related skills</h2>
-          <SkillGrid
-            skills={related.map((s) => ({
-              id: s.id,
-              owner: s.owner,
-              name: s.name,
-              description: s.description,
-              tags: s.tags,
-              stars: s.stars,
-            }))}
-          />
+          <SkillGrid skills={related} />
         </section>
       )}
 

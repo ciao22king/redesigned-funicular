@@ -225,16 +225,7 @@ export default async function CreatorPage({ params }: { params: Promise<Params> 
             <h2 className="font-display text-xl font-semibold text-[--ink]">
               Skills by @{username}
             </h2>
-            <SkillGrid
-              skills={skills.map((s) => ({
-                id: s.id,
-                owner: s.owner,
-                name: s.name,
-                description: s.description,
-                tags: s.tags,
-                stars: s.stars,
-              }))}
-            />
+            <SkillGrid skills={skills} />
 
             <div className="mt-12 flex flex-wrap items-center justify-between gap-4">
               <p className="text-sm text-[--ink-muted]">

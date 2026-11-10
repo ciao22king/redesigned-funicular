@@ -175,16 +175,7 @@ async function SkillsIndex() {
             </Link>
           </div>
         ) : (
-          <SkillGrid
-            skills={skills.map((s) => ({
-              id: s.id,
-              owner: s.owner,
-              name: s.name,
-              description: s.description,
-              tags: s.tags,
-              stars: s.stars,
-            }))}
-          />
+          <SkillGrid skills={skills} />
         )}
 
         <p className="mt-12 text-sm text-[--ink-muted]">
@@ -257,16 +248,7 @@ async function CategoryPage({ id }: { id?: string }) {
             </Link>
           </div>
         ) : (
-          <SkillGrid
-            skills={skills.map((s) => ({
-              id: s.id,
-              owner: s.owner,
-              name: s.name,
-              description: s.description,
-              tags: s.tags,
-              stars: s.stars,
-            }))}
-          />
+          <SkillGrid skills={skills} />
         )}
 
         <nav aria-label="Other categories" className="mt-12 flex flex-wrap gap-2">

@@ -68,3 +68,37 @@ export async function readRole(login: string, injected?: D1Like): Promise<Role> 
     return fallback;
   }
 }
+
+/**
+ * The roles of many logins at once, keyed by login.
+ *
+ * A page of skill cards needs a role per author; one query returns the
+ * `first_seen` dates and the rule is applied in memory, exactly as `readRole`
+ * does. A login with no row — or a failed read — falls back to the role the
+ * account would get signing up now, so the map always answers for every login
+ * asked about.
+ */
+export async function rolesFor(
+  logins: string[],
+  injected?: D1Like,
+): Promise<Map<string, Role>> {
+  const out = new Map<string, Role>();
+  const wanted = [...new Set(logins.filter(isLogin))];
+  for (const login of wanted) out.set(login, roleForSignup(login, Date.now()));
+  if (wanted.length === 0) return out;
+
+  try {
+    const database = await getDatabase(injected);
+    const placeholders = wanted.map(() => '?').join(',');
+    const result = await database
+      .prepare(`SELECT login, first_seen FROM users WHERE login IN (${placeholders})`)
+      .bind(...wanted)
+      .all<{ login: string; first_seen: string }>();
+    for (const row of result.results ?? []) {
+      if (row.first_seen) out.set(row.login, roleForSignup(row.login, row.first_seen));
+    }
+  } catch {
+    // Keep the sign-up-time fallbacks already in the map.
+  }
+  return out;
+}
