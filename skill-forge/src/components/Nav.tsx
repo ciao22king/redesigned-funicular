@@ -38,6 +38,12 @@ export function Nav() {
             Marketplace
           </Link>
           <Link
+            href="/creators"
+            className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+          >
+            Creators
+          </Link>
+          <Link
             href="/tags"
             className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
           >
@@ -115,6 +121,16 @@ export function Nav() {
                     >
                       My skills
                     </Link>
+                    {session?.user?.login && (
+                      <Link
+                        href={`/creators/${session.user.login}`}
+                        role="menuitem"
+                        onClick={() => setMenu(false)}
+                        className="block rounded-md px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+                      >
+                        My public profile
+                      </Link>
+                    )}
                     <button
                       type="button"
                       role="menuitem"
@@ -171,6 +187,13 @@ export function Nav() {
               className="rounded-lg px-3 py-3 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken]"
             >
               Marketplace
+            </Link>
+            <Link
+              href="/creators"
+              onClick={() => setMobile(false)}
+              className="rounded-lg px-3 py-3 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+            >
+              Creators
             </Link>
             <Link
               href="/tags"

@@ -71,6 +71,57 @@ export async function featuredSkills(
   return pickFeatured(candidates, limit);
 }
 
+export interface CreatorSummaryRow {
+  owner: string;
+  published: number;
+  stars: number;
+  updatedAt: string;
+}
+
+/**
+ * One row per author, with their totals, in a single query.
+ *
+ * The creators directory needs every author's numbers at once, so aggregating
+ * in SQL avoids a query per profile. Ordered by stars so the most interesting
+ * creators come first.
+ */
+export async function creatorSummaries(
+  limit = 500,
+  injected?: D1Like,
+): Promise<CreatorSummaryRow[]> {
+  const database = await getDatabase(injected);
+  const result = await database
+    .prepare(
+      `SELECT owner, COUNT(*) AS published, COALESCE(SUM(stars), 0) AS stars, MAX(updated_at) AS updated_at
+       FROM skills GROUP BY owner ORDER BY stars DESC, owner ASC LIMIT ?`,
+    )
+    .bind(Math.min(Math.max(limit, 1), 5000))
+    .all<{ owner: string; published: number; stars: number; updated_at: string }>();
+  return (result.results ?? []).map((row) => ({
+    owner: row.owner,
+    published: Number(row.published) || 0,
+    stars: Number(row.stars) || 0,
+    updatedAt: row.updated_at,
+  }));
+}
+
+/**
+ * When the author last touched their published work: the newest `updated_at`
+ * across their skills. Returns null when they have none, so the profile shows
+ * nothing rather than a bogus date.
+ */
+export async function creatorLastActivity(
+  owner: string,
+  injected?: D1Like,
+): Promise<string | null> {
+  const database = await getDatabase(injected);
+  const row = await database
+    .prepare('SELECT MAX(updated_at) AS last FROM skills WHERE owner = ?')
+    .bind(owner)
+    .first<{ last: string | null }>();
+  return row?.last ?? null;
+}
+
 /** True if any of the author's skills is currently featured. */
 export async function isFeaturedAuthor(
   owner: string,

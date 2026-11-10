@@ -50,7 +50,7 @@ export function SkillGrid({ skills }: { skills: SkillCardItem[] }) {
           )}
 
           <div className="mt-5 flex items-center justify-between gap-3 text-xs text-[--ink-muted]">
-            <Link href={`/u/${skill.owner}`} className="truncate hover:text-[--accent]">
+            <Link href={`/creators/${skill.owner}`} className="truncate hover:text-[--accent]">
               @{skill.owner}
             </Link>
             <span aria-label={`${skill.stars} stars`}>★ {skill.stars}</span>

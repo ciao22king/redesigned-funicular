@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { siteBase } from '@/lib/site-url';
-import { listOwners, listSkillRefs, tagCounts } from '@/lib/marketplace-db';
+import { listSkillRefs, tagCounts } from '@/lib/marketplace-db';
+import { listIndexableCreators } from '@/lib/profile-db';
 import { aggregateTags } from '@/lib/marketplace';
 
 // Per request: the skills come from D1, bound on the Worker only at runtime.
@@ -14,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/demo',
     '/pre-program',
     '/marketplace',
+    '/creators',
     '/tags',
     '/use-cases',
     '/changelog',
@@ -40,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const [refs, tags, owners] = await Promise.all([
       listSkillRefs(),
       tagCounts().then((rows) => aggregateTags(rows)),
-      listOwners(),
+      listIndexableCreators(),
     ]);
 
     skillEntries = refs.map((r) => ({
@@ -58,8 +60,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
 
     authorEntries = owners.map((o) => ({
-      url: `${base}/u/${o.owner}`,
-      lastModified: o.updated_at ? new Date(o.updated_at) : lastModified,
+      url: `${base}/creators/${o.login}`,
+      lastModified: o.updatedAt ? new Date(o.updatedAt) : lastModified,
       changeFrequency: 'weekly' as const,
       priority: 0.5,
     }));

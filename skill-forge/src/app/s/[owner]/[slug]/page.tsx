@@ -112,7 +112,7 @@ export default async function SkillPage({ params }: { params: Promise<Params> })
             </p>
           )}
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[--ink-muted]">
-            <Link href={`/u/${owner}`} className="text-[--accent] underline underline-offset-2">
+            <Link href={`/creators/${owner}`} className="text-[--accent] underline underline-offset-2">
               @{owner}
             </Link>
             <span>★ {skill.stars}</span>

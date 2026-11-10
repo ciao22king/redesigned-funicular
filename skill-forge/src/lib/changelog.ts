@@ -22,6 +22,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-10',
+    kind: 'new',
+    title: 'Public creator profiles',
+    body: 'Every author now has a page at /creators with an avatar, a bio, their links, badges and the skills they published, with totals for downloads and stars. You can edit your own name, bio, avatar and links from the dashboard; the author name on every card links to it.',
+  },
+  {
     date: '2026-11-05',
     kind: 'new',
     title: 'We now measure where people stop, without following you',

@@ -285,7 +285,7 @@ export default function MarketplacePage() {
 
                   <div className="mt-5 flex items-center justify-between gap-3">
                     <Link
-                      href={`/u/${skill.owner}`}
+                      href={`/creators/${skill.owner}`}
                       className="truncate text-xs text-[--ink-muted] hover:text-[--accent]"
                     >
                       @{skill.owner}

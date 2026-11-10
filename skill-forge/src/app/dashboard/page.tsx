@@ -12,6 +12,7 @@ import {
 } from '@/lib/localstore';
 import { PrivacySettings } from '@/components/PrivacySettings';
 import { CreatorStats } from '@/components/CreatorStats';
+import { ProfileEditor } from '@/components/ProfileEditor';
 import { RoleBadge } from '@/components/RoleBadge';
 
 export default function Dashboard() {
@@ -145,6 +146,10 @@ export default function Dashboard() {
         <div className="hairline my-10" />
 
         <CreatorStats />
+
+        <div className="hairline my-10" />
+
+        <ProfileEditor />
 
         <div className="hairline my-10" />
 

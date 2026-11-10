@@ -12,7 +12,15 @@
  */
 
 /** Actions worth a permanent line. Kept as a closed set so the column stays clean. */
-export const AUDIT_ACTIONS = ['publish', 'unpublish', 'report', 'star', 'unstar'] as const;
+export const AUDIT_ACTIONS = [
+  'publish',
+  'unpublish',
+  'report',
+  'star',
+  'unstar',
+  'profile.update',
+  'profile.report',
+] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export interface AuditEvent {
