@@ -2024,3 +2024,19 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   `withinPreProgram`/`preProgramCutoff` in `src/lib/preProgram.ts`.
 - `ratelimit` ora prende il **ruolo** (non il login): `readQuota/consumeQuota(login, role, kv)`.
 - Deploy `6f32bc88` (commit `f16b7ce`). 293 test.
+
+## skill-forge - profili creator pubblici (2026-11-10)
+- Nuove rotte: `/creators` (directory) e `/creators/[username]` (profilo: avatar,
+  nome, @login, bio, badge, link social, stats, griglia skill). `/u/[owner]` ora
+  **redirige** lì. Editor in dashboard -> `/api/me/profile` (GET/POST, scope =
+  login di sessione). Report profilo -> `/api/profile/report`.
+- **Invarianti**: i numeri del profilo NON si memorizzano (derivati da
+  `creatorStats`); i badge si **guadagnano** (founding=data account, verified=flag
+  moderazione, top author=≥5 skill e ≥50 stelle, featured=skill in homepage).
+  Regole in `src/lib/profile.ts`. Profili vuoti/sospesi fuori da directory,
+  sitemap e indicizzazione, ma la pagina risponde.
+- Migration `0010_profiles.sql` (`profiles`, `profile_reports`). Logica pura
+  testata: `tests/profile.test.ts`, `tests/profile-db.test.ts`. 319 test.
+- Commit `ccfa023`; **NON deployata**: in questo container non c'è un token
+  Cloudflare valido (vedi `2026-11-10.md`). Manca: `wrangler d1 migrations apply
+  --remote` + `npm run deploy` (NON `npx opennextjs-cloudflare deploy` nudo).
