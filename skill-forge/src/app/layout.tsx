@@ -82,6 +82,13 @@ export const viewport: Viewport = {
 
 // Site-wide structured data: tells search engines what this site is and which
 // name to use for it, so the sitelinks/knowledge panel has a canonical entity.
+const socialProfiles = [
+  'https://www.instagram.com/editbydrix/',
+  'https://www.tiktok.com/@editbydrix',
+  'https://x.com/ImADev22',
+  'https://dev.to/imadev22',
+];
+
 const siteJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -94,6 +101,7 @@ const siteJsonLd = {
     '@type': 'Organization',
     name: legal.siteName,
     url: legal.siteUrl,
+    sameAs: socialProfiles,
   },
 };
 
