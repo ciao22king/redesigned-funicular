@@ -2037,6 +2037,11 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   sitemap e indicizzazione, ma la pagina risponde.
 - Migration `0010_profiles.sql` (`profiles`, `profile_reports`). Logica pura
   testata: `tests/profile.test.ts`, `tests/profile-db.test.ts`. 319 test.
-- Commit `ccfa023`; **NON deployata**: in questo container non c'è un token
-  Cloudflare valido (vedi `2026-11-10.md`). Manca: `wrangler d1 migrations apply
-  --remote` + `npm run deploy` (NON `npx opennextjs-cloudflare deploy` nudo).
+- **DEPLOYATA** (version `c96f6b0c`). Migration `0010_profiles.sql` applicata al
+  D1 remoto. Live: `/creators` 200, `/u/<owner>` → 308, sitemap + JSON-LD ok.
+- **Login Cloudflare in questo container = `npx wrangler login --device`** (OAuth
+  Device Grant). Il flusso normale usa un callback su `localhost:8976` che il
+  browser dell'utente non raggiunge; il token `cfut_`/`cfat_` è inutile. Con
+  l'OAuth salvato basta `CLOUDFLARE_ACCOUNT_ID` (niente `CLOUDFLARE_API_TOKEN`).
+- Deploy: `npm run deploy` (NON `npx opennextjs-cloudflare deploy` nudo). Next 16:
+  per un redirect 308 serve `permanentRedirect()` (redirect nudo = 307).
