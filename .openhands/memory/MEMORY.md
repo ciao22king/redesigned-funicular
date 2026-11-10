@@ -2072,3 +2072,15 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   Live: `/skills`, `/skills/<owner>/<slug>`, `/skills/category/<id>` 200;
   `/skills/<slug>` e `/s/...` 308; skill inesistente 404. JSON-LD `@graph` =
   CreativeWork + Person + BreadcrumbList (piu' il `WebSite` del layout).
+
+## skill-forge - mail custom = Cloudflare Email Routing (2026-11-10)
+- La zona `skillforge.cc.cd` usa **Cloudflare Email Routing**, non ImprovMX.
+  Destinazione verificata `ciao22king@gmail.com`. **Il catch-all era disattivato
+  con azione `drop`** = perche' "non arrivavano le mail": attivato via
+  `PUT /zones/<z>/email/routing/rules/catch_all`. Ora `*@skillforge.cc.cd` ->
+  Gmail. Non aggiungere i record ImprovMX: sostituirebbero le MX Cloudflare e
+  romperebbero la ricezione (SPF misto = spam).
+- **Credenziali DNS: negate.** L'OAuth di Wrangler ha `zone:read`, non write:
+  `dns_records` -> 403. Il secret `$Cloudflare` e' un placeholder. Per il DNS
+  serve un API token con Zone:DNS:Edit. `email_routing:write` invece c'e'.
+- Email Routing = solo ricezione; per inviare serve SMTP/Email Sending.
