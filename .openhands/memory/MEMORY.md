@@ -2084,3 +2084,25 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   `dns_records` -> 403. Il secret `$Cloudflare` e' un placeholder. Per il DNS
   serve un API token con Zone:DNS:Edit. `email_routing:write` invece c'e'.
 - Email Routing = solo ricezione; per inviare serve SMTP/Email Sending.
+
+## skill-forge - card delle skill, un componente condiviso (2026-11-10)
+- `SkillCard` (`src/components/SkillCard.tsx`) e' **presentazionale** (niente
+  accesso dati): lo usano sia le griglie server sia il marketplace client. Un
+  `<a>` non annida `<a>`: l'autore e' un link **separato** dal titolo, e l'hover
+  sull'autore rivela "View author profile" (`group/author`). Il marketplace
+  inietta stella e Download come **slot** (`starControl`, `actions`).
+- `src/lib/skill-cards.ts` -> `skillCardsFor()`: **5 query per pagina, non per
+  card** (`profilesFor`, `creatorStatsFor`, `featuredOwners`, `rolesFor`,
+  `downloadsForSkills` — le ultime 4 nuove). Ogni fonte degrada da sola.
+  `cardBadges()` riusa `publicProfileBadges()` e **taglia a 3**:
+  featured > top-author > verified > founding.
+- `SkillGrid` e' ora **async** e prende `SkillSummary[]` (niente mappa a mano
+  nei call site). `/api/marketplace` arricchisce le card (`SkillCardData` +
+  `starred`). Version `3861899b`, commit `197bb4d`. 355 test.
+
+## Setup agente Cloudflare (2026-11-10, ri-eseguito)
+- `npx -y skills add cloudflare/skills --skill '*' --yes --global` -> 22 skill
+  in `~/.agents/skills/` + symlink in `~/.openhands/skills/`; MCP `cloudflare`
+  in `~/.agents/mcp.json`. **Sempre `< /dev/null`**: in background senza stdin
+  il processo va in stato `T` (SIGTTIN) e sembra bloccato per sempre.
+- CLI opzionale `cf` (beta) NON installata: il prompt chiede di domandarlo prima.
