@@ -5,10 +5,13 @@ import { Providers } from '@/components/Providers';
 import { VisitTracker } from '@/components/VisitTracker';
 import { legal } from '@/lib/legal';
 
-// Cloudflare Web Analytics: aggregate, cookieless page views. The token is a
-// public site tag, safe in the client bundle like GITHUB_ID. Empty disables the
-// beacon (for example on a local build).
-const ANALYTICS_TOKEN = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN ?? '9d40be2ece8d4cb0be14e47e1c2f2039';
+// Cloudflare Web Analytics: aggregate, cookieless page views. This is the
+// skillforge.cc.cd site *token*, not its site tag — the tag is not a beacon
+// credential and the collector rejects it, which is why the dashboard stayed
+// empty. The beacon posts to this zone's own /cdn-cgi/rum, the ingestion path
+// for a zone-proxied site. Empty disables the beacon (for example on a local
+// build).
+const ANALYTICS_TOKEN = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN ?? 'd0f7addd4052409cbb0f1e496ce8fc56';
 
 // Display: variable serif with character, not Inter, not Roboto
 const display = Fraunces({
@@ -119,7 +122,12 @@ export default function RootLayout({
           <script
             defer
             src="https://static.cloudflareinsights.com/beacon.min.js"
-            data-cf-beacon={JSON.stringify({ token: ANALYTICS_TOKEN })}
+            data-cf-beacon={JSON.stringify({
+              token: ANALYTICS_TOKEN,
+              // A zone-proxied site ingests RUM first-party; the beacon's
+              // default third-party collector rejects this token.
+              send: { to: '/cdn-cgi/rum' },
+            })}
           />
         ) : null}
       </body>
