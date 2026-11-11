@@ -2138,3 +2138,24 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   di validazione. Ora `adminIdentity(req)` si risolve per prima, si risponde
   sempre `403 Not allowed.`, e l'identita' gia' risolta si passa a
   `guardAdminAction` (che la riusa) per non decodificare la sessione due volte.
+
+## skill-forge - promozione: automazione social, canali e IndexNow (2026-11-11)
+- **Automazione `daily-social`** id `31537c81-515c-4e22-b1c7-169fa35f48cc`,
+  cron `0 9 * * *` Europe/Rome, LinkedIn + Pinterest. Era **disabilitata a mano**
+  (2026-11-10) **e rotta**: i run cron davano `HTTP 400` perche' il refresh token
+  Composio nel KV era `invalid_grant`. Riattivata con
+  `PATCH /api/automation/v1/{id}` `{"enabled": true}`; token riparato ruotando
+  dal locale e facendo `PUT .../kv/composio?automation_id={id}`.
+  **Il body del PUT e' l'oggetto nudo `{client_id, refresh_token}`, NON
+  `{"value": ...}`** (altrimenti 200 ma valore annidato/vuoto).
+- **Canali Composio attivi**: linkedin, pinterest, instagram, youtube ×2
+  (**stesso canale `EditByDrix`**), reddit, devto (imadev22), discord, gmail.
+  `upload_post` ha la **chiave scaduta** (401). **La quota YouTube e' condivisa
+  per progetto Composio**, non per account: cambiare account non aggira il
+  limite di upload giornaliero.
+- **Instagram**: 4 post con la stessa caption -> nuovo angolo in
+  `.skill-forge-deploy/ig/skillforge_ig2.jpg` ("A prompt is not a skill").
+- **IndexNow**: chiave `cd40f79ff1814c27ac068bd08a746c48` servita come `.txt`
+  alla radice; invio sitemap (18 URL) a indexnow.org/bing/yandex/seznam/naver
+  -> tutti accettati. **`urllib` con UA di default prende 403 da Cloudflare**:
+  usare un UA esplicito.
