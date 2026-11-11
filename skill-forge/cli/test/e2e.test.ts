@@ -159,4 +159,11 @@ describe('CLI end-to-end', () => {
     assert.equal(parsed.login, 'tester');
     assert.equal(parsed.quota.limit, 3);
   });
+
+  test('browse senza un terminale non si blocca e suggerisce list', async () => {
+    // Nel runner il processo non ha un TTY: `browse` deve accorgersene e
+    // uscire, invece di restare in attesa di tasti che non arriveranno mai.
+    const code = await main(['browse', '--url', baseUrl]);
+    assert.equal(code, 1);
+  });
 });

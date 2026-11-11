@@ -67,11 +67,30 @@ The token is only needed by the commands that write (`generate`, `publish`,
 | `whoami` | Authenticated user and remaining quota |
 | `generate` | Generate a skill (from files or from scratch) |
 | `publish` | Publish a skill to the marketplace |
+| `browse` / `ui` | Browse the marketplace interactively, with the mouse |
 | `list` / `search` | Search and browse the marketplace |
 | `show <id>` | Detail of a skill, markdown included |
 | `pull <id>` | Download a skill as a `.md` file |
 | `star <id>` | Star or unstar a skill |
 | `delete <id>` | Delete one of your skills |
+
+## Interactive browser
+
+`skill-forge browse` opens the marketplace in a full-screen view you drive with
+the keyboard or the mouse. It is for reading, not scripting: `list` and `pull`
+stay the commands to use in a pipe.
+
+- Arrow keys or `j`/`k` move, `PgUp`/`PgDn`, `Home`/`End` jump.
+- `Enter` opens the selected skill, or toggles the section under the cursor.
+- Click a row to open it; click a section title to open or close that section.
+- The wheel scrolls the list and the document.
+- `/` searches, `Esc` goes back, `?` shows the help, `q` quits.
+
+Inside a skill the document is cut at its `##` headings: each section is one
+clickable line, open or closed on demand, so a long skill stays navigable.
+
+The view needs a real terminal. In a pipe it stops with a message pointing at
+`list` instead of waiting for keys that will never arrive.
 
 ### Global options
 

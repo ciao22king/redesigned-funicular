@@ -45,6 +45,7 @@ function help(): void {
   info('  --url <url>       Service URL (default: the public worker)');
   info('  --token <token>   GitHub token (default: config, $SKILL_FORGE_TOKEN or `gh auth token`)');
   info(`\n${color.bold('EXAMPLES')}`);
+  info('  skill-forge browse');
   info('  skill-forge login');
   info('  skill-forge generate -f note.md -o skill.md');
   info('  cat notes.txt | skill-forge generate > skill.md');
