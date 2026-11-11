@@ -2159,3 +2159,29 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   alla radice; invio sitemap (18 URL) a indexnow.org/bing/yandex/seznam/naver
   -> tutti accettati. **`urllib` con UA di default prende 403 da Cloudflare**:
   usare un UA esplicito.
+
+## skill-forge - generate rotto dai reasoning token + CLI interattiva (2026-11-11)
+- **`generate` andava in 502 per tutti**: la causa e' che i token di
+  **reasoning** si scalano da `max_tokens`. Con `MAX_OUTPUT_TOKENS=2400` e un
+  modello a effort *high* il budget finiva mentre pensava → risposta vuota →
+  il validatore la chiamava "missing essential sections". Fix: inviare
+  `reasoning: { effort: "medium" }`, alzare il cap a **8000**, esporre
+  `finish_reason` per diagnosticare la troncatura. Commit `c7375a3`.
+  **`effort: "none"` non si puo' usare**: `liquid` e `recursive/flint` hanno
+  reasoning `mandatory` e lo rifiutano.
+- **La var deployata `OPENROUTER_MODELS` scavalca la lista nel codice**: dopo
+  il deploy va aggiornata/rimossa, altrimenti la scala nel codice e' inerte.
+- **`scripts/check-models.mjs`** verifica la scala contro il catalogo live
+  (un id era gia' stato ritirato in silenzio due volte).
+- **CLI `browse`** (commit `e331b30`): TUI con mouse, zero dipendenze runtime,
+  110 test. `layout.ts` e' condiviso da renderer e hit-test, quindi un click
+  colpisce per costruzione cio' che quella riga disegna.
+- **Verifica visiva senza display**: driver `pty` in Python + mini-emulatore
+  ANSI (griglia da sequenze ANSI). E' l'unico modo che ha trovato i bug reali
+  della TUI (mouse che non cambiava schermata, ridisegno mancante dopo load
+  async, Invio nella ricerca, `q`/`?` ignorati, rotellina che muoveva il
+  cursore invece di scorrere).
+- **`tmux kill-server` uccide la sessione dell'agente** (stesso server):
+  usare un socket isolato con `-S`.
+- **Deploy**: `$Cloudflare` invalido; `npx wrangler login --device` da' un
+  codice a 5 minuti su `dash.cloudflare.com/oauth2/device/verify`.
