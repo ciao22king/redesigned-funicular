@@ -1,12 +1,12 @@
 import {
-  getSkill,
+  getPublicSkill,
   getSkillBySlug,
   listVersions,
   relatedSkills,
 } from './marketplace-db';
 import { skillId, toSummary, toDetail } from './marketplace';
 import { skillCounters } from './metrics-db';
-import { creatorStats, isFeaturedAuthor } from './creator-db';
+import { creatorStats, isFeaturedAuthor, manualBadgesFor } from './creator-db';
 import { getProfile } from './profile-db';
 import { readRole } from './users-db';
 import { avatarFor, displayNameFor, publicProfileBadges, socialLinksFor } from './profile';
@@ -30,19 +30,23 @@ export async function loadSkillPage(
   if (!OWNER_RE.test(owner) || !slug) return null;
   try {
     const id = skillId(owner, slug);
-    const row = await getSkill(id);
+    // Public read: a skill the operator rejected or removed resolves to null,
+    // so its page answers 404 like any other missing skill.
+    const row = await getPublicSkill(id);
     if (!row) return null;
 
     const detail = toDetail(row);
-    const [profile, stats, featured, counters, versions, relatedRows, role] = await Promise.all([
-      getProfile(owner),
-      creatorStats(owner),
-      isFeaturedAuthor(owner),
-      skillCounters(id).catch(() => ({ downloads: 0, copies: 0 })),
-      listVersions(id).catch(() => []),
-      relatedSkills({ id, tags: detail.tags, category: detail.category }, 8).catch(() => []),
-      readRole(owner),
-    ]);
+    const [profile, stats, featured, counters, versions, relatedRows, role, manual] =
+      await Promise.all([
+        getProfile(owner),
+        creatorStats(owner),
+        isFeaturedAuthor(owner),
+        skillCounters(id).catch(() => ({ downloads: 0, copies: 0 })),
+        listVersions(id).catch(() => []),
+        relatedSkills({ id, tags: detail.tags, category: detail.category }, 8).catch(() => []),
+        readRole(owner),
+        manualBadgesFor([owner]).catch(() => new Map<string, string[]>()),
+      ]);
 
     const related = pickRelated(
       relatedRows.map((r) => toSummary(r)),
@@ -66,6 +70,7 @@ export async function loadSkillPage(
         founding: role === 'founding_tester' || role === 'owner',
         verified: profile.verified,
         featured,
+        manual: manual.get(owner) ?? [],
       }),
       authorLinks: socialLinksFor(owner, profile),
     };

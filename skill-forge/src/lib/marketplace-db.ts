@@ -29,7 +29,16 @@ async function db(injected?: D1Like): Promise<D1Like> {
 }
 
 const COLUMNS =
-  'id, slug, owner, name, description, markdown, tags, stars, category, created_at, updated_at';
+  'id, slug, owner, name, description, markdown, tags, stars, category, status, created_at, updated_at';
+
+/**
+ * The clause that limits a read to publicly visible skills.
+ *
+ * Moderation is a filter, not a delete: a rejected or removed skill keeps its
+ * row (and its versions and stars) and only stops being listed. Putting the
+ * condition in one constant means every public read applies the same rule.
+ */
+const PUBLIC = "status = 'published'";
 
 export interface ListOptions {
   query?: string;
@@ -37,8 +46,21 @@ export interface ListOptions {
   owner?: string;
   tag?: string;
   category?: string;
+  /**
+   * Moderation status to include. Defaults to `published`, so every public
+   * storefront read shows only approved skills; the admin panel passes `all`
+   * to see everything. This default is the single place that keeps a rejected
+   * skill out of the marketplace, the tags and the search at once.
+   */
+  status?: string;
   limit?: number;
   offset?: number;
+}
+
+/** The clause that hides non-published skills, or nothing when `status` is `all`. */
+function statusClause(status: string | undefined): { sql: string; params: string[] } {
+  if (status === 'all') return { sql: '', params: [] };
+  return { sql: 'status = ?', params: [status || 'published'] };
 }
 
 /** List for the storefront. Without `markdown`, which is the heavy field. */
@@ -47,10 +69,16 @@ export async function listSkills(
   injected?: D1Like,
 ): Promise<SkillRow[]> {
   const database = await db(injected);
-  const { query = '', sort = 'recent', owner, tag, category, limit = 60, offset = 0 } = options;
+  const { query = '', sort = 'recent', owner, tag, category, status, limit = 60, offset = 0 } = options;
 
   const conditions: string[] = [];
   const params: unknown[] = [];
+
+  const byStatus = statusClause(status);
+  if (byStatus.sql) {
+    conditions.push(byStatus.sql);
+    params.push(...byStatus.params);
+  }
 
   if (owner) {
     conditions.push('owner = ?');
@@ -95,7 +123,7 @@ export async function listSkillRefs(
 ): Promise<{ id: string; updated_at: string }[]> {
   const database = await db(injected);
   const result = await database
-    .prepare('SELECT id, updated_at FROM skills ORDER BY created_at DESC LIMIT ?')
+    .prepare(`SELECT id, updated_at FROM skills WHERE ${PUBLIC} ORDER BY created_at DESC LIMIT ?`)
     .bind(Math.min(Math.max(limit, 1), 10000))
     .all<{ id: string; updated_at: string }>();
   return result.results ?? [];
@@ -115,7 +143,7 @@ export async function getSkillBySlug(
 ): Promise<SkillRow | null> {
   const database = await db(injected);
   const result = await database
-    .prepare(`SELECT ${COLUMNS} FROM skills WHERE slug = ? LIMIT 2`)
+    .prepare(`SELECT ${COLUMNS} FROM skills WHERE slug = ? AND ${PUBLIC} LIMIT 2`)
     .bind(slug)
     .all<SkillRow>();
   const rows = result.results ?? [];
@@ -128,7 +156,7 @@ export async function categoryCounts(
 ): Promise<{ category: string; count: number }[]> {
   const database = await db(injected);
   const result = await database
-    .prepare('SELECT category, COUNT(*) AS n FROM skills GROUP BY category')
+    .prepare(`SELECT category, COUNT(*) AS n FROM skills WHERE ${PUBLIC} GROUP BY category`)
     .all<{ category: string; n: number }>();
   return (result.results ?? []).map((r) => ({
     category: r.category || 'other',
@@ -150,7 +178,7 @@ export async function relatedSkills(
   injected?: D1Like,
 ): Promise<SkillRow[]> {
   const database = await db(injected);
-  const conditions: string[] = ['id != ?'];
+  const conditions: string[] = ['id != ?', PUBLIC];
   const params: unknown[] = [current.id];
 
   const tagConditions: string[] = [];
@@ -178,7 +206,7 @@ export async function listOwners(
   const database = await db(injected);
   const result = await database
     .prepare(
-      'SELECT owner, MAX(updated_at) AS updated_at FROM skills GROUP BY owner ORDER BY owner LIMIT ?',
+      `SELECT owner, MAX(updated_at) AS updated_at FROM skills WHERE ${PUBLIC} GROUP BY owner ORDER BY owner LIMIT ?`,
     )
     .bind(Math.min(Math.max(limit, 1), 10000))
     .all<{ owner: string; updated_at: string }>();
@@ -187,12 +215,18 @@ export async function listOwners(
 
 /** Counts the skills matching the filters, for pagination. */
 export async function countSkills(
-  options: Pick<ListOptions, 'query' | 'owner' | 'tag' | 'category'> = {},
+  options: Pick<ListOptions, 'query' | 'owner' | 'tag' | 'category' | 'status'> = {},
   injected?: D1Like,
 ): Promise<number> {
   const database = await db(injected);
   const conditions: string[] = [];
   const params: unknown[] = [];
+
+  const byStatus = statusClause(options.status);
+  if (byStatus.sql) {
+    conditions.push(byStatus.sql);
+    params.push(...byStatus.params);
+  }
 
   if (options.owner) {
     conditions.push('owner = ?');
@@ -233,13 +267,13 @@ export async function tagCounts(
 ): Promise<{ tags: string }[]> {
   const database = await db(injected);
   const result = await database
-    .prepare('SELECT tags FROM skills LIMIT ?')
+    .prepare(`SELECT tags FROM skills WHERE ${PUBLIC} LIMIT ?`)
     .bind(Math.min(Math.max(limit, 1), 20000))
     .all<{ tags: string }>();
   return result.results ?? [];
 }
 
-/** A single skill, with the markdown body. */
+/** A single skill, with the markdown body. Any status: for the author and the admin. */
 export async function getSkill(
   id: string,
   injected?: D1Like,
@@ -249,6 +283,38 @@ export async function getSkill(
     .prepare(`SELECT ${COLUMNS} FROM skills WHERE id = ?`)
     .bind(id)
     .first<SkillRow>();
+}
+
+/**
+ * A skill the public may see: `published` only.
+ *
+ * The download and the skill page go through here, so a rejected skill stops
+ * being served the moment its status changes, without its row disappearing for
+ * the author or the operator.
+ */
+export async function getPublicSkill(
+  id: string,
+  injected?: D1Like,
+): Promise<SkillRow | null> {
+  const database = await db(injected);
+  return database
+    .prepare(`SELECT ${COLUMNS} FROM skills WHERE id = ? AND ${PUBLIC}`)
+    .bind(id)
+    .first<SkillRow>();
+}
+
+/** Sets a skill's moderation status. Returns false when the skill is missing. */
+export async function setSkillStatus(
+  id: string,
+  status: string,
+  injected?: D1Like,
+): Promise<boolean> {
+  const database = await db(injected);
+  const result = (await database
+    .prepare('UPDATE skills SET status = ? WHERE id = ?')
+    .bind(status, id)
+    .run()) as { meta?: { changes?: number } } | undefined;
+  return Number(result?.meta?.changes ?? 0) > 0;
 }
 
 /**

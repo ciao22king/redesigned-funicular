@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 import { loginForToken, readBearer } from './github-token';
 import { readRole, recordUser } from './users-db';
 import { isLogin } from './users';
+import { isAdmin } from './admin';
 import type { Role } from './roles';
 
 export const authOptions: NextAuthOptions = {
@@ -61,6 +62,10 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.login = token.login as string | undefined;
         session.user.role = token.role as Role | undefined;
+        // A display-only flag: it decides whether the Nav shows the Admin link.
+        // The panel and the API still check the login themselves on every
+        // request, so a forged session could not open them.
+        session.user.admin = isAdmin(token.login as string | undefined);
       }
       return session;
     },

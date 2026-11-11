@@ -32,10 +32,10 @@ function fakeD1() {
           return stmt;
         },
         async all() {
-          if (/FROM profiles WHERE suspended = 1/i.test(sql)) {
+          if (/FROM profiles WHERE suspended = 1 OR banned = 1/i.test(sql)) {
             return {
               results: [...profiles.values()]
-                .filter((p) => Number(p.suspended) === 1)
+                .filter((p) => Number(p.suspended) === 1 || Number(p.banned) === 1)
                 .map((p) => ({ login: p.login })),
             };
           }
@@ -45,7 +45,7 @@ function fakeD1() {
               results: [...profiles.values()].filter((p) => wanted.has(p.login as string)),
             };
           }
-          if (/FROM skills GROUP BY owner/i.test(sql)) {
+          if (/FROM skills WHERE status = 'published' GROUP BY owner/i.test(sql)) {
             const out: { login: string; updated_at: string }[] = [];
             for (const [owner, rows] of skills) {
               const updated = rows.map((r) => r.updated_at).sort().at(-1) ?? '';
@@ -65,22 +65,16 @@ function fakeD1() {
         },
         async run() {
           if (/INSERT INTO profiles/i.test(sql)) {
-            const [login, display_name, bio, avatar_url, x, linkedin, youtube, website, newsletter, updated_at] =
-              params as string[];
-            profiles.set(login, {
-              login,
-              display_name,
-              bio,
-              avatar_url,
-              x,
-              linkedin,
-              youtube,
-              website,
-              newsletter,
-              verified: profiles.get(login)?.verified ?? 0,
-              suspended: profiles.get(login)?.suspended ?? 0,
-              updated_at,
+            const login = params[0] as string;
+            const existing = profiles.get(login) ?? { login };
+            // Map the bound values to the columns named in the statement, so the
+            // partial admin setters (verified, suspended, banned, socials) work.
+            const columns = /\(([^)]*)\)/.exec(sql)?.[1].split(',').map((c) => c.trim()) ?? [];
+            const next: Record<string, unknown> = { ...existing };
+            columns.forEach((col, i) => {
+              next[col] = params[i];
             });
+            profiles.set(login, next);
             return { meta: { changes: 1 } };
           }
           if (/INSERT OR IGNORE INTO profile_reports/i.test(sql)) {

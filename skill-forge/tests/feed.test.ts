@@ -18,6 +18,7 @@ function skill(over: Partial<SkillSummary> = {}): SkillSummary {
     tags: [],
     stars: 0,
     category: 'code',
+    status: 'published',
     createdAt: '2026-11-06T10:00:00.000Z',
     updatedAt: '2026-11-06T10:00:00.000Z',
     ...over,

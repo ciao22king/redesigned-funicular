@@ -13,6 +13,10 @@
     "GITHUB_ID": "Ov23li3WNZ0SwllP72tP",
     // Owner logins: operator access (the /stats dashboard) and no quota.
     "UNLIMITED_LOGINS": "ciao22king",
+    // Admin panel access: a closed list, checked by login, never by role.
+    // Defaults to the owner if unset; kept explicit here so the panel's door is
+    // visible in the deploy config and not only in the code.
+    "ADMIN_LOGINS": "ciao22king",
     // Founding testers: a badge and a raised daily quota (5/day), no operator
     // access. The perk is decided at sign-up from the account's creation date,
     // so anyone who creates an account on or before the deadline keeps it. This

@@ -86,6 +86,10 @@ export interface CreatorProfile {
   newsletter: string;
   verified: boolean;
   suspended: boolean;
+  /** Stronger than suspended: the account-level sanction. */
+  banned: boolean;
+  /** Social keys the operator confirmed, in a stable order. */
+  verifiedSocials: SocialKey[];
   /** False when the person has never saved a profile: the defaults are in use. */
   hasRow: boolean;
   updatedAt: string;
@@ -105,9 +109,25 @@ export function emptyProfile(login: string): CreatorProfile {
     newsletter: '',
     verified: false,
     suspended: false,
+    banned: false,
+    verifiedSocials: [],
     hasRow: false,
     updatedAt: '',
   };
+}
+
+/**
+ * Reads the stored `verified_socials` column into a list of known keys.
+ *
+ * Unknown keys are dropped, so a hand-edited column cannot make the page render
+ * a link the code does not know about.
+ */
+export function parseVerifiedSocials(value: string | undefined): SocialKey[] {
+  const known = new Set<string>(SOCIAL_KEYS);
+  return (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry): entry is SocialKey => known.has(entry));
 }
 
 const HAS_SCHEME = /^https?:\/\//i;
@@ -229,11 +249,26 @@ export function socialLinksFor(
 // ---------------------------------------------------------------------------
 
 export interface PublicProfileBadge {
-  id: 'founding' | 'verified' | 'top-author' | 'featured';
+  id: 'founding' | 'verified' | 'top-author' | 'featured' | ManualBadgeId;
   label: string;
   description: string;
   /** `strong` wears the accent; `quiet` is a bordered pill like the role badge. */
   tone: 'strong' | 'quiet';
+}
+
+/**
+ * Badges an operator may grant by hand, beyond the ones a creator earns.
+ *
+ * A closed set, so the stored value stays queryable and a granted badge has one
+ * meaning. The earned badges (founding, verified, top author, featured) are not
+ * in this list: they are derived from facts, never granted, so they cannot be
+ * handed out and cannot drift from the numbers.
+ */
+export const MANUAL_BADGE_IDS = ['staff', 'early-supporter', 'expert', 'partner'] as const;
+export type ManualBadgeId = (typeof MANUAL_BADGE_IDS)[number];
+
+export function isManualBadgeId(value: unknown): value is ManualBadgeId {
+  return typeof value === 'string' && (MANUAL_BADGE_IDS as readonly string[]).includes(value);
 }
 
 /** A body of published work the community has actually starred. */
@@ -268,7 +303,40 @@ const BADGE = {
     description: 'One of their skills is on the homepage.',
     tone: 'strong',
   },
-} satisfies Record<PublicProfileBadge['id'], PublicProfileBadge>;
+} satisfies Record<Exclude<PublicProfileBadge['id'], ManualBadgeId>, PublicProfileBadge>;
+
+/** Labels for the badges an operator grants by hand. */
+export const MANUAL_BADGES: Record<ManualBadgeId, PublicProfileBadge> = {
+  staff: {
+    id: 'staff',
+    label: 'Staff',
+    description: 'Works on Skill Forge.',
+    tone: 'strong',
+  },
+  'early-supporter': {
+    id: 'early-supporter',
+    label: 'Early supporter',
+    description: 'Backed the project in its first days.',
+    tone: 'quiet',
+  },
+  expert: {
+    id: 'expert',
+    label: 'Expert',
+    description: 'Recognised for depth in their field.',
+    tone: 'strong',
+  },
+  partner: {
+    id: 'partner',
+    label: 'Partner',
+    description: 'An official partner of Skill Forge.',
+    tone: 'strong',
+  },
+};
+
+/** The manual badge with this id, or null when it is not one. */
+export function manualBadge(id: string): PublicProfileBadge | null {
+  return isManualBadgeId(id) ? MANUAL_BADGES[id] : null;
+}
 
 /**
  * The badges shown on a public profile, in a fixed order.
@@ -280,13 +348,17 @@ const BADGE = {
  */
 export function publicProfileBadges(
   stats: CreatorStats,
-  opts: { founding?: boolean; verified?: boolean; featured?: boolean } = {},
+  opts: { founding?: boolean; verified?: boolean; featured?: boolean; manual?: string[] } = {},
 ): PublicProfileBadge[] {
   const badges: PublicProfileBadge[] = [];
   if (opts.founding) badges.push(BADGE.founding);
   if (opts.verified) badges.push(BADGE.verified);
   if (isTopAuthor(stats)) badges.push(BADGE['top-author']);
   if (opts.featured) badges.push(BADGE.featured);
+  for (const id of opts.manual ?? []) {
+    const badge = manualBadge(id);
+    if (badge) badges.push(badge);
+  }
   return badges;
 }
 
@@ -298,8 +370,12 @@ export function publicProfileBadges(
  * account. The page itself still answers, so a link someone already has keeps
  * working.
  */
-export function isProfileIndexable(input: { published: number; suspended: boolean }): boolean {
-  return input.published > 0 && !input.suspended;
+export function isProfileIndexable(input: {
+  published: number;
+  suspended: boolean;
+  banned?: boolean;
+}): boolean {
+  return input.published > 0 && !input.suspended && !input.banned;
 }
 
 // ---------------------------------------------------------------------------

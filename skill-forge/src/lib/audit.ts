@@ -20,6 +20,16 @@ export const AUDIT_ACTIONS = [
   'unstar',
   'profile.update',
   'profile.report',
+  // Operator area. One action per kind of change, so the trail says what was
+  // done and not only that "something" was done.
+  'admin.login',
+  'admin.creator.verify',
+  'admin.creator.social',
+  'admin.creator.badge',
+  'admin.creator.status',
+  'admin.skill.status',
+  'admin.report.status',
+  'admin.export',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

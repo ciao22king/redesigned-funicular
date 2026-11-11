@@ -1,6 +1,7 @@
 import { getDatabase, type D1Like } from './d1';
 import { FEATURED_MIN_STARS, pickFeatured, type CreatorStats, type FeaturedCandidate } from './creator';
 import { toSummary } from './marketplace';
+import { isLogin } from './users';
 
 /**
  * D1 access for the creator programme.
@@ -18,7 +19,7 @@ export async function creatorStats(
   const database = await getDatabase(injected);
 
   const row = await database
-    .prepare('SELECT COUNT(*) AS published, COALESCE(SUM(stars), 0) AS stars FROM skills WHERE owner = ?')
+    .prepare(`SELECT COUNT(*) AS published, COALESCE(SUM(stars), 0) AS stars FROM skills WHERE owner = ? AND status = 'published'`)
     .bind(owner)
     .first<{ published: number; stars: number }>();
 
@@ -27,7 +28,7 @@ export async function creatorStats(
   const downloadsRow = await database
     .prepare(
       `SELECT COALESCE(SUM(count), 0) AS n FROM metrics
-       WHERE event = 'download' AND target IN (SELECT id FROM skills WHERE owner = ?)`,
+       WHERE event = 'download' AND target IN (SELECT id FROM skills WHERE owner = ? AND status = 'published')`,
     )
     .bind(owner)
     .first<{ n: number }>();
@@ -51,7 +52,7 @@ export async function featuredSkills(
   const database = await getDatabase(injected);
   const result = await database
     .prepare(
-      'SELECT id, slug, owner, name, description, markdown, tags, stars, created_at, updated_at FROM skills WHERE stars >= ? ORDER BY stars DESC, id ASC LIMIT ?',
+      'SELECT id, slug, owner, name, description, markdown, tags, stars, category, status, created_at, updated_at FROM skills WHERE stars >= ? AND status = \'published\' ORDER BY stars DESC, id ASC LIMIT ?',
     )
     .bind(FEATURED_MIN_STARS, Math.min(Math.max(limit * 4, 12), 40))
     .all<Parameters<typeof toSummary>[0]>();
@@ -93,7 +94,7 @@ export async function creatorSummaries(
   const result = await database
     .prepare(
       `SELECT owner, COUNT(*) AS published, COALESCE(SUM(stars), 0) AS stars, MAX(updated_at) AS updated_at
-       FROM skills GROUP BY owner ORDER BY stars DESC, owner ASC LIMIT ?`,
+       FROM skills WHERE status = 'published' GROUP BY owner ORDER BY stars DESC, owner ASC LIMIT ?`,
     )
     .bind(Math.min(Math.max(limit, 1), 5000))
     .all<{ owner: string; published: number; stars: number; updated_at: string }>();
@@ -116,7 +117,7 @@ export async function creatorLastActivity(
 ): Promise<string | null> {
   const database = await getDatabase(injected);
   const row = await database
-    .prepare('SELECT MAX(updated_at) AS last FROM skills WHERE owner = ?')
+    .prepare(`SELECT MAX(updated_at) AS last FROM skills WHERE owner = ? AND status = 'published'`)
     .bind(owner)
     .first<{ last: string | null }>();
   return row?.last ?? null;
@@ -129,7 +130,7 @@ export async function isFeaturedAuthor(
 ): Promise<boolean> {
   const database = await getDatabase(injected);
   const row = await database
-    .prepare('SELECT 1 AS ok FROM skills WHERE owner = ? AND stars >= ? LIMIT 1')
+    .prepare("SELECT 1 AS ok FROM skills WHERE owner = ? AND stars >= ? AND status = 'published' LIMIT 1")
     .bind(owner, FEATURED_MIN_STARS)
     .first<{ ok: number }>();
   return Boolean(row);
@@ -158,8 +159,8 @@ export async function creatorStatsFor(
       `SELECT s.owner AS owner, COUNT(*) AS published, COALESCE(SUM(s.stars), 0) AS stars,
               COALESCE((SELECT SUM(m.count) FROM metrics m
                         WHERE m.event = 'download' AND m.target IN
-                          (SELECT id FROM skills WHERE owner = s.owner)), 0) AS downloads
-       FROM skills s WHERE s.owner IN (${placeholders}) GROUP BY s.owner`,
+                          (SELECT id FROM skills WHERE owner = s.owner AND status = 'published')), 0) AS downloads
+       FROM skills s WHERE s.owner IN (${placeholders}) AND s.status = 'published' GROUP BY s.owner`,
     )
     .bind(...wanted)
     .all<{ owner: string; published: number; stars: number; downloads: number }>();
@@ -191,9 +192,89 @@ export async function featuredOwners(
   const placeholders = wanted.map(() => '?').join(',');
   const result = await database
     .prepare(
-      `SELECT DISTINCT owner FROM skills WHERE owner IN (${placeholders}) AND stars >= ?`,
+      `SELECT DISTINCT owner FROM skills WHERE owner IN (${placeholders}) AND stars >= ? AND status = 'published'`,
     )
     .bind(...wanted, FEATURED_MIN_STARS)
     .all<{ owner: string }>();
   return new Set((result.results ?? []).map((r) => r.owner));
+}
+
+// ---------------------------------------------------------------------------
+// Manual badges (granted by the operator)
+// ---------------------------------------------------------------------------
+
+/**
+ * Manual badges granted to a set of logins, keyed by login.
+ *
+ * One grouped query for a page of creators, like `creatorStatsFor`: the badge
+ * list on a creator row must not cost a query per row.
+ */
+export async function manualBadgesFor(
+  logins: string[],
+  injected?: D1Like,
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  const wanted = [...new Set(logins.filter(Boolean))];
+  if (wanted.length === 0) return out;
+
+  const database = await getDatabase(injected);
+  const placeholders = wanted.map(() => '?').join(',');
+  const result = await database
+    .prepare(
+      `SELECT login, badge FROM creator_badges WHERE login IN (${placeholders}) ORDER BY badge`,
+    )
+    .bind(...wanted)
+    .all<{ login: string; badge: string }>();
+
+  for (const row of result.results ?? []) {
+    const list = out.get(row.login) ?? [];
+    list.push(row.badge);
+    out.set(row.login, list);
+  }
+  return out;
+}
+
+/** Grants a badge to a creator. Idempotent: granting twice keeps one row. */
+export async function grantBadge(
+  login: string,
+  badge: string,
+  grantedBy: string,
+  injected?: D1Like,
+): Promise<boolean> {
+  if (!isLogin(login)) return false;
+  try {
+    const database = await getDatabase(injected);
+    await database
+      .prepare(
+        `INSERT INTO creator_badges (login, badge, granted_by, granted_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(login, badge) DO UPDATE SET
+           granted_by = excluded.granted_by,
+           granted_at = excluded.granted_at`,
+      )
+      .bind(login, badge, grantedBy, new Date().toISOString())
+      .run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Revokes a badge. Returns false when the creator did not have it. */
+export async function revokeBadge(
+  login: string,
+  badge: string,
+  injected?: D1Like,
+): Promise<boolean> {
+  if (!isLogin(login)) return false;
+  try {
+    const database = await getDatabase(injected);
+    const result = (await database
+      .prepare('DELETE FROM creator_badges WHERE login = ? AND badge = ?')
+      .bind(login, badge)
+      .run()) as { meta?: { changes?: number } } | undefined;
+    return Number(result?.meta?.changes ?? 0) > 0;
+  } catch {
+    return false;
+  }
 }

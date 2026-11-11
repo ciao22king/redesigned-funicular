@@ -1,6 +1,12 @@
 import { getDatabase, type D1Like } from './d1';
 import { isLogin } from './users';
-import { emptyProfile, type CreatorProfile, type NormalizedProfile, type NormalizedProfileReport } from './profile';
+import {
+  emptyProfile,
+  parseVerifiedSocials,
+  type CreatorProfile,
+  type NormalizedProfile,
+  type NormalizedProfileReport,
+} from './profile';
 
 /**
  * D1 access for the public profiles.
@@ -22,6 +28,8 @@ interface ProfileRow {
   newsletter: string;
   verified: number;
   suspended: number;
+  banned: number;
+  verified_socials: string;
   updated_at: string;
 }
 
@@ -38,13 +46,15 @@ function toProfile(row: ProfileRow): CreatorProfile {
     newsletter: row.newsletter,
     verified: Number(row.verified) === 1,
     suspended: Number(row.suspended) === 1,
+    banned: Number(row.banned) === 1,
+    verifiedSocials: parseVerifiedSocials(row.verified_socials),
     hasRow: true,
     updatedAt: row.updated_at,
   };
 }
 
 const COLUMNS =
-  'login, display_name, bio, avatar_url, x, linkedin, youtube, website, newsletter, verified, suspended, updated_at';
+  'login, display_name, bio, avatar_url, x, linkedin, youtube, website, newsletter, verified, suspended, banned, verified_socials, updated_at';
 
 /**
  * A profile, or the defaults when the row does not exist yet.
@@ -112,21 +122,107 @@ export async function saveProfile(
 }
 
 /**
- * Logins whose profile is suspended.
+ * Logins whose profile is hidden from discovery: suspended or banned.
  *
  * The directory and the sitemap list authors from the `skills` table; this set
- * is subtracted from them so a suspended profile disappears from discovery
+ * is subtracted from them so a moderated profile disappears from discovery
  * while its own page keeps working.
  */
 export async function suspendedLogins(injected?: D1Like): Promise<Set<string>> {
   try {
     const database = await getDatabase(injected);
     const result = await database
-      .prepare('SELECT login FROM profiles WHERE suspended = 1')
+      .prepare('SELECT login FROM profiles WHERE suspended = 1 OR banned = 1')
       .all<{ login: string }>();
     return new Set((result.results ?? []).map((r) => r.login));
   } catch {
     return new Set();
+  }
+}
+
+/**
+ * Sets the two moderation flags on a profile.
+ *
+ * The row is created if it does not exist yet, because a ban must be possible
+ * before the person ever edits their profile. The other fields keep their
+ * defaults on first insert, and an existing row is only touched in the two
+ * flag columns.
+ */
+export async function setProfileModeration(
+  login: string,
+  flags: { suspended: boolean; banned: boolean },
+  injected?: D1Like,
+  now = new Date().toISOString(),
+): Promise<boolean> {
+  if (!isLogin(login)) return false;
+  try {
+    const database = await getDatabase(injected);
+    await database
+      .prepare(
+        `INSERT INTO profiles (login, suspended, banned, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(login) DO UPDATE SET
+           suspended = excluded.suspended,
+           banned    = excluded.banned,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(login, flags.suspended ? 1 : 0, flags.banned ? 1 : 0, now)
+      .run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Sets the `verified` flag on a profile, creating the row if needed. */
+export async function setProfileVerified(
+  login: string,
+  verified: boolean,
+  injected?: D1Like,
+  now = new Date().toISOString(),
+): Promise<boolean> {
+  if (!isLogin(login)) return false;
+  try {
+    const database = await getDatabase(injected);
+    await database
+      .prepare(
+        `INSERT INTO profiles (login, verified, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(login) DO UPDATE SET
+           verified   = excluded.verified,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(login, verified ? 1 : 0, now)
+      .run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Stores the comma-separated list of confirmed social keys for a profile. */
+export async function setVerifiedSocials(
+  login: string,
+  keys: string[],
+  injected?: D1Like,
+  now = new Date().toISOString(),
+): Promise<boolean> {
+  if (!isLogin(login)) return false;
+  try {
+    const database = await getDatabase(injected);
+    await database
+      .prepare(
+        `INSERT INTO profiles (login, verified_socials, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(login) DO UPDATE SET
+           verified_socials = excluded.verified_socials,
+           updated_at       = excluded.updated_at`,
+      )
+      .bind(login, keys.join(','), now)
+      .run();
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -171,7 +267,7 @@ export async function listIndexableCreators(
   const [owners, suspended] = await Promise.all([
     database
       .prepare(
-        'SELECT owner AS login, MAX(updated_at) AS updated_at FROM skills GROUP BY owner ORDER BY owner',
+        "SELECT owner AS login, MAX(updated_at) AS updated_at FROM skills WHERE status = 'published' GROUP BY owner ORDER BY owner",
       )
       .all<{ login: string; updated_at: string }>(),
     suspendedLogins(injected),
@@ -190,7 +286,7 @@ export async function hasPublishedSkills(
   try {
     const database = await getDatabase(injected);
     const row = await database
-      .prepare('SELECT 1 AS ok FROM skills WHERE owner = ? LIMIT 1')
+      .prepare("SELECT 1 AS ok FROM skills WHERE owner = ? AND status = 'published' LIMIT 1")
       .bind(login)
       .first<{ ok: number }>();
     return Boolean(row);

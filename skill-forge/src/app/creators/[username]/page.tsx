@@ -8,7 +8,7 @@ import { CreatorBadges } from '@/components/CreatorBadges';
 import { ProfileReport } from '@/components/ProfileReport';
 import { countSkills, listSkills } from '@/lib/marketplace-db';
 import { toSummary } from '@/lib/marketplace';
-import { creatorLastActivity, creatorStats, isFeaturedAuthor } from '@/lib/creator-db';
+import { creatorLastActivity, creatorStats, isFeaturedAuthor, manualBadgesFor } from '@/lib/creator-db';
 import { getProfile } from '@/lib/profile-db';
 import { readRole } from '@/lib/users-db';
 import {
@@ -19,6 +19,7 @@ import {
   publicProfileBadges,
   socialLinksFor,
 } from '@/lib/profile';
+import { creatorStatus, creatorStatusLabel } from '@/lib/admin';
 import { siteBase } from '@/lib/site-url';
 import { legal } from '@/lib/legal';
 
@@ -43,7 +44,7 @@ const OWNER_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 async function load(username: string) {
   if (!OWNER_RE.test(username)) return null;
   try {
-    const [profile, stats, featured, lastActivity, rows, total, role] = await Promise.all([
+    const [profile, stats, featured, lastActivity, rows, total, role, manual] = await Promise.all([
       getProfile(username),
       creatorStats(username),
       isFeaturedAuthor(username),
@@ -51,6 +52,7 @@ async function load(username: string) {
       listSkills({ owner: username, sort: 'recent', limit: 100 }),
       countSkills({ owner: username }),
       readRole(username),
+      manualBadgesFor([username]).catch(() => new Map<string, string[]>()),
     ]);
     if (total === 0) return null;
     return {
@@ -61,6 +63,7 @@ async function load(username: string) {
       lastActivity,
       total,
       role,
+      manual: manual.get(username) ?? [],
       skills: rows.map((r) => toSummary(r)),
     };
   } catch {
@@ -87,9 +90,13 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: `/creators/${username}` },
-    // A suspended profile must not be indexed, even though its page answers so
-    // that an existing link keeps working.
-    robots: isProfileIndexable({ published: data.total, suspended: data.profile.suspended })
+    // A suspended or banned profile must not be indexed, even though its page
+    // answers so that an existing link keeps working.
+    robots: isProfileIndexable({
+      published: data.total,
+      suspended: data.profile.suspended,
+      banned: data.profile.banned,
+    })
       ? undefined
       : { index: false, follow: false },
     openGraph: { type: 'profile', title, description, siteName: 'Skill Forge' },
@@ -109,8 +116,10 @@ export default async function CreatorPage({ params }: { params: Promise<Params> 
     founding: data.role === 'founding_tester' || data.role === 'owner',
     verified: profile.verified,
     featured: data.featured,
+    manual: data.manual,
   });
   const links = socialLinksFor(username, profile);
+  const hidden = creatorStatus(profile) !== 'active';
   const base = await siteBase();
 
   // Structured data: the same entity the JSON-LD on the site root names, with
@@ -140,13 +149,14 @@ export default async function CreatorPage({ params }: { params: Promise<Params> 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
 
-        {profile.suspended ? (
+        {hidden ? (
           <div className="rounded-2xl border border-[--line] bg-[--surface-raised] p-8">
             <h1 className="font-display text-2xl font-semibold text-[--ink]">
               This profile is unavailable
             </h1>
             <p className="mt-3 max-w-prose text-[--ink-muted]">
-              The profile of @{username} is not shown while it is under review. The
+              The profile of @{username} is not shown while it is{' '}
+              {creatorStatus(profile) === 'banned' ? 'banned' : 'under review'}. The
               published skills remain available from the marketplace.
             </p>
           </div>

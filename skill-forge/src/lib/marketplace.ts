@@ -226,6 +226,7 @@ export interface SkillRow {
   tags: string;
   stars: number;
   category: string;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -239,6 +240,7 @@ export interface SkillSummary {
   tags: string[];
   stars: number;
   category: string;
+  status: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -257,6 +259,7 @@ export function toSummary(row: SkillRow, starred = false): SkillSummary & { star
     tags: deserializeTags(row.tags),
     stars: Number(row.stars) || 0,
     category: row.category || 'other',
+    status: row.status || 'published',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     starred,

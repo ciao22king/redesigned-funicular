@@ -160,6 +160,7 @@ const ROW: SkillRow = {
   tags: 'git,review',
   stars: 7,
   category: 'code',
+  status: 'published',
   created_at: '2026-11-05T10:00:00.000Z',
   updated_at: '2026-11-05T11:00:00.000Z',
 };

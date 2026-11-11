@@ -313,6 +313,118 @@ export function secondsUntilReset(quota: Quota, now = Date.now()): number {
   return Math.max(0, Math.ceil((Date.parse(quota.resetsAt) - now) / 1000));
 }
 
+// ---------------------------------------------------------------------------
+// Generic fixed-window limiter
+// ---------------------------------------------------------------------------
+
+/**
+ * A fixed-window limiter, for the actions that are not the daily generation
+ * quota: the admin sign-in and the admin actions.
+ *
+ * A fixed window is the honest choice here. A rolling window would need a list
+ * of timestamps per key; the operator area is low-traffic, so the coarse bucket
+ * is enough, and the bucket boundary is visible to the caller through
+ * `resetsAt`, so a refusal always says when to retry.
+ */
+export interface WindowQuota {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetsAt: string;
+}
+
+/** Start of the window `now` falls in, and when it ends, for a window size. */
+export function windowBounds(
+  windowSeconds: number,
+  now = new Date(),
+): { bucket: number; resetsAt: string } {
+  const size = Math.max(1, Math.floor(windowSeconds));
+  const bucket = Math.floor(now.getTime() / 1000 / size);
+  return { bucket, resetsAt: new Date((bucket + 1) * size * 1000).toISOString() };
+}
+
+/**
+ * Consumes one slot in a fixed window. `name` namespaces the counter so two
+ * features never share a budget, and `id` is the thing being limited (an IP for
+ * the sign-in, a login for the actions).
+ *
+ * A missing KV binding allows the action: in `next dev` the limiter is not
+ * applicable, and in production the binding is always present.
+ */
+export async function consumeWindow(
+  name: string,
+  id: string,
+  limit: number,
+  windowSeconds: number,
+  kv?: KVNamespace,
+  now = new Date(),
+): Promise<WindowQuota> {
+  const { bucket, resetsAt } = windowBounds(windowSeconds, now);
+  const base: WindowQuota = { allowed: true, limit, remaining: limit, resetsAt };
+
+  const ns = kv ?? (await store());
+  if (!ns) return base;
+
+  const key = `w:${name}:${id}:${bucket}`;
+  const current = Number((await ns.get<Counter>(key, 'json'))?.count ?? 0);
+  if (current >= limit) {
+    return { ...base, allowed: false, remaining: 0 };
+  }
+
+  const count = current + 1;
+  // Two windows of TTL: always covers the current bucket with margin, so a
+  // counter written near the boundary is not evicted early.
+  await ns.put(key, JSON.stringify({ count }), {
+    expirationTtl: Math.max(60, windowSeconds * 2),
+  });
+  return { ...base, remaining: Math.max(0, limit - count) };
+}
+
+/** Sign-in attempts per address: generous for a human, tight for a script. */
+export const ADMIN_LOGIN_LIMIT = 8;
+export const ADMIN_LOGIN_WINDOW_SECONDS = 15 * 60;
+
+/** Sign-in attempts per address, for the public login callback. */
+export const LOGIN_LIMIT = 12;
+export const LOGIN_WINDOW_SECONDS = 15 * 60;
+
+export function consumeLogin(ip: string, kv?: KVNamespace): Promise<WindowQuota> {
+  return consumeWindow('login', ip || 'unknown', LOGIN_LIMIT, LOGIN_WINDOW_SECONDS, kv);
+}
+
+/** Sensitive admin actions per operator, so a mistake cannot be repeated fast. */
+export const ADMIN_ACTION_LIMIT = 60;
+export const ADMIN_ACTION_WINDOW_SECONDS = 60 * 60;
+
+export function consumeAdminLogin(
+  ip: string,
+  kv?: KVNamespace,
+): Promise<WindowQuota> {
+  return consumeWindow('admin-login', ip || 'unknown', ADMIN_LOGIN_LIMIT, ADMIN_LOGIN_WINDOW_SECONDS, kv);
+}
+
+export function consumeAdminAction(
+  login: string,
+  kv?: KVNamespace,
+): Promise<WindowQuota> {
+  return consumeWindow('admin-action', login, ADMIN_ACTION_LIMIT, ADMIN_ACTION_WINDOW_SECONDS, kv);
+}
+
+/** Rate-limit headers for a windowed quota, matching the daily ones. */
+export function windowHeaders(quota: WindowQuota): Record<string, string> {
+  const headers: Record<string, string> = {
+    'X-RateLimit-Limit': String(quota.limit),
+    'X-RateLimit-Remaining': String(quota.remaining),
+    'X-RateLimit-Reset': quota.resetsAt,
+  };
+  if (!quota.allowed) {
+    headers['Retry-After'] = String(
+      Math.max(0, Math.ceil((Date.parse(quota.resetsAt) - Date.now()) / 1000)),
+    );
+  }
+  return headers;
+}
+
 /**
  * A useful, actionable message for a spent quota.
  *

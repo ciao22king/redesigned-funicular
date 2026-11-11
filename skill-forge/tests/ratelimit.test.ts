@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ADMIN_ACTION_LIMIT,
+  ADMIN_LOGIN_LIMIT,
+  consumeAdminAction,
+  consumeAdminLogin,
   consumeDemoQuota,
+  consumeLogin,
   consumeMetricsQuota,
   consumeQuota,
   DAILY_LIMIT,
@@ -10,11 +15,13 @@ import {
   DEMO_DAILY_LIMIT,
   FOUNDING_DAILY_LIMIT,
   isUnlimited,
+  LOGIN_LIMIT,
   METRICS_DAILY_LIMIT,
   quotaMessage,
   rateLimitHeaders,
   readQuota,
   secondsUntilReset,
+  windowHeaders,
 } from '../src/lib/ratelimit';
 
 /** In-memory KV: the logic does not depend on Cloudflare to be tested. */
@@ -217,4 +224,52 @@ test('senza binding KV il beacon non viene bloccato', async () => {
   // In `next dev` non c'e' KV: il limite non si applica, come per le altre quote.
   const { allowed } = await consumeMetricsQuota('203.0.113.9', undefined as unknown as KVNamespace);
   assert.equal(allowed, true);
+});
+
+test('il limite a finestra blocca dopo il numero di tentativi consentiti', async () => {
+  const { ns, writes } = fakeKV();
+  for (let i = 0; i < LOGIN_LIMIT; i++) {
+    const { allowed } = await consumeLogin('203.0.113.10', ns);
+    assert.equal(allowed, true, `bloccato al giro ${i}`);
+  }
+  const blocked = await consumeLogin('203.0.113.10', ns);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.remaining, 0);
+  // Un altro indirizzo ha il suo budget, intatto.
+  assert.equal((await consumeLogin('203.0.113.11', ns)).allowed, true);
+  assert.ok(writes.every((k) => k.startsWith('w:login:')));
+});
+
+test('la finestra admin ha un budget separato da quella pubblica', async () => {
+  const { ns } = fakeKV();
+  // Esaurisce il budget pubblico, poi verifica che quello admin sia ancora pieno.
+  for (let i = 0; i < LOGIN_LIMIT; i++) await consumeLogin('203.0.113.12', ns);
+  assert.equal((await consumeLogin('203.0.113.12', ns)).allowed, false);
+  const admin = await consumeAdminLogin('203.0.113.12', ns);
+  assert.equal(admin.allowed, true);
+  assert.equal(admin.remaining, ADMIN_LOGIN_LIMIT - 1);
+});
+
+test('le azioni admin hanno un budget per operatore', async () => {
+  const { ns } = fakeKV();
+  for (let i = 0; i < ADMIN_ACTION_LIMIT; i++) {
+    assert.equal((await consumeAdminAction('ciao22king', ns)).allowed, true);
+  }
+  const blocked = await consumeAdminAction('ciao22king', ns);
+  assert.equal(blocked.allowed, false);
+  // Un altro operatore non e' toccato.
+  assert.equal((await consumeAdminAction('other', ns)).allowed, true);
+});
+
+test('senza binding KV il limite a finestra non blocca', async () => {
+  const { allowed } = await consumeLogin('203.0.113.13', undefined as unknown as KVNamespace);
+  assert.equal(allowed, true);
+});
+
+test('windowHeaders espone il reset e Retry-After solo quando bloccato', () => {
+  const open = windowHeaders({ allowed: true, limit: 12, remaining: 5, resetsAt: '2030-01-01T00:00:00.000Z' });
+  assert.equal(open['X-RateLimit-Limit'], '12');
+  assert.equal(open['Retry-After'], undefined);
+  const blocked = windowHeaders({ allowed: false, limit: 12, remaining: 0, resetsAt: '2030-01-01T00:00:00.000Z' });
+  assert.ok(Number(blocked['Retry-After']) > 0);
 });

@@ -6,6 +6,8 @@ declare module 'next-auth' {
     user?: {
       login?: string;
       role?: Role;
+      /** Display-only: whether the Nav shows the Admin link. */
+      admin?: boolean;
     } & DefaultSession['user'];
   }
 }

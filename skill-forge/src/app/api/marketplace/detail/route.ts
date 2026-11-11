@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
-import { getSkill, hasStar } from '@/lib/marketplace-db';
+import { getPublicSkill, hasStar } from '@/lib/marketplace-db';
 import { toDetail } from '@/lib/marketplace';
 import { recordMetrics } from '@/lib/metrics-db';
 import { normalizeBatch } from '@/lib/metrics';
@@ -12,6 +12,9 @@ export const maxDuration = 30;
 /**
  * Detail of a skill, with the markdown, for download and preview.
  * The id comes as `?id=owner/slug` so we do not have to encode the slash in the path.
+ *
+ * Only a `published` skill is served: a skill the operator rejected or removed
+ * stops being downloadable the moment its status changes.
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -23,7 +26,7 @@ export async function GET(req: NextRequest) {
   const { login } = await getServerAuth(req);
 
   try {
-    const row = await getSkill(id);
+    const row = await getPublicSkill(id);
     if (!row) {
       return NextResponse.json({ error: 'Skill not found.' }, { status: 404 });
     }
