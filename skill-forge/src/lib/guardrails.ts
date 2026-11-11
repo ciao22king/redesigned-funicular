@@ -12,8 +12,13 @@
 export const MAX_SOURCE_CHARS = 20_000;
 /** Cap on the individual fields of the "from scratch" mode. */
 export const MAX_FIELD_CHARS = 2_000;
-/** Cap on the tokens generated per response. */
-export const MAX_OUTPUT_TOKENS = 2_400;
+/**
+ * Cap on the tokens generated per response. Reasoning tokens are charged
+ * against this same budget, and every free model reasons: at the "medium"
+ * effort roughly half of it goes to thinking. A complete skill needs about
+ * 2,500 visible tokens, so the cap must leave room for both.
+ */
+export const MAX_OUTPUT_TOKENS = 8_000;
 /** Safety cap on the length of the returned markdown. */
 export const MAX_OUTPUT_CHARS = 24_000;
 

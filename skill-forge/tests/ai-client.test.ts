@@ -36,6 +36,11 @@ test('chiede il provider piu veloce e invia i parametri', async () => {
     assert.equal(body.provider.allow_fallbacks, true);
     assert.equal(body.max_tokens, 100);
     assert.equal(body.model, 'un/modello:free');
+    assert.equal(
+      body.reasoning.effort,
+      'medium',
+      'deve limitare il ragionamento, che consuma lo stesso budget dei token visibili',
+    );
 
     const headers = seen?.init.headers as Record<string, string>;
     assert.equal(headers.Authorization, 'Bearer chiave-di-prova');
@@ -49,6 +54,41 @@ test('una risposta di errore diventa un errore con lo stato', async () => {
   const restore = stubFetch(async () => new Response('limite superato', { status: 429 }));
   try {
     await assert.rejects(() => chatCompletion('un/modello:free', []), /HTTP 429/);
+  } finally {
+    restore();
+  }
+});
+
+test('il motivo di stop viene riportato al chiamante', async () => {
+  const restore = stubFetch(
+    async () =>
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'troncato' }, finish_reason: 'length' }],
+          usage: { total_tokens: 3 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+  );
+  try {
+    const result = await chatCompletion('un/modello:free', [], 0.4, 100);
+    assert.equal(result.finishReason, 'length');
+  } finally {
+    restore();
+  }
+});
+
+test('senza finish_reason il campo resta null', async () => {
+  const restore = stubFetch(
+    async () =>
+      new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+  );
+  try {
+    const result = await chatCompletion('un/modello:free', [], 0.4, 100);
+    assert.equal(result.finishReason, null);
   } finally {
     restore();
   }

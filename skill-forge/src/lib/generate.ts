@@ -128,7 +128,7 @@ export async function runGeneration(
     }
 
     try {
-      const { content: raw, usage } = await chatCompletion(
+      const { content: raw, usage, finishReason } = await chatCompletion(
         model,
         [
           { role: 'system', content: SYSTEM_PROMPT + GUARDRAIL_PROMPT },
@@ -138,6 +138,14 @@ export async function runGeneration(
         maxTokens,
         Math.min(ATTEMPT_TIMEOUT_MS, left),
       );
+
+      // A `length` stop means the budget ran out mid-reply: usually the model
+      // spent it all reasoning. Naming it here keeps the failure readable
+      // instead of surfacing as "missing essential sections".
+      if (finishReason === 'length') {
+        errors.push(`${model}: output truncated (token budget exhausted)`);
+        continue;
+      }
 
       const normalized = normalizeSkill(stripFences(raw));
       if (normalized.unresolved.length > 0) {

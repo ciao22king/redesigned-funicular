@@ -16,10 +16,27 @@ export interface ChatMessage {
 export interface ChatResult {
   content: string;
   usage: unknown;
+  /**
+   * Why the model stopped. `length` means the token budget ran out, which is
+   * how a reasoning model reports having spent everything on thinking: without
+   * it a truncated reply is indistinguishable from an empty one.
+   */
+  finishReason: string | null;
 }
 
 /** Timeout per attempt: a slow model must not block the request. */
 export const ATTEMPT_TIMEOUT_MS = 25_000;
+
+/**
+ * Reasoning effort sent to OpenRouter. Every free model now reasons before
+ * answering, and the reasoning tokens are charged against `max_tokens`: at the
+ * default effort a model can spend almost the whole budget thinking and return
+ * an empty completion (OpenRouter reports it as `status: incomplete`).
+ * "medium" is accepted by every model in the ladder, including the ones that
+ * declare reasoning as mandatory and reject "none". Override with
+ * OPENROUTER_REASONING_EFFORT, or set it to "" to omit the field entirely.
+ */
+export const REASONING_EFFORT = (process.env.OPENROUTER_REASONING_EFFORT ?? 'medium').trim();
 
 export async function chatCompletion(
   model: string,
@@ -56,6 +73,9 @@ export async function chatCompletion(
         // `sort: throughput` makes OpenRouter pick the provider that serves the
         // model with the lowest latency, instead of the default (price).
         provider: { sort: 'throughput', allow_fallbacks: true },
+        // Keep the thinking short enough to leave room for the document inside
+        // `max_tokens`. Omitted when the override is set to an empty string.
+        ...(REASONING_EFFORT ? { reasoning: { effort: REASONING_EFFORT } } : {}),
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
       }),
     });
@@ -73,16 +93,21 @@ export async function chatCompletion(
     throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
   }
 
-  let data: { choices?: { message?: { content?: string } }[]; usage?: unknown };
+  let data: {
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
+    usage?: unknown;
+  };
   try {
     data = JSON.parse(text);
   } catch {
     throw new Error(`non-JSON response: ${text.slice(0, 200)}`);
   }
 
+  const choice = data.choices?.[0];
   return {
-    content: data.choices?.[0]?.message?.content ?? '',
+    content: choice?.message?.content ?? '',
     usage: data.usage ?? null,
+    finishReason: choice?.finish_reason ?? null,
   };
 }
 
@@ -99,7 +124,6 @@ export const MODELS: string[] = (
     'liquid/lfm-2.5-2.6b:free', // the smallest: near-immediate answer
     'google/gemma-4-26b-a4b-it:free',
     'cohere/north-mini-code:free',
-    'xingchen-agi/xing4.0-29b-a4b:free',
     'recursive/flint-v1.0:free',
     'nvidia/nemotron-3.5-lightning:free',
     'google/gemma-4-31b-it:free',
