@@ -2128,3 +2128,13 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   `session.user.admin` (flag di sola visualizzazione).
 - `npx eslint` **va in timeout** e non c'e' config eslint: verificare con
   `npx tsc --noEmit` + `next build` + `opennextjs-cloudflare build`.
+- **Deployato** (version `809733af`, commit `ab39a93`). Migration `0012` applicata;
+  la `0011` era gia' sul DB ma **non registrata** in `d1_migrations`, quindi
+  inserita a mano prima di `migrations apply`. `skill_versions`/`category`
+  esistono dal 10/11 ma senza riga di registro: controllare `pragma_table_info`
+  prima di applicare una migration arretrata.
+- **Guard prima del body**: le route admin validavano il body e *poi*
+  chiamavano il guard, quindi un anonimo riceveva un 400 che elencava le regole
+  di validazione. Ora `adminIdentity(req)` si risolve per prima, si risponde
+  sempre `403 Not allowed.`, e l'identita' gia' risolta si passa a
+  `guardAdminAction` (che la riusa) per non decodificare la sessione due volte.
