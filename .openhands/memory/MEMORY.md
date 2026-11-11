@@ -2100,9 +2100,31 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   nei call site). `/api/marketplace` arricchisce le card (`SkillCardData` +
   `starred`). Version `3861899b`, commit `197bb4d`. 355 test.
 
-## Setup agente Cloudflare (2026-11-10, ri-eseguito)
+## Setup agente Cloudflare (ri-eseguito 2026-11-11)
 - `npx -y skills add cloudflare/skills --skill '*' --yes --global` -> 22 skill
   in `~/.agents/skills/` + symlink in `~/.openhands/skills/`; MCP `cloudflare`
-  in `~/.agents/mcp.json`. **Sempre `< /dev/null`**: in background senza stdin
-  il processo va in stato `T` (SIGTTIN) e sembra bloccato per sempre.
+  in `~/.agents/mcp.json` (**gia' committato** nel repo, schema agent-plugins,
+  `type: streamable-http`). **Sempre `< /dev/null`**: senza stdin il processo va
+  in stato `T` (SIGTTIN) e sembra bloccato per sempre.
 - CLI opzionale `cf` (beta) NON installata: il prompt chiede di domandarlo prima.
+- Il container si **riavvia spesso**: skill e symlink spariscono, vanno rifatti.
+- `$Cloudflare` = `CLOUDFLARE_API_TOKEN=cfut_...`: estrarre con `split()[-1]`,
+  ma **il token e' invalido** (`/user/tokens/verify` -> "Invalid API Token").
+  Per il deploy vale `npx wrangler login --device`.
+
+## skill-forge - pannello admin `/admin` (2026-11-11)
+- Commit `16276cd`. Logica pura in `src/lib/admin.ts` (lista chiusa
+  `ADMIN_LOGINS` ?? `UNLIMITED_LOGINS` ?? `ciao22king`; stati skill
+  `published|pending|rejected|removed` con **solo `published` pubblico**; standing
+  creator `active|suspended|banned`, il ban vince; `toCsv`/`csvEscape`).
+- `src/lib/admin-db.ts` + `admin-auth.ts` (guard) + `src/app/admin/**` +
+  `src/app/api/admin/{creators,skills,reports,export}`. Migration
+  `0012_admin.sql` (`skills.status`, `profiles.banned`, `verified_socials`,
+  `creator_badges`). Rate limit `consumeLogin` 12/15min per IP,
+  `consumeAdminAction` 60/h. `/admin` fuori da robots+sitemap, `X-Robots-Tag`
+  dal middleware. **372 test**.
+- **NON usare `NEXT_PUBLIC_*` per i `vars` di runtime**: su Workers sono
+  inlineati a build-time. Per il link Admin nella Nav si usa
+  `session.user.admin` (flag di sola visualizzazione).
+- `npx eslint` **va in timeout** e non c'e' config eslint: verificare con
+  `npx tsc --noEmit` + `next build` + `opennextjs-cloudflare build`.
