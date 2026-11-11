@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { guardAdminAction } from '@/lib/admin-auth';
+import { adminIdentity, guardAdminAction } from '@/lib/admin-auth';
 import {
   getProfile,
   setProfileModeration,
@@ -35,6 +35,10 @@ interface Body {
  * audit line through the guard, so the trail names the exact change.
  */
 export async function POST(req: NextRequest) {
+  // Identity first: an anonymous request is refused before its body is read.
+  const identity = await adminIdentity(req);
+  if (!identity) return NextResponse.json({ error: 'Not allowed.' }, { status: 403 });
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   switch (body.action) {
     case 'verify': {
-      const guard = await guardAdminAction(req, 'admin.creator.verify', login);
+      const guard = await guardAdminAction(req, 'admin.creator.verify', login, identity);
       if (!guard.ok) {
         return NextResponse.json({ error: guard.error }, { status: guard.status, headers: guard.headers });
       }
@@ -63,7 +67,7 @@ export async function POST(req: NextRequest) {
       if (!SOCIAL_KEYS.includes(key)) {
         return NextResponse.json({ error: 'Unknown social link.' }, { status: 400 });
       }
-      const guard = await guardAdminAction(req, 'admin.creator.social', `${login}:${key}`);
+      const guard = await guardAdminAction(req, 'admin.creator.social', `${login}:${key}`, identity);
       if (!guard.ok) {
         return NextResponse.json({ error: guard.error }, { status: guard.status, headers: guard.headers });
       }
@@ -82,7 +86,7 @@ export async function POST(req: NextRequest) {
       if (!isManualBadgeId(badge)) {
         return NextResponse.json({ error: 'Unknown badge.' }, { status: 400 });
       }
-      const guard = await guardAdminAction(req, 'admin.creator.badge', `${login}:${badge}`);
+      const guard = await guardAdminAction(req, 'admin.creator.badge', `${login}:${badge}`, identity);
       if (!guard.ok) {
         return NextResponse.json({ error: guard.error }, { status: guard.status, headers: guard.headers });
       }
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
       if (!isCreatorStatus(status)) {
         return NextResponse.json({ error: 'Unknown status.' }, { status: 400 });
       }
-      const guard = await guardAdminAction(req, 'admin.creator.status', `${login}:${status}`);
+      const guard = await guardAdminAction(req, 'admin.creator.status', `${login}:${status}`, identity);
       if (!guard.ok) {
         return NextResponse.json({ error: guard.error }, { status: guard.status, headers: guard.headers });
       }

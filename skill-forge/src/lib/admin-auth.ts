@@ -67,18 +67,23 @@ export interface AdminGuardFail {
  * Checks identity, then the action budget. On failure the caller returns the
  * given status and message; the message never says whether the login exists or
  * why access was refused beyond "not allowed", so the endpoint is not an oracle.
+ *
+ * `identity` may be passed in when the caller has already resolved it (to
+ * reject an anonymous request before parsing the body), so the session is not
+ * decoded twice.
  */
 export async function guardAdminAction(
   req: NextRequest,
   action: AuditAction,
   target: string,
+  identity?: AdminIdentity | null,
 ): Promise<AdminGuardOk | AdminGuardFail> {
-  const identity = await adminIdentity(req);
-  if (!identity) {
+  const who = identity === undefined ? await adminIdentity(req) : identity;
+  if (!who) {
     return { ok: false, status: 403, error: 'Not allowed.' };
   }
 
-  const quota: WindowQuota = await consumeAdminAction(identity.login);
+  const quota: WindowQuota = await consumeAdminAction(who.login);
   if (!quota.allowed) {
     return {
       ok: false,
@@ -89,13 +94,13 @@ export async function guardAdminAction(
   }
 
   await recordAudit({
-    actor: identity.login,
+    actor: who.login,
     action,
     target,
     ip: clientIp(req),
   });
 
-  return { ok: true, login: identity.login };
+  return { ok: true, login: who.login };
 }
 
 /** Rate-limits a sign-in attempt by address. Returns the headers to send back. */

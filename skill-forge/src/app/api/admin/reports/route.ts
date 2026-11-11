@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { guardAdminAction } from '@/lib/admin-auth';
+import { adminIdentity, guardAdminAction } from '@/lib/admin-auth';
 import { setProfileReportStatus, setReportStatus } from '@/lib/admin-db';
 
 export const runtime = 'nodejs';
@@ -22,6 +22,10 @@ interface Body {
  * action (on the skill or the creator) separately, and both are audited.
  */
 export async function POST(req: NextRequest) {
+  // Identity first: an anonymous request is refused before its body is read.
+  const identity = await adminIdentity(req);
+  if (!identity) return NextResponse.json({ error: 'Not allowed.' }, { status: 403 });
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unknown status.' }, { status: 400 });
   }
 
-  const guard = await guardAdminAction(req, 'admin.report.status', `${kind}:${id}:${status}`);
+  const guard = await guardAdminAction(req, 'admin.report.status', `${kind}:${id}:${status}`, identity);
   if (!guard.ok) {
     return NextResponse.json({ error: guard.error }, { status: guard.status, headers: guard.headers });
   }

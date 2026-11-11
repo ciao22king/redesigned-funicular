@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { guardAdminAction } from '@/lib/admin-auth';
+import { adminIdentity, guardAdminAction } from '@/lib/admin-auth';
 import { setSkillStatus } from '@/lib/marketplace-db';
 import { isSkillStatus } from '@/lib/admin';
 
@@ -20,6 +20,11 @@ interface Body {
  * skill recoverable and the audit trail meaningful.
  */
 export async function POST(req: NextRequest) {
+  // Identity first: an anonymous request is refused before its body is read, so
+  // the validation messages cannot be used to probe the endpoint.
+  const identity = await adminIdentity(req);
+  if (!identity) return NextResponse.json({ error: 'Not allowed.' }, { status: 403 });
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
@@ -36,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unknown status.' }, { status: 400 });
   }
 
-  const guard = await guardAdminAction(req, 'admin.skill.status', `${id}:${status}`);
+  const guard = await guardAdminAction(req, 'admin.skill.status', `${id}:${status}`, identity);
   if (!guard.ok) {
     return NextResponse.json({ error: guard.error }, { status: guard.status, headers: guard.headers });
   }
