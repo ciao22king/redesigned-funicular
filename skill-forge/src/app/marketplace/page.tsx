@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Nav } from '@/components/Nav';
 import { SkillCard } from '@/components/SkillCard';
 import { saveLocalSkill } from '@/lib/localstore';
+import { fetchSkillForDownload, saveMarkdownFile, SignInRequiredError } from '@/lib/skill-download';
 import type { SkillCardData } from '@/lib/skill-cards';
 
 interface CardItem extends SkillCardData {
@@ -104,31 +105,26 @@ export default function MarketplacePage() {
     setBusyId(skill.id);
     setNotice(null);
     try {
-      const res = await fetch(`/api/marketplace/detail?id=${encodeURIComponent(skill.id)}`);
-      const data = (await res.json()) as {
-        skill?: { markdown: string; name: string; description: string };
-        error?: string;
-      };
-      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Download failed');
+      const data = await fetchSkillForDownload(skill.id);
+      const markdown = data.markdown;
 
       // The downloaded skill also enters the local archive.
       saveLocalSkill({
-        markdown: data.skill.markdown,
-        name: data.skill.name,
-        description: data.skill.description,
+        markdown,
+        name: data.name,
+        description: data.description,
         source: 'imported',
       });
 
-      const blob = new Blob([data.skill.markdown], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${skill.id.split('/')[1]}.md`;
-      a.click();
-      URL.revokeObjectURL(url);
+      saveMarkdownFile(skill.id.split('/')[1] ?? 'skill', markdown);
       setNotice(`"${skill.name}" downloaded and saved locally.`);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Unknown error');
+      if (e instanceof SignInRequiredError) {
+        setNotice('Sign in with GitHub to download a skill.');
+        void signIn('github');
+      } else {
+        setNotice(e instanceof Error ? e.message : 'Unknown error');
+      }
     } finally {
       setBusyId(null);
     }

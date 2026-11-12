@@ -81,6 +81,11 @@ cat note.md | skill-forge generate --quiet | skill-forge publish --tags docker
 Generate, publish, search and download skills. Details in
 [`cli/README.md`](cli/README.md).
 
+Browsing the marketplace and reading any skill page needs no account. Taking
+the `.md` file does: the download route requires a GitHub sign-in, so the
+traffic stays tied to real people instead of anonymous scrapers. Copy and fork
+stay open.
+
 ## Run locally
 
 ```bash
@@ -226,6 +231,10 @@ src/
     ├── feedback-db.ts               D1 access for feedback
     ├── marketplace.ts               Pure marketplace logic (tags, sorting, validation)
     ├── marketplace-db.ts            D1 access for the marketplace
+    ├── messages.ts                  User-facing sentences shared by server and client
+    ├── providers.ts                 LLM providers (Groq, OpenRouter) and their model ladders
+    ├── fetch-with-timeout.ts        Client fetch with a deadline and a retry message
+    ├── skill-download.ts            Download a skill's markdown, with the sign-in rule
     └── skill.ts                     Slug, fences, frontmatter
 ```
 

@@ -15,6 +15,11 @@ export const maxDuration = 30;
  *
  * Only a `published` skill is served: a skill the operator rejected or removed
  * stops being downloadable the moment its status changes.
+ *
+ * Sign-in is required. The marketplace is free to browse — the list and every
+ * skill page are public — but taking the `.md` file needs a GitHub account.
+ * That keeps the KV and D1 traffic tied to identifiable people instead of
+ * anonymous scrapers, and it is the same account the generator already needs.
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -24,6 +29,12 @@ export async function GET(req: NextRequest) {
   }
 
   const { login } = await getServerAuth(req);
+  if (!login) {
+    return NextResponse.json(
+      { error: 'Sign in with GitHub to download a skill.', signInRequired: true },
+      { status: 401 },
+    );
+  }
 
   try {
     const row = await getPublicSkill(id);
@@ -34,7 +45,7 @@ export async function GET(req: NextRequest) {
     // Counted server-side with the skill id as target and no identifier: the
     // aggregate download count is what the creator stats show.
     await recordMetrics(normalizeBatch([{ event: 'download', target: id }]));
-    const starred = login ? await hasStar(id, login) : false;
+    const starred = await hasStar(id, login);
     return NextResponse.json({ skill: toDetail(row, starred) });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

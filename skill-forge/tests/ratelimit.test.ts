@@ -206,24 +206,39 @@ test('il messaggio di quota dice quando si azzera e cosa fare', () => {
 });
 
 test('il beacon metriche consuma la quota per IP e poi si blocca', async () => {
-  const { ns, writes } = fakeKV();
+  // Il beacon conta in memoria: nessun accesso a KV, che e' il punto del cambio.
+  const store = new Map<string, { count: number; expiresAt: number }>();
   for (let i = 0; i < METRICS_DAILY_LIMIT; i++) {
-    const { allowed } = await consumeMetricsQuota('203.0.113.7', ns);
+    const { allowed } = await consumeMetricsQuota('203.0.113.7', store);
     assert.equal(allowed, true, `bloccato al giro ${i}`);
   }
-  const blocked = await consumeMetricsQuota('203.0.113.7', ns);
+  const blocked = await consumeMetricsQuota('203.0.113.7', store);
   assert.equal(blocked.allowed, false);
   assert.equal(blocked.quota.remaining, 0);
   // Un altro IP non e' toccato dal limite del primo.
-  const other = await consumeMetricsQuota('203.0.113.8', ns);
+  const other = await consumeMetricsQuota('203.0.113.8', store);
   assert.equal(other.allowed, true);
-  assert.ok(writes.every((k) => k.startsWith('metrics:')));
+  assert.ok([...store.keys()].every((k) => k.startsWith('metrics:')));
 });
 
-test('senza binding KV il beacon non viene bloccato', async () => {
-  // In `next dev` non c'e' KV: il limite non si applica, come per le altre quote.
-  const { allowed } = await consumeMetricsQuota('203.0.113.9', undefined as unknown as KVNamespace);
+test('il beacon non tocca KV: lo store in memoria e sufficiente', async () => {
+  // Il beacon non riceve piu' un KVNamespace: la firma lo dimostra.
+  const { ns, writes } = fakeKV();
+  await consumeMetricsQuota('203.0.113.20');
+  assert.deepEqual(writes, [], 'il beacon non deve scrivere su KV');
+  // E il KV passato altrove non e' coinvolto.
+  assert.equal(typeof ns.get, 'function');
+});
+
+test('lo store del beacon espelle i contatori scaduti', async () => {
+  const store = new Map<string, { count: number; expiresAt: number }>();
+  const before = new Date('2026-01-01T10:00:00Z');
+  await consumeMetricsQuota('203.0.113.21', store, before);
+  // Il giorno dopo la chiave e' diversa, quindi il vecchio contatore non conta.
+  const next = new Date('2026-01-02T10:00:00Z');
+  const { allowed, quota } = await consumeMetricsQuota('203.0.113.21', store, next);
   assert.equal(allowed, true);
+  assert.equal(quota.used, 1, 'il contatore riparte con il nuovo giorno');
 });
 
 test('il limite a finestra blocca dopo il numero di tentativi consentiti', async () => {

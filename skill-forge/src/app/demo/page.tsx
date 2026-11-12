@@ -12,6 +12,7 @@ import { countWords } from '@/lib/skill';
 import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/lib/audience';
 import type { QualityReport } from '@/lib/quality';
 import { track } from '@/lib/track';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { Feedback } from '@/components/Feedback';
 
 /**
@@ -36,7 +37,7 @@ export default function DemoPage() {
     track('funnel_submit');
     const startedAt = Date.now();
     try {
-      const res = await fetch('/api/demo', {
+      const res = await fetchWithTimeout('/api/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'from-skills', sourceMaterial: material, audience, register }),

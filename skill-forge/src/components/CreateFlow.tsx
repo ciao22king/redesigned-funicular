@@ -22,6 +22,7 @@ import { ACCEPT_ATTRIBUTE, MAX_FILES, MAX_TOTAL_BYTES, formatBytes, isPdf, uploa
 import { extractPdfText } from '@/lib/pdf';
 import { scanMessages, scanUpload } from '@/lib/scans';
 import { track } from '@/lib/track';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { Feedback } from '@/components/Feedback';
 
 type Mode = 'from-skills' | 'from-scratch';
@@ -222,7 +223,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
     const startedAt = Date.now();
     try {
-      const res = await fetch('/api/generate', {
+      const res = await fetchWithTimeout('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
@@ -280,7 +281,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
     setError(null);
     try {
       const enriched = `${material}\n\n## Answers to the clarifying questions\n\n${block}`;
-      const res = await fetch('/api/generate', {
+      const res = await fetchWithTimeout('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode, sourceMaterial: enriched, audience, register }),
@@ -306,7 +307,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
     if (!result) return;
     setError(null);
     try {
-      const res = await fetch('/api/section', {
+      const res = await fetchWithTimeout('/api/section', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markdown: result, section, instruction, audience, register }),

@@ -1,5 +1,6 @@
 import { ATTEMPT_TIMEOUT_MS, chatCompletion, SYSTEM_PROMPT } from './ai';
 import { allModels } from './providers';
+import { RETRY_MESSAGE } from './messages';
 import { stripFences } from './skill';
 import { audienceInstruction, toneInstruction } from './audience';
 import { normalizeSkill } from './normalize';
@@ -174,7 +175,9 @@ export async function runGeneration(
     }
   }
 
-  return { error: `No free model produced a valid skill. Details: ${errors.join('; ')}`, fallbacks: errors };
+  // The user reads the retry advice, not the model names: the per-model reasons
+  // stay in `fallbacks`, which the response carries for the operator.
+  return { error: RETRY_MESSAGE, fallbacks: errors };
 }
 
 /**
@@ -360,5 +363,5 @@ export async function runSectionRegeneration(
     }
   }
 
-  return { error: `No model could rewrite the section. Details: ${errors.join('; ')}` };
+  return { error: RETRY_MESSAGE };
 }

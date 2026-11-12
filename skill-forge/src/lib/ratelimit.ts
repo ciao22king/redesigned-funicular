@@ -68,10 +68,59 @@ export function dayKey(date = new Date()): { key: string; resetsAt: string } {
   };
 }
 
+/**
+ * How long a single KV operation may take before it is abandoned.
+ *
+ * KV is normally fast, but when it is slow the request must not hang: a hung
+ * counter would hold the whole response open until the platform kills it, which
+ * the user sees as a page that never answers. A counter is not worth that. When
+ * the read times out the caller treats it as zero, and when the write times out
+ * the counter is simply not incremented — the request still succeeds.
+ */
+const KV_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), KV_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
+
+/**
+ * A KV namespace that never blocks longer than `KV_TIMEOUT_MS`.
+ *
+ * `get` resolves to null and `put`/`delete` resolve to nothing when KV is slow,
+ * so the caller degrades (a quota reads as unused) instead of hanging. This is
+ * the single place the timeout is applied, so every quota inherits it.
+ */
+function guarded(ns: KVNamespace): KVNamespace {
+  return {
+    get: ((key: string, type?: unknown) =>
+      withTimeout(
+        ns.get(key, type as never) as Promise<unknown>,
+        null,
+      )) as KVNamespace['get'],
+    put: ((key: string, value: string, options?: unknown) =>
+      withTimeout(ns.put(key, value, options as never), undefined)) as KVNamespace['put'],
+    delete: ((key: string) => withTimeout(ns.delete(key), undefined)) as KVNamespace['delete'],
+    list: ns.list.bind(ns),
+    getWithMetadata: ns.getWithMetadata.bind(ns),
+  } as unknown as KVNamespace;
+}
+
 async function store(): Promise<KVNamespace | undefined> {
   try {
     const { env } = await getCloudflareContext({ async: true });
-    return env.RATE_LIMIT;
+    return env.RATE_LIMIT ? guarded(env.RATE_LIMIT) : undefined;
   } catch {
     // In `next dev` without the binding the limit is not applicable: we do not
     // block local development, but in production the binding is always there.
@@ -250,15 +299,48 @@ export async function consumeDemoQuota(
  */
 export const METRICS_DAILY_LIMIT = 200;
 
+/** A counter in the in-memory beacon store. */
+interface BeaconCounter {
+  count: number;
+  expiresAt: number;
+}
+
 /**
- * Consumes one beacon request for an anonymous visitor, counted on the IP.
- * Namespaced like the other anonymous budgets, so they never share a slot.
+ * Per-isolate counters for the metrics beacon.
+ *
+ * The beacon fires on every page view, so counting it in KV meant a read and a
+ * write per view — and KV's free tier allows 1,000 writes a day, which browsing
+ * alone exhausts. The beacon needs a flood stopper, not an exact count: a
+ * per-isolate counter costs nothing and, when an isolate is recycled, only
+ * forgets recent traffic. The exact quotas (generation, demo, login) stay on KV,
+ * where accuracy matters.
+ */
+const beaconStore = new Map<string, BeaconCounter>();
+
+/** Clears the beacon counters. Test seam: the store is process-wide. */
+export function resetBeaconStore(): void {
+  beaconStore.clear();
+}
+
+/** Drops expired entries, so the map cannot grow without bound. */
+function pruneBeacon(now: number): void {
+  if (beaconStore.size < 1_000) return;
+  for (const [key, value] of beaconStore) {
+    if (value.expiresAt <= now) beaconStore.delete(key);
+  }
+}
+
+/**
+ * Consumes one beacon request for an anonymous visitor, counted on the IP in
+ * memory. Namespaced like the other anonymous budgets, so they never share a
+ * slot. Never touches KV: see `beaconStore`.
  */
 export async function consumeMetricsQuota(
   ip: string,
-  kv?: KVNamespace,
+  store: Map<string, BeaconCounter> = beaconStore,
+  now = new Date(),
 ): Promise<{ allowed: boolean; quota: Quota }> {
-  const { key, resetsAt } = dayKey();
+  const { key, resetsAt } = dayKey(now);
   const empty: Quota = {
     used: 0,
     remaining: METRICS_DAILY_LIMIT,
@@ -267,18 +349,17 @@ export async function consumeMetricsQuota(
     unlimited: false,
   };
 
-  const ns = kv ?? (await store());
-  if (!ns) return { allowed: true, quota: empty };
-
+  pruneBeacon(now.getTime());
   const storageKey = `metrics:${ip}:${key}`;
-  const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
+  const entry = store.get(storageKey);
+  const used = entry && entry.expiresAt > now.getTime() ? entry.count : 0;
 
-  if (current >= METRICS_DAILY_LIMIT) {
-    return { allowed: false, quota: { ...empty, used: current, remaining: 0 } };
+  if (used >= METRICS_DAILY_LIMIT) {
+    return { allowed: false, quota: { ...empty, used, remaining: 0 } };
   }
 
-  const count = current + 1;
-  await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
+  const count = used + 1;
+  store.set(storageKey, { count, expiresAt: Date.parse(resetsAt) });
 
   return {
     allowed: true,
