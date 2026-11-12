@@ -1,13 +1,16 @@
 /**
- * AI client on OpenRouter (OpenAI-compatible gateway).
- * Base URL: https://openrouter.ai/api/v1
- * Auth: Bearer sk-or-v1-...
+ * AI client over any OpenAI-compatible gateway (Groq, OpenRouter).
  *
- * We call the REST API with the Workers native fetch instead of the OpenAI SDK:
- * on workerd the SDK picks the "node" runtime (node-fetch + agentkeepalive) and
- * http.Agent does not exist, so every call ends in "Connection error".
- * The key stays server-side only, never in the client bundle.
+ * The provider is passed in, not baked in: see `providers.ts` for the table of
+ * base URLs, keys and model ladders. Here we only speak the protocol.
+ *
+ * We call the REST API with the Workers native fetch instead of an SDK: on
+ * workerd the OpenAI SDK picks the "node" runtime (node-fetch + agentkeepalive)
+ * and http.Agent does not exist, so every call ends in "Connection error".
+ * The keys stay server-side only, never in the client bundle.
  */
+import type { Provider } from './providers';
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -27,57 +30,42 @@ export interface ChatResult {
 /** Timeout per attempt: a slow model must not block the request. */
 export const ATTEMPT_TIMEOUT_MS = 25_000;
 
-/**
- * Reasoning effort sent to OpenRouter. Every free model now reasons before
- * answering, and the reasoning tokens are charged against `max_tokens`: at the
- * default effort a model can spend almost the whole budget thinking and return
- * an empty completion (OpenRouter reports it as `status: incomplete`).
- * "medium" is accepted by every model in the ladder, including the ones that
- * declare reasoning as mandatory and reject "none". Override with
- * OPENROUTER_REASONING_EFFORT, or set it to "" to omit the field entirely.
- */
-export const REASONING_EFFORT = (process.env.OPENROUTER_REASONING_EFFORT ?? 'medium').trim();
+export { REASONING_EFFORT } from './providers';
 
 export async function chatCompletion(
+  provider: Provider,
   model: string,
   messages: ChatMessage[],
   temperature = 0.4,
   maxTokens?: number,
   timeoutMs = ATTEMPT_TIMEOUT_MS,
 ): Promise<ChatResult> {
-  const base = (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
-
   // AbortController: if the model does not answer within the timeout, the request
   // is aborted and the generation moves to the next model instead of hanging
   // until the function limit.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  const body: Record<string, unknown> = {
+    model,
+    temperature,
+    messages,
+    ...provider.extraBody(),
+    // The cap field differs per provider (Groq deprecates `max_tokens`).
+    ...(maxTokens ? { [provider.maxTokensField]: maxTokens } : {}),
+  };
+
   let res: Response;
   try {
-    res = await fetch(`${base}/chat/completions`, {
+    res = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
-        // OpenRouter uses them to attribute the app in the dashboard.
-        'HTTP-Referer':
-          process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
-        'X-Title': 'Skill Forge',
+        Authorization: `Bearer ${provider.apiKey() ?? ''}`,
+        ...provider.headers(),
       },
-      body: JSON.stringify({
-        model,
-        temperature,
-        messages,
-        // `sort: throughput` makes OpenRouter pick the provider that serves the
-        // model with the lowest latency, instead of the default (price).
-        provider: { sort: 'throughput', allow_fallbacks: true },
-        // Keep the thinking short enough to leave room for the document inside
-        // `max_tokens`. Omitted when the override is set to an empty string.
-        ...(REASONING_EFFORT ? { reasoning: { effort: REASONING_EFFORT } } : {}),
-        ...(maxTokens ? { max_tokens: maxTokens } : {}),
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     clearTimeout(timer);
@@ -112,33 +100,10 @@ export async function chatCompletion(
 }
 
 /**
- * Free OpenRouter models, from fastest to most capable.
- * The order is the main lever on latency: try the small model first, which
- * answers right away, and only move up in size if it fails.
- * The list can be replaced with OPENROUTER_MODELS (comma-separated ids)
- * without touching the code.
+ * The model ladder now lives in `providers.ts`, together with Groq. Re-exported
+ * here so existing imports keep working.
  */
-export const MODELS: string[] = (
-  process.env.OPENROUTER_MODELS ??
-  [
-    'liquid/lfm-2.5-2.6b:free', // the smallest: near-immediate answer
-    'google/gemma-4-26b-a4b-it:free',
-    'cohere/north-mini-code:free',
-    'recursive/flint-v1.0:free',
-    'nvidia/nemotron-3.5-lightning:free',
-    'google/gemma-4-31b-it:free',
-    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-    'nvidia/nemotron-3.5-super-vl:free',
-    'dots-studio/dots-3-note-preview:free',
-    'nvidia/nemotron-3-ultra-550b-a55b:free', // 550B, the most capable, last resort
-  ].join(',')
-)
-  .split(',')
-  .map((m) => m.trim())
-  .filter(Boolean);
-
-/** First model of the ladder: used as a label when the fallback does not start. */
-export const MODEL = MODELS[0];
+export { MODELS, MODEL } from './providers';
 
 export const SYSTEM_PROMPT = `You are Skill Forge, an engine that turns raw material into complete skills for AI agents.
 

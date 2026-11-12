@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { runGeneration, runRefine, type GenerateBody } from '@/lib/generate';
+import { activeProviders } from '@/lib/providers';
 import { consumeDemoQuota, quotaMessage, rateLimitHeaders } from '@/lib/ratelimit';
 import { checkQuality } from '@/lib/quality';
 import { MAX_SOURCE_CHARS } from '@/lib/guardrails';
@@ -37,7 +38,7 @@ function clientIp(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (activeProviders().length === 0) {
     return NextResponse.json(
       { error: 'The demo is not available right now. Please try again later.' },
       { status: 503 },

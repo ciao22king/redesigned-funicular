@@ -14,7 +14,9 @@ const required = [
   ['GITHUB_SECRET', 'GitHub OAuth App Client Secret'],
   ['NEXTAUTH_SECRET', 'openssl rand -base64 32'],
   ['NEXTAUTH_URL', 'http://localhost:3000 or the Worker URL'],
-  ['OPENROUTER_API_KEY', 'OpenRouter key sk-or-v1-...'],
+  // Either key is enough: the ladder drops the provider whose key is unset.
+  ['GROQ_API_KEY', 'Groq key gsk_... (optional if OpenRouter is set)'],
+  ['OPENROUTER_API_KEY', 'OpenRouter key sk-or-v1-... (optional if Groq is set)'],
 ];
 
 let env = { ...process.env };

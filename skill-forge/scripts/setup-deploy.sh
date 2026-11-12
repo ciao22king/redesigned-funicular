@@ -147,7 +147,7 @@ put_secret GH_OAUTH_ID            ""
 put_secret GH_OAUTH_SECRET        ""
 put_secret OPENROUTER_BASE_URL   "https://openrouter.ai/api/v1"
 put_secret OPENROUTER_API_KEY    "$TH_KEY"
-put_secret OPENROUTER_MODELS      "nvidia/nemotron-3-ultra-550b-a55b:free,nvidia/nemotron-3.5-super-vl:free,nvidia/nemotron-3.5-lightning:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free,recursive/flint-v1.0:free,google/gemma-4-26b-a4b-it:free,xingchen-agi/xing4.0-29b-a4b:free,cohere/north-mini-code:free,nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,liquid/lfm-2.5-2.6b:free"
+put_secret GROQ_API_KEY          "${GROQ_KEY:-}"
 
 ok "Secrets uploaded."
 

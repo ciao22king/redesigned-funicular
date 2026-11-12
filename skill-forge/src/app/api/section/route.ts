@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { runSectionRegeneration, type GenerateBody } from '@/lib/generate';
+import { activeProviders } from '@/lib/providers';
 import { consumeQuota, readQuota } from '@/lib/ratelimit';
 import { readRole } from '@/lib/users-db';
 import { replaceSection, regenerableSections } from '@/lib/sections';
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You must sign in with GitHub.' }, { status: 401 });
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (activeProviders().length === 0) {
     return NextResponse.json({ error: 'The service is not configured.' }, { status: 500 });
   }
 

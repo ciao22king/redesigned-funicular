@@ -100,9 +100,16 @@ Open `http://localhost:3000`.
 | `GITHUB_SECRET` | Same page, after creating the app |
 | `NEXTAUTH_SECRET` | `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | `http://localhost:3000` locally, the Worker URL in production |
+| `GROQ_API_KEY` | [console.groq.com/keys](https://console.groq.com/keys), key `gsk_...` |
+| `GROQ_MODELS` | Optional. Comma-separated Groq model ids, fastest first |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
 | `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys), key `sk-or-v1-...` |
-| `OPENROUTER_MODELS` | List of free models in order of power (see `.env.example`) |
+| `OPENROUTER_MODELS` | Optional. Comma-separated model ids, fastest first |
+
+Both providers speak the OpenAI protocol and are driven by the same client. The
+ladder tries Groq first, then OpenRouter, and skips any provider whose key is
+unset: **one key is enough**, and setting both means a Groq outage still answers
+through OpenRouter. See `src/lib/providers.ts` for the default model ladders.
 
 ### Create the GitHub OAuth App
 
@@ -142,6 +149,7 @@ wrangler secret put NEXTAUTH_SECRET
 wrangler secret put GITHUB_ID
 wrangler secret put GITHUB_SECRET
 wrangler secret put OPENROUTER_API_KEY
+wrangler secret put GROQ_API_KEY
 npm run deploy
 ```
 

@@ -1,4 +1,5 @@
-import { ATTEMPT_TIMEOUT_MS, chatCompletion, MODELS, SYSTEM_PROMPT } from './ai';
+import { ATTEMPT_TIMEOUT_MS, chatCompletion, SYSTEM_PROMPT } from './ai';
+import { allModels } from './providers';
 import { stripFences } from './skill';
 import { audienceInstruction, toneInstruction } from './audience';
 import { normalizeSkill } from './normalize';
@@ -118,7 +119,7 @@ export async function runGeneration(
   const errors: string[] = [];
   const deadline = Date.now() + budgetMs;
 
-  for (const model of MODELS) {
+  for (const { provider, model } of allModels()) {
     // The single-attempt timeout shrinks as the deadline approaches: no model
     // can eat the budget of the others.
     const left = deadline - Date.now();
@@ -129,6 +130,7 @@ export async function runGeneration(
 
     try {
       const { content: raw, usage, finishReason } = await chatCompletion(
+        provider,
         model,
         [
           { role: 'system', content: SYSTEM_PROMPT + GUARDRAIL_PROMPT },
@@ -143,19 +145,19 @@ export async function runGeneration(
       // spent it all reasoning. Naming it here keeps the failure readable
       // instead of surfacing as "missing essential sections".
       if (finishReason === 'length') {
-        errors.push(`${model}: output truncated (token budget exhausted)`);
+        errors.push(`${provider.label}/${model}: output truncated (token budget exhausted)`);
         continue;
       }
 
       const normalized = normalizeSkill(stripFences(raw));
       if (normalized.unresolved.length > 0) {
-        errors.push(`${model}: missing essential sections (${normalized.unresolved.join(', ')})`);
+        errors.push(`${provider.label}/${model}: missing essential sections (${normalized.unresolved.join(', ')})`);
         continue;
       }
 
       const check = validateSkillOutput(normalized.markdown);
       if (!check.ok) {
-        errors.push(`${model}: ${check.reason}`);
+        errors.push(`${provider.label}/${model}: ${check.reason}`);
         continue;
       }
 
@@ -168,7 +170,7 @@ export async function runGeneration(
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown error';
-      errors.push(`${model}: ${message}`);
+      errors.push(`${provider.label}/${model}: ${message}`);
     }
   }
 
@@ -191,12 +193,13 @@ export async function runRefine(
 ): Promise<{ markdown: string; refined: boolean }> {
   const deadline = Date.now() + budgetMs;
 
-  for (const model of MODELS) {
+  for (const { provider, model } of allModels()) {
     const left = deadline - Date.now();
     if (left <= 1_000) break;
 
     try {
       const { content } = await chatCompletion(
+        provider,
         model,
         [
           {
@@ -255,12 +258,13 @@ export async function runQuestions(
 ): Promise<string[]> {
   const deadline = Date.now() + budgetMs;
 
-  for (const model of MODELS) {
+  for (const { provider, model } of allModels()) {
     const left = deadline - Date.now();
     if (left <= 1_000) break;
 
     try {
       const { content } = await chatCompletion(
+        provider,
         model,
         [
           {
@@ -322,12 +326,13 @@ export async function runSectionRegeneration(
   const deadline = Date.now() + budgetMs;
   const errors: string[] = [];
 
-  for (const model of MODELS) {
+  for (const { provider, model } of allModels()) {
     const left = deadline - Date.now();
     if (left <= 1_000) break;
 
     try {
       const { content } = await chatCompletion(
+        provider,
         model,
         [
           {
@@ -346,12 +351,12 @@ export async function runSectionRegeneration(
 
       const newBody = stripFences(content).replace(/^##\s+.+\n+/, '').trim();
       if (newBody.length < 20) {
-        errors.push(`${model}: section too short`);
+        errors.push(`${provider.label}/${model}: section too short`);
         continue;
       }
       return { body: newBody };
     } catch (err) {
-      errors.push(`${model}: ${err instanceof Error ? err.message : 'unknown error'}`);
+      errors.push(`${provider.label}/${model}: ${err instanceof Error ? err.message : 'unknown error'}`);
     }
   }
 

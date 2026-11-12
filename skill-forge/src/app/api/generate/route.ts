@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { runGeneration, runQuestions, runRefine, type GenerateBody } from '@/lib/generate';
+import { activeProviders } from '@/lib/providers';
 import { consumeQuota, quotaMessage, rateLimitHeaders, readQuota } from '@/lib/ratelimit';
 import { readRole } from '@/lib/users-db';
 import { checkQuality } from '@/lib/quality';
@@ -43,9 +44,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You must sign in with GitHub.' }, { status: 401 });
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (activeProviders().length === 0) {
     return NextResponse.json(
-      { error: 'OPENROUTER_API_KEY is not configured on the server.' },
+      { error: 'No LLM provider is configured. Set GROQ_API_KEY or OPENROUTER_API_KEY.' },
       { status: 500 },
     );
   }
