@@ -2185,3 +2185,18 @@ Nessuna chiave OpenRouter reale -> nessun test LLM end-to-end.
   usare un socket isolato con `-S`.
 - **Deploy**: `$Cloudflare` invalido; `npx wrangler login --device` da' un
   codice a 5 minuti su `dash.cloudflare.com/oauth2/device/verify`.
+
+## skill-forge - provider multipli: Groq + OpenRouter (2026-11-11)
+- **`src/lib/providers.ts` e' la tabella dei provider.** `chatCompletion(provider,
+  model, ...)` non conosce i nomi. La scala fa **Groq prima, poi OpenRouter**, e
+  **salta il provider senza chiave**: una chiave basta, con due un guasto non
+  ferma nulla. Commit `9274e3a`.
+- **Differenze che contano**: Groq vuole `max_completion_tokens` (`max_tokens` e'
+  deprecato) e **rifiuterebbe** `provider`/`reasoning`, che sono di OpenRouter.
+  Groq separa il reasoning e concede 65k di completion, quindi li' il problema
+  "reasoning mangia il budget" non esiste.
+- **La var `OPENROUTER_MODELS` deployata scavalca la scala nel codice.** Dopo il
+  deploy va **svuotata o aggiornata**, altrimenti OpenRouter continua a usare la
+  vecchia lista (potente-prima + `xingchen` ritirato).
+- `wrangler.jsonc` ha `keep_vars: true`: le variabili del dashboard sopravvivono
+  ai deploy CLI, quindi una var sbagliata non si corregge da sola.
