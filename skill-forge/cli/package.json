@@ -1,5 +1,5 @@
 {
-  "name": "@ciao22/skill-forge-cli",
+  "name": "@ciao223/skill-forge-cli",
   "version": "0.1.1",
   "description": "CLI for Skill Forge: generate, publish and pull skills for AI agents from the terminal.",
   "keywords": [

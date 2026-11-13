@@ -11,7 +11,7 @@ not touch the database and has no runtime dependencies: just Node 18 or later.
 From npm:
 
 ```bash
-npm install -g @ciao22/skill-forge-cli
+npm install -g @ciao223/skill-forge-cli
 skill-forge login
 ```
 

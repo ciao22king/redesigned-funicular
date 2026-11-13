@@ -73,7 +73,7 @@ You can also use the service from the terminal. The CLI lives in [`cli/`](cli/)
 and is a separate Node package with no runtime dependencies:
 
 ```bash
-npm install -g @ciao22/skill-forge-cli
+npm install -g @ciao223/skill-forge-cli
 skill-forge login
 cat note.md | skill-forge generate --quiet | skill-forge publish --tags docker
 ```
