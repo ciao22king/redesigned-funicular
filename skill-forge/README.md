@@ -165,34 +165,32 @@ npm run deploy
 npm run preview   # build + preview in the workerd runtime
 ```
 
-## Automatic deploy
+## Deploy on Cloudflare Workers
 
-Every push to `main` builds the project and publishes it to Cloudflare Workers
-through `.github/workflows/deploy.yml`. One-time setup:
+The site is built and published by **Cloudflare Workers Builds**, connected to
+this repository. On every push to `main` Cloudflare runs the build and deploys
+the Worker. There is no Cloudflare token in the repository and no deploy step in
+GitHub Actions.
 
-```bash
-bash scripts/setup-deploy.sh
-```
+GitHub Actions keeps a **CI** workflow (`.github/workflows/ci.yml`) that runs the
+tests and the build only, so a broken commit is visible before Cloudflare deploys
+it. It does not deploy, to avoid publishing twice on every push.
 
-The script creates the GitHub repo, uploads the repository secrets and prints the
-expected Worker URL. Full details, including the secrets to set by hand, are in
-[docs/DEPLOY.md](docs/DEPLOY.md).
+One-time setup (Cloudflare dashboard):
 
-Workflow flow:
+1. **Workers & Pages -> Create -> Import a repository -> pick the repo**
+2. **Root directory**: `skill-forge` (the app is in a subdirectory; without this
+   the build finds no `package.json` and fails)
+3. **Build command**: `npm run build`  -  **Deploy command**: `npm run deploy`
+4. Add the variables and secrets from the table above in the Worker settings
 
-```
-push to main  ->  verify job (npm ci + next build)  ->  deploy job (opennextjs-cloudflare deploy)
-```
-
-If the build fails, the deploy does not start and production stays on the last
-working version. From the Actions tab you can run it by hand in preview mode.
+Full details are in [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Structure
 
 ```
-.github/workflows/deploy.yml   verify and deploy to Cloudflare Workers
-docs/DEPLOY.md                 full guide to the automatic deploy
-scripts/setup-deploy.sh        onboarding: repo, worker, secrets
+../.github/workflows/ci.yml     tests and build on every push (no deploy)
+docs/DEPLOY.md                 full guide to the Cloudflare Workers Builds setup
 scripts/check-env.mjs          variable check before push
 wrangler.jsonc                 Worker configuration
 open-next.config.ts            OpenNext adapter configuration
