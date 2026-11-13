@@ -22,6 +22,9 @@ requires signing in with GitHub.
 - [Use cases](https://skillforge.cc.cd/use-cases): five concrete cases (code
   review, incident postmortem, onboarding, customer support, DevOps runbooks),
   each with the material you start from and the skill it becomes.
+- [CLI](https://skillforge.cc.cd/cli): install the command-line client from npm
+  (`npm install -g @ciao223/skill-forge-cli`), sign in with GitHub and generate,
+  publish or pull skills from the terminal.
 - [Changelog](https://skillforge.cc.cd/changelog): what changed, newest first.
 - [Create from material](https://skillforge.cc.cd/create/from-skills): merge up
   to 20 files or pasted text into one skill.

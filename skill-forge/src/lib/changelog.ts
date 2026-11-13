@@ -22,6 +22,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-13',
+    kind: 'new',
+    title: 'The CLI is on npm',
+    body: 'The command-line client is published as @ciao223/skill-forge-cli: npm install -g @ciao223/skill-forge-cli installs the skill-forge and sf commands. The new /cli page documents the install, the GitHub sign-in and every command, and the homepage links to it again.',
+  },
+  {
     date: '2026-11-10',
     kind: 'new',
     title: 'Public creator profiles',

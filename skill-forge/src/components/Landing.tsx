@@ -4,8 +4,10 @@ import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
 import { BeforeAfter } from '@/components/BeforeAfter';
 import Link from 'next/link';
+import { useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import type { FeaturedCandidate } from '@/lib/creator';
+import { CLI_INSTALL_COMMAND } from '@/lib/cli';
 
 /**
  * Landing page body. It is a client component because of the session state
@@ -204,6 +206,31 @@ export function Landing({ featured = [] }: { featured?: FeaturedCandidate[] }) {
           </div>
         </section>
 
+        <div className="hairline" />
+
+        {/* CLI: the same service from the terminal, with a copyable command */}
+        <section className="py-20">
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+            <div>
+              <h2 className="font-display text-3xl font-semibold tracking-tight text-[--ink]">
+                Or use it from the terminal
+              </h2>
+              <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
+                The same service as a CLI. Generate, publish and pull skills
+                without leaving the shell. No runtime dependencies: just Node 18
+                or later.
+              </p>
+              <Link
+                href="/cli"
+                className="mt-6 inline-block text-sm font-medium text-[--accent] underline underline-offset-2"
+              >
+                Install the CLI →
+              </Link>
+            </div>
+            <InstallCommand />
+          </div>
+        </section>
+
         {/* Featured skills: the creators whose work the community has starred
             most. It only appears once there is something to show, so a fresh
             marketplace does not render an empty heading. */}
@@ -341,6 +368,50 @@ function RankingPreview() {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * CLI install command, with a copy button.
+ * The command comes from `lib/cli.ts`, so the landing page and the /cli page
+ * never disagree on the package name.
+ */
+function InstallCommand() {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(CLI_INSTALL_COMMAND);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard denied (insecure context or permission refused): the command
+      // is still selectable by hand, so no warning is needed.
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-[--line] bg-[--surface-raised] p-5">
+      <div className="flex items-center justify-between gap-4">
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[--ink-muted]">
+          Install
+        </p>
+        <button
+          type="button"
+          onClick={() => void copy()}
+          className="rounded-lg border border-[--line] px-3 py-1.5 text-xs font-medium text-[--ink-muted] transition-colors hover:text-[--ink]"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <pre className="mt-4 overflow-x-auto rounded-xl bg-[oklch(20%_0.02_50)] px-4 py-3 font-mono text-[13px] leading-relaxed text-[oklch(91%_0.03_70)]">
+        <code>$ {CLI_INSTALL_COMMAND}</code>
+      </pre>
+      <div className="mt-4 space-y-1.5 font-mono text-[12.5px] leading-relaxed text-[--ink-muted]">
+        <p>$ skill-forge login</p>
+        <p>$ skill-forge generate -f notes.md -o skill.md</p>
+      </div>
     </div>
   );
 }
