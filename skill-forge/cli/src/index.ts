@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { realpathSync } from 'node:fs';
+import { realpathSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { commands } from './commands/registry.js';
 import { loadConfig } from './config.js';
@@ -14,7 +14,24 @@ import type { Context } from './commands/types.js';
  * unhandled error becomes a readable message, not a stack trace.
  */
 
-const VERSION = '0.1.0';
+/**
+ * The version is read from `package.json`, next to the built entry point.
+ *
+ * It used to be a literal here, which drifted: the package published as 0.1.1
+ * still answered `--version` with 0.1.0. Reading the manifest makes the two
+ * impossible to disagree, because there is only one number.
+ */
+function readVersion(): string {
+  try {
+    const pkgUrl = new URL('../package.json', import.meta.url);
+    const pkg = JSON.parse(readFileSync(fileURLToPath(pkgUrl), 'utf8')) as { version?: string };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
+const VERSION = readVersion();
 
 /** Extracts the global flags, leaving the command arguments intact. */
 function splitGlobals(argv: string[]): { globals: Context; rest: string[] } {
