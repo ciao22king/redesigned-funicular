@@ -178,7 +178,8 @@ it. It does not deploy, to avoid publishing twice on every push.
 
 One-time setup (Cloudflare dashboard):
 
-1. **Workers & Pages -> Create -> Import a repository -> pick the repo**
+1. **Workers & Pages -> skill-forge -> Settings -> Builds -> Connect to Git**
+   (the Worker already exists; do not create a second one)
 2. **Root directory**: `skill-forge` (the app is in a subdirectory; without this
    the build finds no `package.json` and fails)
 3. **Build command**: `npm run build`  -  **Deploy command**: `npm run deploy`

@@ -26,9 +26,16 @@ If the build fails, the Worker stays on the last working version.
 
 ## One-time setup
 
-### 1. Connect the repository
+### 1. Connect the repository to the Worker
 
-**Workers & Pages -> Create -> Import a repository -> pick the repo.**
+The Worker `skill-forge` already exists, so connect it to the repository instead
+of creating a second one:
+
+**Workers & Pages -> skill-forge -> Settings -> Builds -> Connect to Git -> pick
+the repo**, and set the production branch to `main`.
+
+(If you were starting from nothing, it would be **Workers & Pages -> Create ->
+Import a repository**.)
 
 ### 2. Build settings
 
