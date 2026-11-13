@@ -21,7 +21,9 @@ requires signing in with GitHub.
 - [Tags](https://skillforge.cc.cd/tags): the skills grouped by topic.
 - [Use cases](https://skillforge.cc.cd/use-cases): five concrete cases (code
   review, incident postmortem, onboarding, customer support, DevOps runbooks),
-  each with the material you start from and the skill it becomes.
+  each with the material you start from and the skill it becomes. Each case also
+  has its own page, for example
+  [Code review](https://skillforge.cc.cd/use-cases/code-review).
 - [CLI](https://skillforge.cc.cd/cli): install the command-line client from npm
   (`npm install -g @ciao223/skill-forge-cli`), sign in with GitHub and generate,
   publish or pull skills from the terminal.

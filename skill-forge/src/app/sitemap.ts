@@ -4,6 +4,7 @@ import { listSkillRefs, tagCounts, categoryCounts } from '@/lib/marketplace-db';
 import { listIndexableCreators } from '@/lib/profile-db';
 import { aggregateTags } from '@/lib/marketplace';
 import { CATEGORIES, skillPath } from '@/lib/skill-page';
+import { USE_CASES, useCasePath } from '@/lib/usecases';
 
 // Per request: the skills come from D1, bound on the Worker only at runtime.
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified,
     changeFrequency: path === '' ? 'weekly' : 'monthly',
     priority: path === '' ? 1 : 0.5,
+  }));
+
+  // One page per use case: static content, so they are always listed even when
+  // D1 is unreachable.
+  const useCaseEntries: MetadataRoute.Sitemap = USE_CASES.map((u) => ({
+    url: `${base}${useCasePath(u.slug)}`,
+    lastModified,
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
   }));
 
   // One indexable page per published skill, per tag and per author. If D1 is
@@ -90,5 +100,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     categoryEntries = [];
   }
 
-  return [...staticEntries, ...skillEntries, ...tagEntries, ...categoryEntries, ...authorEntries];
+  return [...staticEntries, ...useCaseEntries, ...skillEntries, ...tagEntries, ...categoryEntries, ...authorEntries];
 }

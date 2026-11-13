@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
-import { USE_CASES } from '@/lib/usecases';
+import { USE_CASES, useCasePath } from '@/lib/usecases';
 
 export const metadata: Metadata = {
   title: 'Use cases · Skill Forge',
@@ -60,7 +60,12 @@ export default function UseCasesPage() {
                 Case {i + 1}
               </p>
               <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-[--ink]">
-                {u.title}
+                <Link
+                  href={useCasePath(u.slug)}
+                  className="underline-offset-4 transition-colors hover:text-[--accent] hover:underline"
+                >
+                  {u.title}
+                </Link>
               </h2>
               <p className="mt-2 max-w-prose text-sm text-[--ink-muted]">{u.audience}</p>
 

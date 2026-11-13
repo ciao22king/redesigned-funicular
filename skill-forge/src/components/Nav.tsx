@@ -88,6 +88,7 @@ export function Nav() {
                   onClick={() => setMenu((v) => !v)}
                   aria-expanded={menu}
                   aria-haspopup="menu"
+                  aria-label="Account menu"
                   className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-[--surface-sunken]"
                 >
                   {session?.user?.image ? (

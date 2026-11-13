@@ -124,3 +124,8 @@ export const USE_CASES: UseCase[] = [
 export function getUseCase(slug: string): UseCase | undefined {
   return USE_CASES.find((u) => u.slug === slug);
 }
+
+/** The canonical address of a use case page. */
+export function useCasePath(slug: string): string {
+  return `/use-cases/${slug}`;
+}
