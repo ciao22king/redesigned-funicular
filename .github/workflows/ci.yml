@@ -4,11 +4,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      production:
-        description: 'Deploy to production (otherwise preview draft)'
-        type: boolean
-        default: true
 
 permissions:
   contents: read
