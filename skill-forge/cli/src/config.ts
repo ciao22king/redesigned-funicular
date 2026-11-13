@@ -14,7 +14,7 @@ import { mkdirSync, readFileSync, writeFileSync, rmSync, chmodSync, existsSync }
  * file).
  */
 
-export const DEFAULT_URL = 'https://skill-forge.ciao22king.workers.dev';
+export const DEFAULT_URL = 'https://skillforge.cc.cd';
 
 export interface Config {
   url: string;

@@ -29,7 +29,7 @@ afterEach(() => {
 describe('config', () => {
   test('senza file usa i default', () => {
     const config = loadConfig();
-    assert.equal(config.url, 'https://skill-forge.ciao22king.workers.dev');
+    assert.equal(config.url, 'https://skillforge.cc.cd');
     assert.equal(config.token, undefined);
   });
 
@@ -73,7 +73,7 @@ describe('config', () => {
     saveConfig({ url: 'https://example.test', token: 't' });
     writeFileSync(configPath(), '{ questo non e json');
     const config = loadConfig();
-    assert.equal(config.url, 'https://skill-forge.ciao22king.workers.dev');
+    assert.equal(config.url, 'https://skillforge.cc.cd');
   });
 
   test('clearConfig rimuove il file', () => {

@@ -3,7 +3,7 @@
 Generate, publish and pull skills for AI agents straight from the terminal.
 
 It talks to the same service as the web interface
-(`https://skill-forge.ciao22king.workers.dev`) through the public API. It does
+(`https://skillforge.cc.cd`) through the public API. It does
 not touch the database and has no runtime dependencies: just Node 18 or later.
 
 ## Install
