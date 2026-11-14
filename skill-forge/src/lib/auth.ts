@@ -3,14 +3,18 @@ import { getToken } from 'next-auth/jwt';
 import GitHubProvider from 'next-auth/providers/github';
 import type { NextRequest } from 'next/server';
 import { loginForToken, readBearer } from './github-token';
+import { readRole, recordUser } from './users-db';
+import { isLogin } from './users';
+import { isAdmin } from './admin';
+import type { Role } from './roles';
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_ID ?? '',
       clientSecret: process.env.GITHUB_SECRET ?? '',
-      // Solo lettura del profilo: le skill si pubblicano sul marketplace di
-      // Skill Forge, non su repository GitHub, quindi non serve `repo`.
+      // Profile read only: skills are published to the Skill Forge marketplace,
+      // not to GitHub repositories, so `repo` is not needed.
       authorization: {
         params: {
           scope: 'read:user user:email',
@@ -19,22 +23,49 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    /**
+     * Records the sign-in in the `users` table (the landing page shows the
+     * count). It never blocks the login: if D1 is unreachable, the person still
+     * gets in, only the number misses one row.
+     */
+    async signIn({ profile }) {
+      const login = (profile as { login?: unknown } | undefined)?.login;
+      if (isLogin(login)) {
+        try {
+          await recordUser(login);
+        } catch {
+          // Best effort: an analytics write must not break authentication.
+        }
+      }
+      return true;
+    },
     async jwt({ token, account, profile }) {
-      // Al primo login salviamo l'access token GitHub nel JWT firmato,
-      // così le route API lo usano senza un secondo giro OAuth.
+      // On first login we store the GitHub access token in the signed JWT,
+      // so the API routes use it without a second OAuth round.
       if (account) {
         token.accessToken = account.access_token;
         token.login = (profile as { login?: string } | undefined)?.login;
       }
+      // The role comes from the account row (its creation date decides the
+      // founding tester perk), so a returning tester keeps it past the
+      // deadline. It is read on every call: the row is the source of truth.
+      if (token.login) {
+        token.role = await readRole(token.login);
+      }
       return token;
     },
     async session({ session, token }) {
-      // Il token OAuth resta solo nel JWT cifrato: il corpo restituito da
-      // /api/auth/session e' visibile a qualunque script in pagina, quindi qui
-      // NON deve comparire nessun segreto. Le route API leggono il token dal
-      // JWT con getServerToken().
+      // The OAuth token stays only in the encrypted JWT: the body returned by
+      // /api/auth/session is visible to any script on the page, so no secret
+      // must appear here. The API routes read the token from the JWT with
+      // getServerToken().
       if (session.user) {
         session.user.login = token.login as string | undefined;
+        session.user.role = token.role as Role | undefined;
+        // A display-only flag: it decides whether the Nav shows the Admin link.
+        // The panel and the API still check the login themselves on every
+        // request, so a forged session could not open them.
+        session.user.admin = isAdmin(token.login as string | undefined);
       }
       return session;
     },
@@ -48,14 +79,14 @@ export const authOptions: NextAuthOptions = {
 };
 
 /**
- * Legge l'access token GitHub e il login, lato server.
+ * Reads the GitHub access token and the login, server-side.
  *
  * Due strade:
- *   - la CLI manda `Authorization: Bearer <token GitHub>`, che verifichiamo
+ *   - the CLI sends `Authorization: Bearer <GitHub token>`, which we verify
  *     contro l'API di GitHub;
- *   - il browser manda il cookie di sessione NextAuth.
- * In entrambi i casi l'identita' viene dal token, mai dal corpo della richiesta.
- * Va usata solo nelle route API: il token non e' mai disponibile nel client.
+ *   - the browser sends the NextAuth session cookie.
+ * In both cases the identity comes from the token, never from the request body.
+ * Use it only in API routes: the token is never available in the client.
  */
 export async function getServerAuth(
   req: NextRequest,

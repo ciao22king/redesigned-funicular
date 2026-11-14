@@ -2,10 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- Scena fisica (perché chiaro, non scuro) ----
-   Uno sviluppatore che scrive una skill al pomeriggio,
-   davanti a una finestra, con la tazza di caffè ancora calda.
-   Luce naturale, superficie chiara ma calda, non clinica. */
+/* ---- Physical scene (why light, not dark) ----
+   A developer writing a skill in the afternoon,
+   in front of a window, coffee cup still warm.
+   Natural light, a light but warm surface, not clinical. */
 
 :root {
   --surface: oklch(97% 0.014 68);          /* carta calda, mai bianco puro */
@@ -33,7 +33,7 @@ body {
   line-height: 1.6;
 }
 
-/* Grana leggerissima, evita la piattezza digitale */
+/* Very light grain, avoids digital flatness */
 body::before {
   content: '';
   position: fixed;
@@ -49,14 +49,14 @@ body::before {
   color: oklch(20% 0.04 40);
 }
 
-/* Focus visibile, non rimosso */
+/* Visible focus, not removed */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-/* Scrollbar coerente col tema caldo */
+/* Scrollbar consistent with the warm theme */
 ::-webkit-scrollbar {
   width: 11px;
   height: 11px;
@@ -96,7 +96,7 @@ body::before {
     background: var(--line);
   }
 
-  /* Documenti legali: titoli, liste, tabelle e link coerenti col tema */
+  /* Legal documents: headings, lists, tables and links consistent with the theme */
   .legal h2 {
     margin-top: 2rem;
     margin-bottom: 0.5rem;

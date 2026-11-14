@@ -1,9 +1,9 @@
 /**
  * Formattazione dell'output.
  *
- * I colori si disattivano da soli quando l'output non e' un terminale (pipe,
- * file, CI) o quando NO_COLOR e' impostata: cosi' l'output resta leggibile
- * quando viene salvato o passato a un altro comando.
+ * The colors turn themselves off when the output is not a terminal (pipe,
+ * file, CI) or when NO_COLOR is set: so the output stays readable when it is
+ * saved or passed to another command.
  */
 
 const useColor =
@@ -36,12 +36,12 @@ export function warn(message: string): void {
   process.stderr.write(`${color.yellow('!')} ${message}\n`);
 }
 
-/** Errore su stderr. Non esce: decide il chiamante. */
+/** Error on stderr. Does not exit: the caller decides. */
 export function error(message: string): void {
   process.stderr.write(`${color.red('✖')} ${message}\n`);
 }
 
-/** Tabella semplice a colonne, con intestazione. */
+/** Simple column table, with a header. */
 export function table(headers: string[], rows: string[][]): string {
   const widths = headers.map((h, i) =>
     Math.max(visibleLength(h), ...rows.map((r) => visibleLength(r[i] ?? ''))),
@@ -55,7 +55,7 @@ export function table(headers: string[], rows: string[][]): string {
   return out.join('\n');
 }
 
-/** Lunghezza senza codici ANSI, per allineare le colonne. */
+/** Length without ANSI codes, to align the columns. */
 function visibleLength(text: string): number {
   // eslint-disable-next-line no-control-regex
   return text.replace(/\u001b\[[0-9;]*m/g, '').length;
@@ -66,13 +66,13 @@ function pad(text: string, width: number): string {
   return missing > 0 ? text + ' '.repeat(missing) : text;
 }
 
-/** Tronca una stringa lunga, con ellissi. */
+/** Truncates a long string, with an ellipsis. */
 export function truncate(text: string, max: number): string {
   const clean = text.replace(/\s+/g, ' ').trim();
   return clean.length <= max ? clean : `${clean.slice(0, Math.max(0, max - 1))}…`;
 }
 
-/** Formatta una data ISO in una forma breve. */
+/** Formats an ISO date in a short form. */
 export function shortDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toISOString().slice(0, 10);

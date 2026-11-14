@@ -5,13 +5,13 @@ export interface Command {
   usage: string;
   /** Descrizione breve. */
   summary: string;
-  /** Richiede un token? Se si', il dispatcher avvisa prima di partire. */
+  /** Requires a token? If so, the dispatcher warns before starting. */
   needsAuth?: boolean;
   run(args: string[], ctx: Context): Promise<number>;
 }
 
 export interface Context {
-  /** Flag globali gia' estratti dal dispatcher. */
+  /** Global flags already extracted by the dispatcher. */
   json: boolean;
   url?: string;
   token?: string;

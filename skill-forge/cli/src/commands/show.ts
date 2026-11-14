@@ -2,15 +2,15 @@ import { requireClient } from './helpers.js';
 import { info, error, color } from '../output.js';
 import type { Command } from './types.js';
 
-/** `show` — dettaglio di una skill: metadati e markdown completo. */
+/** `show` — detail of a skill: metadata and full markdown. */
 export const showCommand: Command = {
   name: 'show',
   usage: 'show <owner/slug> [--no-body]',
-  summary: 'Mostra il dettaglio di una skill',
+  summary: 'Show the detail of a skill',
   async run(args, ctx) {
     const id = args.find((a) => !a.startsWith('-'));
     if (!id) {
-      error('Serve l\'id della skill, nella forma owner/slug.');
+      error('Skill id required, in the form owner/slug.');
       return 1;
     }
     const noBody = args.includes('--no-body');
@@ -20,7 +20,7 @@ export const showCommand: Command = {
     try {
       skill = await client.detail(id);
     } catch (err) {
-      error(err instanceof Error ? err.message : 'richiesta fallita');
+      error(err instanceof Error ? err.message : 'request failed');
       return 1;
     }
 
@@ -33,9 +33,9 @@ export const showCommand: Command = {
     info(color.dim(`  ${skill.id}`));
     if (skill.description) info(`\n${skill.description}`);
     info('');
-    info(`  ★ ${skill.stars}${skill.starred ? color.dim(' (tua stella)') : ''}`);
+    info(`  ★ ${skill.stars}${skill.starred ? color.dim(' (your star)') : ''}`);
     if (skill.tags.length) info(`  tag: ${skill.tags.join(', ')}`);
-    info(`  aggiornata: ${skill.updatedAt}`);
+    info(`  updated: ${skill.updatedAt}`);
     if (!noBody) {
       info(`\n${color.dim('---')}\n`);
       info(skill.markdown.trimEnd());

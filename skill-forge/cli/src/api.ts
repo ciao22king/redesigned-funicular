@@ -7,14 +7,14 @@ import type {
 } from './types.js';
 
 /**
- * Client HTTP verso il servizio Skill Forge.
+ * HTTP client towards the Skill Forge service.
  *
- * La CLI non tocca il database: parla solo con l'API pubblica, come farebbe il
- * browser. Il token GitHub va in `Authorization: Bearer`, che il server
- * verifica contro l'API di GitHub.
+ * The CLI does not touch the database: it talks only to the public API, as the
+ * browser would. The GitHub token goes in `Authorization: Bearer`, which the
+ * server verifies against the GitHub API.
  */
 
-/** Errore HTTP con lo stato, per distinguere 401/404/429 dai guasti di rete. */
+/** HTTP error with the status, to tell 401/404/429 from network failures. */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -28,7 +28,7 @@ export class ApiError extends Error {
 export interface ClientOptions {
   url: string;
   token?: string;
-  /** Iniettabile nei test per non toccare la rete. */
+  /** Injectable in tests to avoid touching the network. */
   fetchImpl?: typeof fetch;
 }
 
@@ -47,12 +47,12 @@ export class Client {
     return new Client({ url: config.url, token: config.token, fetchImpl });
   }
 
-  /** Vero se c'e' un token: i comandi che scrivono lo pretendono. */
+  /** True if there is a token: the commands that write require it. */
   get authenticated(): boolean {
     return Boolean(this.token);
   }
 
-  /** URL base, per comporre i link mostrati all'utente. */
+  /** Base URL, to build the links shown to the user. */
   get baseUrl(): string {
     return this.url;
   }
@@ -71,8 +71,8 @@ export class Client {
         headers: this.headers(init?.headers as Record<string, string> | undefined),
       });
     } catch (err) {
-      const reason = err instanceof Error ? err.message : 'errore di rete';
-      throw new ApiError(`Impossibile contattare ${this.url}: ${reason}`, 0);
+      const reason = err instanceof Error ? err.message : 'network error';
+      throw new ApiError(`Cannot reach ${this.url}: ${reason}`, 0);
     }
 
     const text = await res.text();
@@ -88,13 +88,13 @@ export class Client {
     if (!res.ok) {
       const message =
         (data as { error?: string } | undefined)?.error ??
-        `Richiesta fallita (HTTP ${res.status})`;
+        `Request failed (HTTP ${res.status})`;
       throw new ApiError(message, res.status);
     }
     return data as T;
   }
 
-  /** Cerca nel marketplace. Senza autenticazione mostra solo i dati pubblici. */
+  /** Searches the marketplace. Without authentication it shows only public data. */
   async list(params: {
     q?: string;
     sort?: string;
@@ -146,7 +146,7 @@ export class Client {
     );
   }
 
-  /** Genera una skill. La quota si consuma solo se la richiesta va a buon fine. */
+  /** Generates a skill. The quota is consumed only if the request succeeds. */
   async generate(body: Record<string, unknown>): Promise<GenerateResponse> {
     return this.request<GenerateResponse>('/api/generate', {
       method: 'POST',
@@ -159,7 +159,7 @@ export class Client {
     return this.request<Quota>('/api/generate');
   }
 
-  /** Identita' dell'utente autenticato, con la sua quota. */
+  /** Identity of the authenticated user, with their quota. */
   async me(): Promise<{ login: string; quota: Quota }> {
     return this.request<{ login: string; quota: Quota }>('/api/me');
   }

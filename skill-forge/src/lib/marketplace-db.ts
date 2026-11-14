@@ -1,77 +1,107 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare';
 import type {
   NormalizedSkill,
   SkillRow,
   SortKey,
 } from './marketplace';
-import { orderClause, searchClause, skillId } from './marketplace';
+import { orderClause, searchClause, skillId, tagClause } from './marketplace';
+import { getDatabase, type D1Like } from './d1';
+import {
+  changedFields,
+  contentHash,
+  nextVersion,
+  versionNote,
+  type VersionEntry,
+  type VersionSnapshot,
+} from './skill-page';
 
 /**
- * Accesso a D1 per il marketplace.
+ * D1 access for the marketplace.
  *
- * Le funzioni prendono il database come parametro opzionale per due motivi:
- * i test possono passare un finto D1 senza toccare Cloudflare, e `next dev`
- * senza binding non esplode ma degrada con un errore leggibile.
+ * The functions take the database as an optional parameter for two reasons:
+ * the tests can pass a fake D1 without touching Cloudflare, and `next dev`
+ * without the binding does not blow up but degrades with a readable error.
  */
 
-export interface D1Like {
-  prepare(sql: string): {
-    bind(...values: unknown[]): {
-      all<T = unknown>(): Promise<{ results?: T[] }>;
-      first<T = unknown>(): Promise<T | null>;
-      run(): Promise<unknown>;
-    };
-  };
-  batch(statements: unknown[]): Promise<unknown>;
-}
+export type { D1Like };
 
 async function db(injected?: D1Like): Promise<D1Like> {
-  if (injected) return injected;
-  try {
-    const { env } = await getCloudflareContext({ async: true });
-    const bound = (env as { MARKETPLACE?: D1Like }).MARKETPLACE;
-    if (!bound) throw new Error('binding assente');
-    return bound;
-  } catch {
-    throw new Error(
-      'Marketplace non disponibile: manca il binding D1 `MARKETPLACE`.',
-    );
-  }
+  return getDatabase(injected);
 }
 
 const COLUMNS =
-  'id, slug, owner, name, description, markdown, tags, stars, created_at, updated_at';
+  'id, slug, owner, name, description, markdown, tags, stars, category, status, created_at, updated_at';
+
+/**
+ * The clause that limits a read to publicly visible skills.
+ *
+ * Moderation is a filter, not a delete: a rejected or removed skill keeps its
+ * row (and its versions and stars) and only stops being listed. Putting the
+ * condition in one constant means every public read applies the same rule.
+ */
+const PUBLIC = "status = 'published'";
 
 export interface ListOptions {
   query?: string;
   sort?: SortKey;
   owner?: string;
+  tag?: string;
+  category?: string;
+  /**
+   * Moderation status to include. Defaults to `published`, so every public
+   * storefront read shows only approved skills; the admin panel passes `all`
+   * to see everything. This default is the single place that keeps a rejected
+   * skill out of the marketplace, the tags and the search at once.
+   */
+  status?: string;
   limit?: number;
   offset?: number;
 }
 
-/** Elenco per la vetrina. Senza `markdown`, che e' il campo pesante. */
+/** The clause that hides non-published skills, or nothing when `status` is `all`. */
+function statusClause(status: string | undefined): { sql: string; params: string[] } {
+  if (status === 'all') return { sql: '', params: [] };
+  return { sql: 'status = ?', params: [status || 'published'] };
+}
+
+/** List for the storefront. Without `markdown`, which is the heavy field. */
 export async function listSkills(
   options: ListOptions = {},
   injected?: D1Like,
 ): Promise<SkillRow[]> {
   const database = await db(injected);
-  const { query = '', sort = 'recent', owner, limit = 60, offset = 0 } = options;
+  const { query = '', sort = 'recent', owner, tag, category, status, limit = 60, offset = 0 } = options;
 
   const conditions: string[] = [];
   const params: unknown[] = [];
+
+  const byStatus = statusClause(status);
+  if (byStatus.sql) {
+    conditions.push(byStatus.sql);
+    params.push(...byStatus.params);
+  }
 
   if (owner) {
     conditions.push('owner = ?');
     params.push(owner);
   }
 
+  if (category) {
+    conditions.push('category = ?');
+    params.push(category);
+  }
+
   const search = searchClause(query);
   if (search.sql) {
-    // `searchClause` restituisce una clausola che inizia con " AND ": qui la
-    // concateniamo a mano per non dipendere dalla posizione della WHERE.
+    // `searchClause` returns a clause that starts with " AND ": here we
+    // concatenate it by hand so as not to depend on the position of the WHERE.
     conditions.push(search.sql.replace(/^ AND /, ''));
     params.push(...search.params);
+  }
+
+  const byTag = tagClause(tag);
+  if (byTag.sql) {
+    conditions.push(byTag.sql.replace(/^ AND /, ''));
+    params.push(...byTag.params);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -82,23 +112,139 @@ export async function listSkills(
   return result.results ?? [];
 }
 
-/** Conta le skill che soddisfano i filtri, per la paginazione. */
+/**
+ * Light list for the sitemap: only the columns needed to build a URL, without
+ * the heavy `markdown` and `description`. Bounded so a huge marketplace still
+ * produces a reasonable sitemap.
+ */
+export async function listSkillRefs(
+  limit = 5000,
+  injected?: D1Like,
+): Promise<{ id: string; updated_at: string }[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare(`SELECT id, updated_at FROM skills WHERE ${PUBLIC} ORDER BY created_at DESC LIMIT ?`)
+    .bind(Math.min(Math.max(limit, 1), 10000))
+    .all<{ id: string; updated_at: string }>();
+  return result.results ?? [];
+}
+
+/**
+ * A skill by its slug alone.
+ *
+ * The slug is not unique across authors, so this returns the row only when
+ * exactly one skill carries it: two matches mean the short URL is ambiguous and
+ * the caller must send the reader to the canonical `owner/slug` form instead of
+ * guessing.
+ */
+export async function getSkillBySlug(
+  slug: string,
+  injected?: D1Like,
+): Promise<SkillRow | null> {
+  const database = await db(injected);
+  const result = await database
+    .prepare(`SELECT ${COLUMNS} FROM skills WHERE slug = ? AND ${PUBLIC} LIMIT 2`)
+    .bind(slug)
+    .all<SkillRow>();
+  const rows = result.results ?? [];
+  return rows.length === 1 ? rows[0] : null;
+}
+
+/** Distinct categories with their counts, for the category index. */
+export async function categoryCounts(
+  injected?: D1Like,
+): Promise<{ category: string; count: number }[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare(`SELECT category, COUNT(*) AS n FROM skills WHERE ${PUBLIC} GROUP BY category`)
+    .all<{ category: string; n: number }>();
+  return (result.results ?? []).map((r) => ({
+    category: r.category || 'other',
+    count: Number(r.n) || 0,
+  }));
+}
+
+/**
+ * Candidates for the "Related skills" list: the most starred skills sharing a
+ * tag or the category with this one.
+ *
+ * The overlap is expressed in SQL so the database does the narrowing; the final
+ * ordering is left to `pickRelated`, which owns the scoring rule. The query is
+ * bounded, so a large marketplace still answers with one cheap read.
+ */
+export async function relatedSkills(
+  current: { id: string; tags: string[]; category: string },
+  limit = 8,
+  injected?: D1Like,
+): Promise<SkillRow[]> {
+  const database = await db(injected);
+  const conditions: string[] = ['id != ?', PUBLIC];
+  const params: unknown[] = [current.id];
+
+  const tagConditions: string[] = [];
+  for (const tag of current.tags.slice(0, 6)) {
+    tagConditions.push("(',' || tags || ',') LIKE ?");
+    params.push(`%,${tag},%`);
+  }
+  if (tagConditions.length) conditions.push(`(${tagConditions.join(' OR ')})`);
+
+  const where = conditions.join(' AND ');
+  const sql =
+    `SELECT ${COLUMNS} FROM skills WHERE ${where} ` +
+    `ORDER BY (CASE WHEN category = ? THEN 0 ELSE 1 END), stars DESC, updated_at DESC LIMIT ?`;
+  params.push(current.category, Math.min(Math.max(limit, 1), 40));
+
+  const result = await database.prepare(sql).bind(...params).all<SkillRow>();
+  return result.results ?? [];
+}
+
+/** Distinct authors with the last update time, for the sitemap. */
+export async function listOwners(
+  limit = 5000,
+  injected?: D1Like,
+): Promise<{ owner: string; updated_at: string }[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare(
+      `SELECT owner, MAX(updated_at) AS updated_at FROM skills WHERE ${PUBLIC} GROUP BY owner ORDER BY owner LIMIT ?`,
+    )
+    .bind(Math.min(Math.max(limit, 1), 10000))
+    .all<{ owner: string; updated_at: string }>();
+  return result.results ?? [];
+}
+
+/** Counts the skills matching the filters, for pagination. */
 export async function countSkills(
-  options: Pick<ListOptions, 'query' | 'owner'> = {},
+  options: Pick<ListOptions, 'query' | 'owner' | 'tag' | 'category' | 'status'> = {},
   injected?: D1Like,
 ): Promise<number> {
   const database = await db(injected);
   const conditions: string[] = [];
   const params: unknown[] = [];
 
+  const byStatus = statusClause(options.status);
+  if (byStatus.sql) {
+    conditions.push(byStatus.sql);
+    params.push(...byStatus.params);
+  }
+
   if (options.owner) {
     conditions.push('owner = ?');
     params.push(options.owner);
+  }
+  if (options.category) {
+    conditions.push('category = ?');
+    params.push(options.category);
   }
   const search = searchClause(options.query ?? '');
   if (search.sql) {
     conditions.push(search.sql.replace(/^ AND /, ''));
     params.push(...search.params);
+  }
+  const byTag = tagClause(options.tag);
+  if (byTag.sql) {
+    conditions.push(byTag.sql.replace(/^ AND /, ''));
+    params.push(...byTag.params);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -109,7 +255,25 @@ export async function countSkills(
   return Number(row?.n ?? 0);
 }
 
-/** Una singola skill, con il corpo markdown. */
+/**
+ * Distinct tags with their counts, for the tag index.
+ *
+ * Only the `tags` column is read: the aggregation happens in JS over a bounded
+ * number of rows, so a large marketplace still answers with one cheap query.
+ */
+export async function tagCounts(
+  limit = 5000,
+  injected?: D1Like,
+): Promise<{ tags: string }[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare(`SELECT tags FROM skills WHERE ${PUBLIC} LIMIT ?`)
+    .bind(Math.min(Math.max(limit, 1), 20000))
+    .all<{ tags: string }>();
+  return result.results ?? [];
+}
+
+/** A single skill, with the markdown body. Any status: for the author and the admin. */
 export async function getSkill(
   id: string,
   injected?: D1Like,
@@ -122,11 +286,46 @@ export async function getSkill(
 }
 
 /**
- * Crea o aggiorna la skill di un autore.
+ * A skill the public may see: `published` only.
  *
- * L'upsert e' limitato all'autore: ripubblicando la stessa skill si aggiorna,
- * ma l'id contiene l'owner, quindi nessuno puo' sovrascrivere la skill di un
+ * The download and the skill page go through here, so a rejected skill stops
+ * being served the moment its status changes, without its row disappearing for
+ * the author or the operator.
+ */
+export async function getPublicSkill(
+  id: string,
+  injected?: D1Like,
+): Promise<SkillRow | null> {
+  const database = await db(injected);
+  return database
+    .prepare(`SELECT ${COLUMNS} FROM skills WHERE id = ? AND ${PUBLIC}`)
+    .bind(id)
+    .first<SkillRow>();
+}
+
+/** Sets a skill's moderation status. Returns false when the skill is missing. */
+export async function setSkillStatus(
+  id: string,
+  status: string,
+  injected?: D1Like,
+): Promise<boolean> {
+  const database = await db(injected);
+  const result = (await database
+    .prepare('UPDATE skills SET status = ? WHERE id = ?')
+    .bind(status, id)
+    .run()) as { meta?: { changes?: number } } | undefined;
+  return Number(result?.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Creates or updates an author's skill.
+ *
+ * The upsert is scoped to the author: republishing the same skill updates it,
+ * but the id contains the owner, so nobody can overwrite the skill of
  * altro (l'id risultante sarebbe diverso).
+ *
+ * Every save that changes the content also appends a version row (see
+ * `recordVersion`), which is what the skill page shows as its changelog.
  */
 export async function upsertSkill(
   owner: string,
@@ -139,13 +338,14 @@ export async function upsertSkill(
 
   await database
     .prepare(
-      `INSERT INTO skills (id, slug, owner, name, description, markdown, tags, stars, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      `INSERT INTO skills (id, slug, owner, name, description, markdown, tags, stars, category, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          description = excluded.description,
          markdown = excluded.markdown,
          tags = excluded.tags,
+         category = excluded.category,
          updated_at = excluded.updated_at`,
     )
     .bind(
@@ -156,17 +356,89 @@ export async function upsertSkill(
       skill.description,
       skill.markdown,
       skill.tags,
+      skill.category,
       now,
       now,
     )
     .run();
 
+  await recordVersion(id, skill, database, now);
+
   const row = await getSkill(id, database);
-  if (!row) throw new Error('Salvataggio non riuscito.');
+  if (!row) throw new Error('Save failed.');
   return row;
 }
 
-/** Cancella una skill, ma solo se appartiene all'autore indicato. */
+/**
+ * Appends a version when the content actually changed.
+ *
+ * The hash comparison is what makes "publish the same thing twice" a no-op for
+ * the changelog: the reader sees versions they can tell apart, not a line per
+ * save. Best effort: a failure here must not fail the publish itself.
+ */
+async function recordVersion(
+  id: string,
+  skill: NormalizedSkill,
+  database: D1Like,
+  now: string,
+): Promise<void> {
+  try {
+    const snapshot: VersionSnapshot = {
+      name: skill.name,
+      description: skill.description,
+      tags: skill.tags,
+      markdown: skill.markdown,
+    };
+    const hash = contentHash(snapshot);
+
+    const latest = await database
+      .prepare('SELECT version, hash, name, description, tags, markdown FROM skill_versions WHERE skill_id = ? ORDER BY version DESC LIMIT 1')
+      .bind(id)
+      .first<{ version: number; hash: string; name: string; description: string; tags: string; markdown: string }>();
+
+    if (latest && latest.hash === hash) return;
+
+    const version = nextVersion(Number(latest?.version ?? 0));
+    const changed = latest
+      ? changedFields(
+          { name: latest.name, description: latest.description, tags: latest.tags, markdown: latest.markdown },
+          snapshot,
+        )
+      : [];
+
+    await database
+      .prepare(
+        `INSERT INTO skill_versions (skill_id, version, note, hash, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .bind(id, version, versionNote(version, changed), hash, now)
+      .run();
+  } catch {
+    // A missing version is not worth failing the publish for.
+  }
+}
+
+/** A skill's changelog, newest version first. */
+export async function listVersions(
+  id: string,
+  limit = 20,
+  injected?: D1Like,
+): Promise<VersionEntry[]> {
+  const database = await db(injected);
+  const result = await database
+    .prepare(
+      'SELECT version, note, created_at FROM skill_versions WHERE skill_id = ? ORDER BY version DESC LIMIT ?',
+    )
+    .bind(id, Math.min(Math.max(limit, 1), 100))
+    .all<{ version: number; note: string; created_at: string }>();
+  return (result.results ?? []).map((r) => ({
+    version: Number(r.version) || 0,
+    note: r.note,
+    createdAt: r.created_at,
+  }));
+}
+
+/** Deletes a skill, but only if it belongs to the given author. */
 export async function deleteSkill(
   id: string,
   owner: string,
@@ -177,11 +449,12 @@ export async function deleteSkill(
   if (!row || row.owner !== owner) return false;
 
   await database.prepare('DELETE FROM stars WHERE skill_id = ?').bind(id).run();
+  await database.prepare('DELETE FROM skill_versions WHERE skill_id = ?').bind(id).run();
   await database.prepare('DELETE FROM skills WHERE id = ?').bind(id).run();
   return true;
 }
 
-/** True se l'utente ha gia' messo la stella. */
+/** True if the user has already starred it. */
 export async function hasStar(
   id: string,
   login: string,
@@ -195,7 +468,7 @@ export async function hasStar(
   return Boolean(row);
 }
 
-/** Insieme degli id a cui l'utente ha messo la stella, per la vetrina. */
+/** Set of ids the user has starred, for the storefront. */
 export async function starredIds(
   login: string,
   injected?: D1Like,
@@ -209,9 +482,9 @@ export async function starredIds(
 }
 
 /**
- * Mette o toglie la stella. Il conteggio su `skills.stars` viene ricalcolato
- * dai fatti (le righe in `stars`), non incrementato a mano: cosi' non puo'
- * divergere se una richiesta fallisce a meta'.
+ * Stars or unstars. The count on `skills.stars` is recomputed from the facts
+ * (the rows in `stars`), not incremented by hand: so it cannot diverge if a
+ * request fails halfway.
  */
 export async function toggleStar(
   id: string,
@@ -220,7 +493,7 @@ export async function toggleStar(
 ): Promise<{ starred: boolean; stars: number }> {
   const database = await db(injected);
   const skill = await getSkill(id, database);
-  if (!skill) throw new Error('Skill non trovata.');
+  if (!skill) throw new Error('Skill not found.');
 
   const already = await hasStar(id, login, database);
 

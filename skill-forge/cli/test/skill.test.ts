@@ -11,8 +11,8 @@ describe('skill helpers', () => {
   });
 
   test('slugify ha un fallback per input vuoto', () => {
-    assert.equal(slugify('!!!'), 'skill-senza-nome');
-    assert.equal(slugify(''), 'skill-senza-nome');
+    assert.equal(slugify('!!!'), 'untitled-skill');
+    assert.equal(slugify(''), 'untitled-skill');
   });
 
   test('stripFences toglie il blocco markdown', () => {

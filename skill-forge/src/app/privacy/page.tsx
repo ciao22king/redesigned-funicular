@@ -3,120 +3,243 @@ import { LegalShell } from '@/components/LegalShell';
 import { legal } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Informativa privacy · Skill Forge',
-  description: 'Come Skill Forge tratta i dati personali.',
+  title: 'Privacy policy · Skill Forge',
+  description: 'How Skill Forge handles personal data.',
 };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Informativa privacy" updated="5 novembre 2026">
+    <LegalShell title="Privacy policy" updated="November 5, 2026">
       <section>
-        <h2>1. Titolare del trattamento</h2>
+        <h2>1. Data controller</h2>
         <p>
-          Il titolare del trattamento è il gestore di {legal.siteName}, un progetto personale, contattabile a{' '}
+          The data controller is the operator of {legal.siteName}, a personal
+          project, reachable at{' '}
           <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>.
         </p>
       </section>
 
       <section>
-        <h2>2. Quali dati trattiamo</h2>
+        <h2>2. What data we process</h2>
         <ul>
           <li>
-            <strong>Dati di accesso GitHub</strong>: identificativo, nome utente, nome e
-            immagine del profilo, indirizzo email (se reso disponibile). Li riceviamo tramite
-            l’autenticazione OAuth quando accedi.
+            <strong>GitHub sign-in data</strong>: identifier, username, name and
+            profile image, email address (if made available). We receive them
+            through OAuth authentication when you sign in.
           </li>
           <li>
-            <strong>Materiale che invii</strong>: il testo o i documenti che carichi per
-            generare una skill, e le risposte alle sei domande della modalità «da zero».
+            <strong>Material you submit</strong>: the text or documents you
+            upload to generate a skill, and the answers to the six questions in
+            the &quot;from scratch&quot; mode.
           </li>
           <li>
-            <strong>Skill pubblicate</strong>: se scegli di pubblicare sul marketplace, la
-            skill e il tuo nome utente GitHub vengono salvati e resi visibili a chiunque. Le
-            puoi eliminare in qualsiasi momento dalla tua dashboard.
+            <strong>Published skills</strong>: if you choose to publish to the
+            marketplace, the skill and your GitHub username are stored and made
+            visible to anyone. You can delete them at any time from your
+            dashboard.
           </li>
           <li>
-            <strong>Dati tecnici</strong>: indirizzo IP, dati di richiesta e log, gestiti dal
-            nostro fornitore di infrastruttura per sicurezza e funzionamento.
+            <strong>Registration record</strong>: when you sign in, your GitHub
+            username and the date of your first and most recent sign-in are
+            stored. Only the username is kept, no email and no token.
           </li>
           <li>
-            <strong>Cookie</strong>: un cookie di sessione necessario per tenerti connesso
-            (vedi la <a href="/cookie">cookie policy</a>).
+            <strong>Technical data and logs</strong>: IP address, the request
+            (method, path, status) and the user agent, recorded by our
+            infrastructure provider for security, diagnostics and abuse
+            prevention.
+          </li>
+          <li>
+            <strong>Generation counter</strong>: a number, per account and per
+            UTC day, used to enforce the daily limit. For the anonymous demo the
+            counter is keyed on the IP address and stores no other information.
+          </li>
+          <li>
+            <strong>Audit log</strong>: a short line for each action that changes
+            public state (publishing, deleting, reporting, starring), with your
+            username, the target, the reason when you report, and the address.
+            It never contains the material you submit.
+          </li>
+          <li>
+            <strong>Reports</strong>: if you report a skill, the reason, your
+            optional note, your username or the address, and the date.
+          </li>
+          <li>
+            <strong>Preferences</strong>: your choice about the use of your
+            material to improve the service, stored against your username.
+          </li>
+          <li>
+            <strong>Aggregate usage counters</strong>: counts of visits,
+            generations, downloads and publications, and the summed generation
+            time, kept as one row per day and per event. They contain no
+            identifier and no IP address, and the visit beacon is cookieless.
+          </li>
+          <li>
+            <strong>Feedback</strong>: the verdict and the optional note you
+            leave after a generation. It carries no account and no address.
+          </li>
+          <li>
+            <strong>Cookies</strong>: one session cookie required to keep you
+            signed in (see the <a href="/cookie">cookie policy</a>).
+          </li>
+        </ul>
+        <p>
+          The <a href="/security">Security &amp; Privacy</a> page lists every
+          store, the exact retention for each kind of data, and the
+          subprocessors.
+        </p>
+      </section>
+
+      <section>
+        <h2>3. Why we process it (purposes and legal bases)</h2>
+        <ul>
+          <li>
+            <strong>Providing the service</strong> (generating and publishing the
+            skill): performance of a contract.
+          </li>
+          <li>
+            <strong>Security and abuse prevention</strong>: legitimate interest.
+          </li>
+          <li>
+            <strong>Measuring and improving the service</strong>: legitimate
+            interest, on aggregate and non-identifying data. There is no profiling
+            and no decision about you; see{' '}
+            <a href="/security">how we measure</a>.
+          </li>
+          <li>
+            <strong>Legal obligations</strong>, if required: legal obligation.
           </li>
         </ul>
       </section>
 
       <section>
-        <h2>3. Perché li trattiamo (finalità e basi giuridiche)</h2>
+        <h2>4. Who it is shared with</h2>
+        <p>We rely on providers that process data as processors:</p>
         <ul>
           <li>
-            <strong>Erogare il servizio</strong> (generare e pubblicare la skill): esecuzione
-            del contratto.
+            <strong>Cloudflare</strong> — hosting and delivery (Workers,
+            network) and cookieless aggregate analytics (Web Analytics).
           </li>
           <li>
-            <strong>Sicurezza e prevenzione degli abusi</strong>: legittimo interesse.
+            <strong>GitHub</strong> — authentication and reading your profile.
           </li>
           <li>
-            <strong>Adempimenti di legge</strong>, se richiesti: obbligo legale.
+            <strong>OpenRouter</strong> — the text you submit is transmitted to
+            the language model to produce the skill. OpenRouter may route the
+            request to one of the available models.
+          </li>
+        </ul>
+        <p>
+          We do not sell your data and we do not use it for advertising or
+          profiling.
+        </p>
+      </section>
+
+      <section>
+        <h2>5. What happens to the content you submit</h2>
+        <p>
+          The material you upload or paste is used only to generate the skill you
+          asked for. It is sent in the request to OpenRouter and to the language
+          model that serves it; it is not stored on our servers after the
+          response, and it is not used to train any model by us. Uploads are
+          scanned for harmful content and prompt-injection markers before use,
+          and the limits on formats, size and number of files are enforced. The{' '}
+          <a href="/security">Security &amp; Privacy</a> page has the concrete
+          detail: where each kind of data lives, the exact limits, and how the
+          scanning works.
+        </p>
+        <p>
+          OpenRouter and the upstream model providers process the text under
+          their own terms. Their retention and training practices are set by
+          them, not by us. Do not submit material you are not allowed to share:
+          in particular, do not paste proprietary source code, personal data of
+          third parties, passwords, credentials or confidential documents.
+        </p>
+        <p>
+          What you choose to publish to the marketplace is different: the skill
+          and your GitHub username become public and remain so until you delete
+          them from your dashboard. Treat publishing as a public act. You can
+          report a published skill from its page.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Transfers outside the EU</h2>
+        <p>
+          Some providers are based in the United States. Transfers take place
+          under the European Commission&apos;s standard contractual clauses or
+          other safeguards provided by the GDPR.
+        </p>
+      </section>
+
+      <section>
+        <h2>7. For how long</h2>
+        <ul>
+          <li>
+            <strong>Submitted material</strong>: not retained. It lives in the
+            request that produces the skill and is not written to our storage.
+          </li>
+          <li>
+            <strong>Generated skills</strong>: kept in your browser&apos;s local
+            archive, on your device, until you clear it. We hold a copy only if
+            you publish it to the marketplace, until you delete it.
+          </li>
+          <li>
+            <strong>Session cookie</strong>: until the session expires or you
+            sign out.
+          </li>
+          <li>
+            <strong>Generation counter</strong>: 48 hours, then it expires
+            automatically.
+          </li>
+          <li>
+            <strong>Registration record</strong>: username and sign-in dates,
+            until you ask us to delete them.
+          </li>
+          <li>
+            <strong>Audit log</strong>: entries older than 180 days are removed
+            automatically.
+          </li>
+          <li>
+            <strong>Reports and preferences</strong>: kept until the report is
+            closed or you ask us to delete them.
+          </li>
+          <li>
+            <strong>Usage counters and feedback</strong>: kept as an aggregate
+            for the trend. The counters hold no identifier, and the feedback
+            holds no account, so there is nothing to delete for a single person
+            beyond asking us to remove a note.
+          </li>
+          <li>
+            <strong>Technical logs</strong>: for the retention period of our
+            infrastructure provider (Cloudflare), which is kept short and is used
+            for security and diagnostics.
           </li>
         </ul>
       </section>
 
       <section>
-        <h2>4. A chi sono comunicati</h2>
-        <p>Ci appoggiamo a fornitori che trattano i dati come responsabili:</p>
-        <ul>
-          <li>
-            <strong>Cloudflare</strong> — hosting e distribuzione (Workers, rete).
-          </li>
-          <li>
-            <strong>GitHub</strong> — autenticazione e lettura del tuo profilo.
-          </li>
-          <li>
-            <strong>OpenRouter</strong> — il testo che invii viene trasmesso al modello
-            linguistico per produrre la skill. OpenRouter può instradare la richiesta a uno
-            dei modelli disponibili.
-          </li>
-        </ul>
+        <h2>8. Your rights</h2>
         <p>
-          Non vendiamo i tuoi dati e non li usiamo per pubblicità o profilazione.
+          You can exercise the rights set out in articles 15-22 of the GDPR:
+          access, rectification, erasure, restriction, objection and
+          portability. Write to{' '}
+          <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>. You may
+          also lodge a complaint with your local data protection authority.
+        </p>
+        <p>
+          You can also change the use of your material yourself, without writing
+          to us: the dashboard has a switch to keep your material out of any
+          improvement of the service, described on the{' '}
+          <a href="/security">Security &amp; Privacy</a> page.
         </p>
       </section>
 
       <section>
-        <h2>5. Trasferimenti fuori dall’UE</h2>
+        <h2>9. Changes</h2>
         <p>
-          Alcuni fornitori hanno sede negli Stati Uniti. I trasferimenti avvengono sulla base
-          delle clausole contrattuali standard della Commissione europea o di altre garanzie
-          previste dal GDPR.
-        </p>
-      </section>
-
-      <section>
-        <h2>6. Per quanto tempo</h2>
-        <p>
-          Il cookie di sessione dura fino alla scadenza della sessione o al logout. Il
-          materiale inviato è elaborato per generare la skill e non è conservato in modo
-          permanente da noi oltre il tempo necessario; i log tecnici seguono i tempi del
-          fornitore di infrastruttura.
-        </p>
-      </section>
-
-      <section>
-        <h2>7. I tuoi diritti</h2>
-        <p>
-          Puoi esercitare i diritti previsti dagli articoli 15-22 del GDPR: accesso,
-          rettifica, cancellazione, limitazione, opposizione e portabilità. Scrivi a{' '}
-          <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>. Puoi anche
-          rivolgerti al Garante per la protezione dei dati personali.
-        </p>
-      </section>
-
-      <section>
-        <h2>8. Modifiche</h2>
-        <p>
-          Possiamo aggiornare questa informativa; la data in alto indica la versione in
-          vigore.
+          We may update this policy; the date at the top indicates the version in
+          force.
         </p>
       </section>
     </LegalShell>

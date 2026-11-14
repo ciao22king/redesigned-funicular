@@ -2,13 +2,13 @@ import { headers } from 'next/headers';
 import { legal } from './legal';
 
 /**
- * Base URL per sitemap e robots: l'origine che ha servito la richiesta, cosi'
- * gli indirizzi elencati appartengono all'host da cui Google li scarica. Se
- * elencassimo il canone mentre il sito risponde su un altro host, Google
- * scarterebbe la sitemap ("URL non consentiti").
+ * Base URL for sitemap and robots: the origin that served the request, so the
+ * listed addresses belong to the host Google downloads them from. If we listed
+ * the canonical one while the site answers on another host, Google would
+ * discard the sitemap ("URLs not allowed").
  *
- * `legal.siteUrl` resta il canone per i meta tag e fa da ripiego fuori da una
- * richiesta HTTP, per esempio a build time.
+ * `legal.siteUrl` stays the canonical one for the meta tags and acts as a
+ * fallback outside an HTTP request, for example at build time.
  */
 export async function siteBase(): Promise<string> {
   try {
@@ -19,7 +19,7 @@ export async function siteBase(): Promise<string> {
       return `${proto}://${host}`;
     }
   } catch {
-    // Nessuna richiesta in corso: si usa il canone.
+    // No request in flight: use the canonical one.
   }
   return legal.siteUrl;
 }

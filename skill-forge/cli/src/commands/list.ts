@@ -3,8 +3,8 @@ import { info, error, color, table, truncate, shortDate } from '../output.js';
 import type { Command } from './types.js';
 
 /**
- * `list` (alias `search`) — sfoglia e cerca nel marketplace.
- * Non richiede autenticazione: la vetrina e' pubblica.
+ * `list` (alias `search`) — browse and search the marketplace.
+ * Requires no authentication: the storefront is public.
  */
 
 interface Flags {
@@ -43,19 +43,19 @@ function parseListArgs(args: string[]): Flags {
         flags.limit = Math.max(1, Number(next()) || 24);
         break;
       default:
-        if (a.startsWith('-')) throw new Error(`Opzione sconosciuta: ${a}`);
+        if (a.startsWith('-')) throw new Error(`Unknown option: ${a}`);
         positional.push(a);
     }
   }
-  // La query si puo' dare come argomento posizionale: `skill-forge list docker`.
+  // The query can be given as a positional argument: `skill-forge list docker`.
   if (!flags.query && positional.length) flags.query = positional.join(' ');
   return flags;
 }
 
 export const listCommand: Command = {
   name: 'list',
-  usage: 'list [-q <testo>] [-s recent|stars|name] [-o <owner>] [-p <pagina>]',
-  summary: 'Cerca e sfoglia il marketplace',
+  usage: 'list [-q <text>] [-s recent|stars|name] [-o <owner>] [-p <page>]',
+  summary: 'Search and browse the marketplace',
   async run(args, ctx) {
     const flags = parseListArgs(args);
     const client = requireClient(ctx);
@@ -69,7 +69,7 @@ export const listCommand: Command = {
         page: flags.page,
       });
     } catch (err) {
-      error(err instanceof Error ? err.message : 'ricerca fallita');
+      error(err instanceof Error ? err.message : 'search failed');
       return 1;
     }
 
@@ -80,7 +80,7 @@ export const listCommand: Command = {
 
     const skills = flags.limit ? data.skills.slice(0, flags.limit) : data.skills;
     if (skills.length === 0) {
-      info(color.dim('Nessuna skill trovata.'));
+      info(color.dim('No skills found.'));
       return 0;
     }
 
@@ -90,10 +90,10 @@ export const listCommand: Command = {
       truncate(s.description || s.name, 46),
       shortDate(s.updatedAt),
     ]);
-    info(table(['ID', '★', 'DESCRIZIONE', 'AGGIORNATA'], rows));
+    info(table(['ID', '★', 'DESCRIPTION', 'UPDATED'], rows));
 
     if (data.pages > 1) {
-      info(color.dim(`\nPagina ${data.page}/${data.pages} — ${data.total} skill in totale.`));
+      info(color.dim(`\nPage ${data.page}/${data.pages} — ${data.total} skills in total.`));
     }
     return 0;
   },
@@ -102,6 +102,6 @@ export const listCommand: Command = {
 export const searchCommand: Command = {
   ...listCommand,
   name: 'search',
-  usage: 'search <testo> [-s recent|stars|name] [-o <owner>]',
-  summary: 'Alias di `list`',
+  usage: 'search <text> [-s recent|stars|name] [-o <owner>]',
+  summary: 'Alias of `list`',
 };

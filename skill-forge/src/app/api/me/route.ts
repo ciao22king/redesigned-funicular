@@ -2,20 +2,30 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getServerAuth } from '@/lib/auth';
 import { readQuota } from '@/lib/ratelimit';
+import { roleBadge, roleLabel } from '@/lib/roles';
+import { readRole } from '@/lib/users-db';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 /**
- * Identita' dell'utente autenticato, piu' la sua quota.
+ * Identity of the authenticated user, plus their quota and role.
  *
- * La CLI usa questo endpoint per `login` e `whoami`: una sola chiamata dice se
- * il token e' valido, chi e' l'utente e quante generazioni gli restano.
+ * The CLI uses this endpoint for `login` and `whoami`: one call says whether
+ * the token is valid, who the user is, how many generations they have left and
+ * what role they hold.
  */
 export async function GET(req: NextRequest) {
   const { login } = await getServerAuth(req);
   if (!login) {
-    return NextResponse.json({ error: 'Token non valido o assente.' }, { status: 401 });
+    return NextResponse.json({ error: 'Missing or invalid token.' }, { status: 401 });
   }
-  return NextResponse.json({ login, quota: await readQuota(login) });
+  const role = await readRole(login);
+  return NextResponse.json({
+    login,
+    role,
+    roleLabel: roleLabel(role),
+    badge: roleBadge(role),
+    quota: await readQuota(login, role),
+  });
 }

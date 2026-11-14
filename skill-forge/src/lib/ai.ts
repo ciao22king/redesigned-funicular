@@ -1,13 +1,16 @@
 /**
- * Client AI su OpenRouter (gateway OpenAI-compatibile).
- * Base URL: https://openrouter.ai/api/v1
- * Auth: Bearer sk-or-v1-...
+ * AI client over any OpenAI-compatible gateway (Groq, OpenRouter).
  *
- * Chiamiamo la REST API con la fetch nativa di Workers invece dell'SDK OpenAI:
- * su workerd l'SDK sceglie il runtime "node" (node-fetch + agentkeepalive) e
- * gli http.Agent non esistono, quindi ogni chiamata finisce in "Connection
- * error". La chiave resta solo lato server, mai nel bundle client.
+ * The provider is passed in, not baked in: see `providers.ts` for the table of
+ * base URLs, keys and model ladders. Here we only speak the protocol.
+ *
+ * We call the REST API with the Workers native fetch instead of an SDK: on
+ * workerd the OpenAI SDK picks the "node" runtime (node-fetch + agentkeepalive)
+ * and http.Agent does not exist, so every call ends in "Connection error".
+ * The keys stay server-side only, never in the client bundle.
  */
+import type { Provider } from './providers';
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -16,53 +19,58 @@ export interface ChatMessage {
 export interface ChatResult {
   content: string;
   usage: unknown;
+  /**
+   * Why the model stopped. `length` means the token budget ran out, which is
+   * how a reasoning model reports having spent everything on thinking: without
+   * it a truncated reply is indistinguishable from an empty one.
+   */
+  finishReason: string | null;
 }
 
-/** Timeout per singolo tentativo: un modello lento non deve bloccare la richiesta. */
+/** Timeout per attempt: a slow model must not block the request. */
 export const ATTEMPT_TIMEOUT_MS = 25_000;
 
+export { REASONING_EFFORT } from './providers';
+
 export async function chatCompletion(
+  provider: Provider,
   model: string,
   messages: ChatMessage[],
   temperature = 0.4,
   maxTokens?: number,
   timeoutMs = ATTEMPT_TIMEOUT_MS,
 ): Promise<ChatResult> {
-  const base = (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
-
-  // AbortController: se il modello non risponde entro il timeout, la richiesta
-  // si annulla e la generazione passa al modello successivo invece di restare
-  // appesa fino al limite della funzione.
+  // AbortController: if the model does not answer within the timeout, the request
+  // is aborted and the generation moves to the next model instead of hanging
+  // until the function limit.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  const body: Record<string, unknown> = {
+    model,
+    temperature,
+    messages,
+    ...provider.extraBody(),
+    // The cap field differs per provider (Groq deprecates `max_tokens`).
+    ...(maxTokens ? { [provider.maxTokensField]: maxTokens } : {}),
+  };
+
   let res: Response;
   try {
-    res = await fetch(`${base}/chat/completions`, {
+    res = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
-        // OpenRouter li usa per attribuire l'app nella dashboard.
-        'HTTP-Referer':
-          process.env.OPENROUTER_SITE_URL ?? 'https://github.com/ciao22king/redesigned-funicular',
-        'X-Title': 'Skill Forge',
+        Authorization: `Bearer ${provider.apiKey() ?? ''}`,
+        ...provider.headers(),
       },
-      body: JSON.stringify({
-        model,
-        temperature,
-        messages,
-        // `sort: throughput` fa scegliere a OpenRouter il provider che serve il
-        // modello con la latenza piu' bassa, invece del default (prezzo).
-        provider: { sort: 'throughput', allow_fallbacks: true },
-        ...(maxTokens ? { max_tokens: maxTokens } : {}),
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     clearTimeout(timer);
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error(`timeout dopo ${Math.round(timeoutMs / 1000)}s`);
+      throw new Error(`timeout after ${Math.round(timeoutMs / 1000)}s`);
     }
     throw err;
   }
@@ -73,48 +81,29 @@ export async function chatCompletion(
     throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
   }
 
-  let data: { choices?: { message?: { content?: string } }[]; usage?: unknown };
+  let data: {
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
+    usage?: unknown;
+  };
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(`risposta non JSON: ${text.slice(0, 200)}`);
+    throw new Error(`non-JSON response: ${text.slice(0, 200)}`);
   }
 
+  const choice = data.choices?.[0];
   return {
-    content: data.choices?.[0]?.message?.content ?? '',
+    content: choice?.message?.content ?? '',
     usage: data.usage ?? null,
+    finishReason: choice?.finish_reason ?? null,
   };
 }
 
 /**
- * Modelli free di OpenRouter, dal piu' veloce al piu' capace.
- * L'ordine e' la leva principale sulla latenza: si prova prima il modello
- * piccolo, che risponde subito, e solo se fallisce si sale di dimensione.
- * La lista si puo' sostituire con OPENROUTER_MODELS (id separati da virgola)
- * senza toccare il codice.
+ * The model ladder now lives in `providers.ts`, together with Groq. Re-exported
+ * here so existing imports keep working.
  */
-export const MODELS: string[] = (
-  process.env.OPENROUTER_MODELS ??
-  [
-    'liquid/lfm-2.5-2.6b:free', // il piu' piccolo: risposta quasi immediata
-    'google/gemma-4-26b-a4b-it:free',
-    'cohere/north-mini-code:free',
-    'xingchen-agi/xing4.0-29b-a4b:free',
-    'recursive/flint-v1.0:free',
-    'nvidia/nemotron-3.5-lightning:free',
-    'google/gemma-4-31b-it:free',
-    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-    'nvidia/nemotron-3.5-super-vl:free',
-    'dots-studio/dots-3-note-preview:free',
-    'nvidia/nemotron-3-ultra-550b-a55b:free', // 550B, il piu' capace, ultima spiaggia
-  ].join(',')
-)
-  .split(',')
-  .map((m) => m.trim())
-  .filter(Boolean);
-
-/** Primo modello della scala: usato come etichetta quando il fallback non parte. */
-export const MODEL = MODELS[0];
+export { MODELS, MODEL } from './providers';
 
 export const SYSTEM_PROMPT = `You are Skill Forge, an engine that turns raw material into complete skills for AI agents.
 
@@ -157,11 +146,17 @@ What is mandatory, what is forbidden. Be blunt.
 ## Common mistakes
 What agents typically get wrong on this task, and how to avoid it.
 
+## Missing information
+Facts you could not verify from the material. For each one, write the targeted
+question whose answer would close it. If nothing is missing, write "None".
+
 ## Final checklist
 - [ ] verifiable item
 - [ ] verifiable item
 
 ## Writing rules
+- Never invent facts, tools, version numbers or steps. If you do not know, list
+  it under "Missing information" and ask, instead of guessing.
 - No em dashes. Use commas, colons, parentheses.
 - No filler words: "elevate", "seamless", "unleash", "delve", "robust" without substance.
 - Every claim must be verifiable by the reader.

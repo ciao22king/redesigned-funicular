@@ -1,14 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Nav } from '@/components/Nav';
+import { AudiencePicker, TonePicker } from '@/components/GenerateOptions';
+import { PlanSummary } from '@/components/PlanSummary';
+import { QualityPanel, QuestionsPanel } from '@/components/QualityPanel';
+import { SourceInput, type FetchedSource } from '@/components/SourceInput';
 import {
+  countWords,
   readFrontmatterDescription,
   readFrontmatterName,
   slugify,
 } from '@/lib/skill';
 import { markPublished, saveLocalSkill } from '@/lib/localstore';
+import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/lib/audience';
+import { buildPlan, type Plan, type PlanMaterial } from '@/lib/plan';
+import { regenerableSections } from '@/lib/sections';
+import type { QualityReport } from '@/lib/quality';
+import { ACCEPT_ATTRIBUTE, MAX_FILES, MAX_TOTAL_BYTES, formatBytes, isPdf, uploadRulesLabel, validateFile } from '@/lib/uploads';
+import { extractPdfText } from '@/lib/pdf';
+import { scanMessages, scanUpload } from '@/lib/scans';
+import { track } from '@/lib/track';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { fetchSkillForDownload, SignInRequiredError } from '@/lib/skill-download';
+import { Feedback } from '@/components/Feedback';
 
 type Mode = 'from-skills' | 'from-scratch';
 
@@ -24,6 +40,10 @@ interface GenerateResponse {
   markdown?: string;
   error?: string;
   quota?: Quota;
+  questions?: string[];
+  quality?: QualityReport;
+  normalizations?: string[];
+  refined?: boolean;
 }
 
 export default function CreatePage({ mode }: { mode: Mode }) {
@@ -33,18 +53,72 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   const [result, setResult] = useState<string | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
 
+  // Shape of the output: chosen before any material is read.
+  const [audience, setAudience] = useState<AudienceId>(DEFAULT_AUDIENCE);
+  const [register, setRegister] = useState<ToneId>(DEFAULT_TONE);
+
+  // The pre-generation summary and the questions that follow the draft.
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [quality, setQuality] = useState<QualityReport | null>(null);
+  const [normalizations, setNormalizations] = useState<string[]>([]);
+  const [refined, setRefined] = useState(false);
+
   useEffect(() => {
     fetch('/api/generate')
       .then((r) => (r.ok ? (r.json() as Promise<Quota>) : null))
       .then((d) => d && setQuota(d))
       .catch(() => {});
+    // First step of the funnel: the generator was opened. The drop-off table
+    // needs this as its denominator, so it fires once on mount.
+    track('funnel_start');
   }, []);
 
-  // campi modalità "da skill esistenti"
-  const [files, setFiles] = useState<{ name: string; text: string }[]>([]);
-  const [pasted, setPasted] = useState('');
+  // Fork: `/create/from-skills?fork=owner/slug` starts from a published skill's
+  // markdown instead of an empty form. The value is read from the URL on mount
+  // (not with `useSearchParams`, which would force a Suspense boundary) and
+  // loaded through the detail endpoint, so only published skills can be forked.
+  // The forked text is offered as editable material, never republished
+  // automatically.
+  const [forkedFrom, setForkedFrom] = useState<string | null>(null);
+  // Forking reads the same gated endpoint as the download, so an anonymous
+  // visitor gets a 401 here too. Without this the fork would look broken (the
+  // form simply stays empty); instead we say why and offer the sign-in.
+  const [forkNeedsSignIn, setForkNeedsSignIn] = useState(false);
+  useEffect(() => {
+    if (mode !== 'from-skills') return;
+    let id: string | null = null;
+    try {
+      id = new URLSearchParams(window.location.search).get('fork');
+    } catch {
+      id = null;
+    }
+    if (!id) return;
+    let active = true;
+    fetchSkillForDownload(id)
+      .then((skill) => {
+        if (!active) return;
+        setPasted(skill.markdown);
+        setForkedFrom(skill.name);
+      })
+      .catch((e: unknown) => {
+        if (!active) return;
+        if (e instanceof SignInRequiredError) setForkNeedsSignIn(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mode]);
 
-  // campi modalità "da zero"
+  // "from existing skills" mode fields
+  const [files, setFiles] = useState<{ name: string; text: string }[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
+  const [pasted, setPasted] = useState('');
+  const [sources, setSources] = useState<FetchedSource[]>([]);
+
+  // "from scratch" mode fields
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
   const [goal, setGoal] = useState('');
@@ -52,49 +126,140 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   const [constraints, setConstraints] = useState('');
   const [examples, setExamples] = useState('');
 
+  /** The material, assembled the same way for the plan and for the request. */
+  const material = useMemo(() => {
+    if (mode !== 'from-skills') return '';
+    return [
+      ...files.map((f) => `## File: ${f.name}\n\n${f.text}`),
+      ...sources.map((s) => `## Source: ${s.finalUrl ?? s.url}\n\n${s.text}`),
+      pasted.trim() ? `## Pasted text\n\n${pasted}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }, [mode, files, sources, pasted]);
+
   async function onFiles(list: FileList | null) {
     if (!list) return;
-    const next: { name: string; text: string }[] = [];
-    for (const f of Array.from(list).slice(0, 20)) {
-      next.push({ name: f.name, text: await f.text() });
+    setFileError(null);
+    setFileNotice(null);
+    const chosen = Array.from(list);
+
+    if (files.length + chosen.length > MAX_FILES) {
+      setFileError(`At most ${MAX_FILES} files per generation.`);
+      return;
     }
-    setFiles((prev) => [...prev, ...next]);
+
+    const next: { name: string; text: string }[] = [];
+    const blocked: string[] = [];
+    const warned: string[] = [];
+    for (const f of chosen) {
+      const single = validateFile(f);
+      if (!single.ok) {
+        setFileError(single.error ?? 'That file cannot be used.');
+        return;
+      }
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const scan = scanUpload(f.name, bytes);
+      if (scan.level === 'block') {
+        blocked.push(...scanMessages(scan));
+        continue;
+      }
+
+      // A PDF is not decoded as UTF-8: its text is pulled out of the content
+      // streams. If extraction yields nothing usable, the file is skipped with
+      // an explanation instead of contributing binary noise to the material.
+      if (isPdf(f.name)) {
+        const pdf = await extractPdfText(bytes);
+        if (!pdf.ok) {
+          blocked.push(pdf.error ?? `${f.name}: the PDF text could not be read.`);
+          continue;
+        }
+        next.push({ name: f.name, text: pdf.text });
+        continue;
+      }
+
+      if (scan.level === 'warn') warned.push(...scanMessages(scan));
+      next.push({ name: f.name, text: new TextDecoder().decode(bytes) });
+    }
+
+    // Combined size is checked once, over what will actually be kept.
+    const total = [...files, ...next].reduce((sum, f) => sum + f.text.length, 0);
+    if (total > MAX_TOTAL_BYTES) {
+      setFileError(`The files add up to more than ${formatBytes(MAX_TOTAL_BYTES)}.`);
+      return;
+    }
+
+    if (blocked.length) setFileError(blocked.join(' '));
+    if (warned.length) setFileNotice(warned.join(' '));
+    if (next.length) setFiles((prev) => [...prev, ...next]);
+    setPlan(null);
+    if (next.length || sources.length || pasted.trim()) track('funnel_material');
+  }
+
+  /** Builds the summary locally: no model call, so it is instant and free. */
+  function preparePlan() {
+    setError(null);
+    const materials: PlanMaterial[] = [
+      ...files.map((f) => ({ kind: 'file' as const, label: f.name, chars: f.text.length })),
+      ...sources.map((s) => ({
+        kind: 'url' as const,
+        label: s.finalUrl ?? s.url,
+        chars: s.text.length,
+      })),
+      ...(pasted.trim()
+        ? [{ kind: 'text' as const, label: 'pasted text', chars: pasted.length }]
+        : []),
+    ];
+    const text =
+      mode === 'from-skills'
+        ? material
+        : [name, domain, goal, tone, constraints, examples].filter(Boolean).join('\n');
+    setPlan(buildPlan({ text, materials, audience }));
   }
 
   async function generate() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setQuestions([]);
+    setAnswers({});
+    setQuality(null);
+    setNormalizations([]);
+    setRefined(false);
+    track('funnel_submit');
 
-    const sourceMaterial =
-      mode === 'from-skills'
-        ? [
-            ...files.map((f) => `## File: ${f.name}\n\n${f.text}`),
-            pasted.trim() ? `## Testo incollato\n\n${pasted}` : '',
-          ]
-            .filter(Boolean)
-            .join('\n\n')
-        : undefined;
-
+    const startedAt = Date.now();
     try {
-      const res = await fetch('/api/generate', {
+      const res = await fetchWithTimeout('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           mode === 'from-skills'
-            ? { mode, sourceMaterial }
-            : { mode, name, domain, goal, tone, constraints, examples },
+            ? { mode, sourceMaterial: material, audience, register }
+            : { mode, name, domain, goal, tone, constraints, examples, audience, register },
         ),
       });
       const data = (await res.json()) as GenerateResponse;
       if (data.quota) setQuota(data.quota);
-      if (!res.ok) throw new Error(data.error ?? 'Errore nella generazione');
+      if (!res.ok) throw new Error(data.error ?? 'Generation failed');
+
       const markdown = data.markdown as string;
       setResult(markdown);
+      setQuestions(data.questions ?? []);
+      setQuality(data.quality ?? null);
+      setNormalizations(data.normalizations ?? []);
+      setRefined(Boolean(data.refined));
+      setPlan(null);
 
-      // Ogni skill generata entra subito nell'archivio locale: resta
-      // ritrovabile anche se non viene scaricata ne' committata.
-      const skillName = readFrontmatterName(markdown) ?? name.trim() ?? 'Skill senza nome';
+      // Funnel: a skill arrived, and how long the wait took. The duration is
+      // sent as a value, so the server accumulates an average and nothing
+      // per-request is stored. The `generate` outcome is recorded server-side.
+      track('generation_ms', { value: Date.now() - startedAt });
+      track('funnel_result');
+
+      // Every generated skill enters the local archive right away: it stays
+      // findable even if it is not downloaded or committed.
+      const skillName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';
       saveLocalSkill({
         markdown,
         name: skillName,
@@ -102,55 +267,125 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         source: mode,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
     }
   }
 
+  /**
+   * Answers become material, then the skill is generated again. This is what
+   * makes the questions useful instead of decorative.
+   */
+  async function applyAnswers() {
+    const block = questions
+      .map((q, i) => (answers[i]?.trim() ? `- Q: ${q}\n  A: ${answers[i].trim()}` : ''))
+      .filter(Boolean)
+      .join('\n');
+    if (!block) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      const enriched = `${material}\n\n## Answers to the clarifying questions\n\n${block}`;
+      const res = await fetchWithTimeout('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, sourceMaterial: enriched, audience, register }),
+      });
+      const data = (await res.json()) as GenerateResponse;
+      if (data.quota) setQuota(data.quota);
+      if (!res.ok) throw new Error(data.error ?? 'Generation failed');
+      setResult(data.markdown as string);
+      setQuestions(data.questions ?? []);
+      setQuality(data.quality ?? null);
+      setNormalizations(data.normalizations ?? []);
+      setRefined(Boolean(data.refined));
+      setAnswers({});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Rewrites one section, leaving the rest of the document untouched. */
+  async function regenerateSection(section: string, instruction: string) {
+    if (!result) return;
+    setError(null);
+    try {
+      const res = await fetchWithTimeout('/api/section', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: result, section, instruction, audience, register }),
+      });
+      const data = (await res.json()) as { markdown?: string; error?: string; quota?: Quota };
+      if (data.quota) setQuota(data.quota);
+      if (!res.ok || !data.markdown) throw new Error(data.error ?? 'The section could not be rewritten.');
+      setResult(data.markdown);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    }
+  }
+
   function download() {
     if (!result) return;
+    track('funnel_download');
     const blob = new Blob([result], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${slugify(name || 'skill')}.md`;
+    a.download = `${slugify(readFrontmatterName(result) ?? name ?? 'skill')}.md`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
   const ready =
     mode === 'from-skills'
-      ? files.length > 0 || pasted.trim().length > 60
-      : name.trim() && domain.trim() && goal.trim();
+      ? files.length > 0 || sources.length > 0 || pasted.trim().length > 60
+      : Boolean(name.trim() && domain.trim() && goal.trim());
+
+  const outOfQuota = !!quota && !quota.unlimited && quota.remaining === 0;
 
   return (
     <>
       <Nav />
-      <main id="contenuto" className="mx-auto max-w-3xl px-6 py-14">
+      <main id="content" className="mx-auto max-w-3xl px-6 py-14">
         <button
           type="button"
           onClick={() => router.push('/')}
           className="mb-8 text-sm text-[--ink-muted] transition-colors hover:text-[--ink]"
         >
-          ← Torna alla scelta
+          ← Back to the choice
         </button>
 
         <p className="mb-3 font-mono text-xs uppercase tracking-[0.16em] text-[--accent]">
-          Modalità {mode === 'from-skills' ? 'A · Da materiale esistente' : 'B · Da zero'}
+          {mode === 'from-skills' ? 'Mode A · From existing material' : 'Mode B · From scratch'}
         </p>
 
         <h1 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight text-[--ink]">
           {mode === 'from-skills'
-            ? 'Da appunti sparsi a skill completa'
-            : 'Costruisci una skill da zero'}
+            ? 'From scattered notes to a complete skill'
+            : 'Build a skill from scratch'}
         </h1>
 
         <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
           {mode === 'from-skills'
-            ? 'Carica documenti, appunti o skill abbozzate. Il modello le fonde in un unico documento dettagliato, colmando i buchi e conservando ogni dettaglio tecnico.'
-            : 'Rispondi a sei domande. Il modello scrive la procedura completa, con esempi, errori comuni e checklist di verifica.'}
+            ? 'Upload documents, paste text or point at a public source. The model merges everything into one document: it flags what is missing and asks about it instead of inventing content.'
+            : 'Answer six questions. The model writes the full procedure, with examples, common mistakes and a verification checklist.'}
         </p>
+
+        <div className="hairline my-10" />
+
+        <div className="mb-8 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
+          Do not upload proprietary code, customer data, passwords or confidential
+          documents.
+        </div>
+
+        <div className="space-y-7">
+          <AudiencePicker value={audience} onChange={setAudience} />
+          <TonePicker value={register} onChange={setRegister} />
+        </div>
 
         <div className="hairline my-10" />
 
@@ -158,19 +393,30 @@ export default function CreatePage({ mode }: { mode: Mode }) {
           <div className="space-y-7">
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-[--ink]">
-                File sorgente
+                Source files
               </span>
               <span className="mb-3 block text-sm text-[--ink-muted]">
-                Markdown, testo, JSON, codice. Fino a 20 file.
+                Markdown, text, JSON, code, PDF, transcripts. {uploadRulesLabel()}
               </span>
               <input
                 type="file"
                 multiple
-                accept=".md,.txt,.json,.yaml,.yml,.ts,.tsx,.js,.py,.html,.css"
+                accept={ACCEPT_ATTRIBUTE}
                 onChange={(e) => onFiles(e.target.files)}
                 className="block w-full cursor-pointer rounded-xl border border-dashed border-[--line] bg-[--surface-raised] px-4 py-6 text-sm text-[--ink-muted] transition-colors file:mr-3 file:rounded-md file:border-0 file:bg-[--accent-soft] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[--accent]"
               />
             </label>
+
+            {fileError && (
+              <p className="rounded-lg border border-[oklch(70%_0.12_28)] bg-[oklch(96%_0.02_28)] px-3 py-2 text-sm text-[oklch(45%_0.14_28)]">
+                {fileError}
+              </p>
+            )}
+            {fileNotice && (
+              <p className="rounded-lg border border-[--line] bg-[--surface-sunken] px-3 py-2 text-sm text-[--ink-muted]">
+                {fileNotice}
+              </p>
+            )}
 
             {files.length > 0 && (
               <ul className="space-y-1.5">
@@ -182,79 +428,131 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                     <span className="truncate text-[--ink]">{f.name}</span>
                     <button
                       type="button"
-                      onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}
+                      onClick={() => {
+                        setFiles((p) => p.filter((_, j) => j !== i));
+                        setPlan(null);
+                      }}
                       className="ml-3 shrink-0 text-xs text-[--ink-muted] transition-colors hover:text-[--accent]"
                     >
-                      rimuovi
+                      remove
                     </button>
                   </li>
                 ))}
               </ul>
             )}
 
+            <SourceInput
+              disabled={outOfQuota}
+              onAdd={(s) => {
+                setSources((p) => [...p, s]);
+                setPlan(null);
+              }}
+            />
+
+            {sources.length > 0 && (
+              <ul className="space-y-1.5">
+                {sources.map((s, i) => (
+                  <li
+                    key={`${s.url}-${i}`}
+                    className="flex items-center justify-between rounded-lg bg-[--surface-sunken] px-3 py-2 text-sm"
+                  >
+                    <span className="truncate text-[--ink]">
+                      <span className="mr-2 font-mono text-xs text-[--accent]">{s.kind}</span>
+                      {s.finalUrl ?? s.url}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSources((p) => p.filter((_, j) => j !== i));
+                        setPlan(null);
+                      }}
+                      className="ml-3 shrink-0 text-xs text-[--ink-muted] transition-colors hover:text-[--accent]"
+                    >
+                      remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {forkedFrom && (
+              <p className="rounded-lg border border-[--accent] bg-[--accent-soft] px-3 py-2 text-sm text-[--accent]">
+                Forked from &ldquo;{forkedFrom}&rdquo;. Edit it, then generate a new skill.
+              </p>
+            )}
+
+            {forkNeedsSignIn && (
+              <p className="rounded-lg border border-[--line] bg-[--surface-sunken] px-3 py-2 text-sm text-[--ink-muted]">
+                Sign in with GitHub to fork this skill.
+              </p>
+            )}
+
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-[--ink]">
-                Oppure incolla il testo
+                Or paste the text
               </span>
               <textarea
                 value={pasted}
-                onChange={(e) => setPasted(e.target.value)}
+                onChange={(e) => {
+                  setPasted(e.target.value);
+                  setPlan(null);
+                }}
                 rows={9}
-                placeholder="Incolla qui note, una trascrizione, una skill abbozzata..."
+                placeholder="Paste notes, a transcript, a draft skill here..."
                 className="w-full resize-y rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
               />
             </label>
           </div>
         ) : (
           <div className="space-y-6">
-            <Field label="Nome della skill" hint="Come si chiamerà il documento">
+            <Field label="Skill name" hint="What the document will be called">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="es. Revisione di pull request"
+                placeholder="e.g. Pull request review"
                 className={inputClass}
               />
             </Field>
-            <Field label="Dominio" hint="Ambito in cui opera">
+            <Field label="Domain" hint="The field it operates in">
               <input
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                placeholder="es. sviluppo software, analisi dati, scrittura tecnica"
+                placeholder="e.g. software development, data analysis, technical writing"
                 className={inputClass}
               />
             </Field>
-            <Field label="Obiettivo" hint="Cosa deve far raggiungere, in modo misurabile">
+            <Field label="Goal" hint="What it must achieve, measurably">
               <textarea
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 rows={3}
-                placeholder="es. analizzare una PR e produrre un report con problemi bloccanti, suggerimenti e rischi di regressione"
+                placeholder="e.g. analyze a PR and produce a report with blocking issues, suggestions and regression risks"
                 className={`${inputClass} resize-y`}
               />
             </Field>
-            <Field label="Tono" hint="Opzionale">
+            <Field label="Tone notes" hint="Optional, free text">
               <input
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
-                placeholder="es. diretto, tecnico, senza giri di parole"
+                placeholder="e.g. direct, no fluff"
                 className={inputClass}
               />
             </Field>
-            <Field label="Vincoli" hint="Opzionale, ma utile">
+            <Field label="Constraints" hint="Optional, but useful">
               <textarea
                 value={constraints}
                 onChange={(e) => setConstraints(e.target.value)}
                 rows={3}
-                placeholder="es. non commentare lo stile, solo correttezza e sicurezza"
+                placeholder="e.g. do not comment on style, only correctness and security"
                 className={`${inputClass} resize-y`}
               />
             </Field>
-            <Field label="Esempi o casi d'uso" hint="Opzionale">
+            <Field label="Examples or use cases" hint="Optional">
               <textarea
                 value={examples}
                 onChange={(e) => setExamples(e.target.value)}
                 rows={3}
-                placeholder="es. una PR da 400 righe che tocca autenticazione e cache"
+                placeholder="e.g. a 400-line PR touching authentication and caching"
                 className={`${inputClass} resize-y`}
               />
             </Field>
@@ -262,39 +560,43 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         )}
 
         <div className="mt-10">
-          <button
-            type="button"
-            disabled={!ready || busy || (!!quota && !quota.unlimited && quota.remaining === 0)}
-            onClick={generate}
-            className="w-full rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {busy ? 'Generazione in corso...' : 'Genera la skill'}
-          </button>
+          {plan ? (
+            <PlanSummary plan={plan} busy={busy} onConfirm={() => void generate()} />
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={!ready || busy || outOfQuota}
+                onClick={preparePlan}
+                className="w-full rounded-xl bg-[--accent] px-6 py-3.5 font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {busy ? 'Generating...' : 'Review and generate'}
+              </button>
 
-          {quota && (
-            <p
-              className={`mt-3 text-center text-sm ${
-                !quota.unlimited && quota.remaining === 0
-                  ? 'text-[oklch(45%_0.14_28)]'
-                  : 'text-[--ink-muted]'
-              }`}
-            >
-              {quota.unlimited
-                ? 'Generazioni illimitate.'
-                : quota.remaining > 0
-                  ? `Ti restano ${quota.remaining} generazioni su ${quota.limit} per oggi.`
-                  : `Hai usato tutte le ${quota.limit} generazioni di oggi. La quota si azzera il ${new Date(
-                      quota.resetsAt,
-                    ).toLocaleString('it-IT', { timeZone: 'UTC' })} UTC.`}
-            </p>
-          )}
+              {quota && (
+                <p
+                  className={`mt-3 text-center text-sm ${
+                    outOfQuota ? 'text-[oklch(45%_0.14_28)]' : 'text-[--ink-muted]'
+                  }`}
+                >
+                  {quota.unlimited
+                    ? 'Unlimited generations.'
+                    : quota.remaining > 0
+                      ? `${quota.remaining} of ${quota.limit} generations left today.`
+                      : `You have used all ${quota.limit} generations today. The quota resets on ${new Date(
+                          quota.resetsAt,
+                        ).toLocaleString('en-US', { timeZone: 'UTC' })} UTC.`}
+                </p>
+              )}
 
-          {!ready && (
-            <p className="mt-3 text-center text-sm text-[--ink-muted]">
-              {mode === 'from-skills'
-                ? 'Aggiungi almeno un file o incolla del testo.'
-                : 'Compila nome, dominio e obiettivo.'}
-            </p>
+              {!ready && (
+                <p className="mt-3 text-center text-sm text-[--ink-muted]">
+                  {mode === 'from-skills'
+                    ? 'Add at least one file, one source or some pasted text.'
+                    : 'Fill in name, domain and goal.'}
+                </p>
+              )}
+            </>
           )}
         </div>
 
@@ -305,11 +607,29 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         )}
 
         {result && (
-          <ResultPanel
-            markdown={result}
-            name={name}
-            onDownload={download}
-          />
+          <>
+            <section className="mt-12 space-y-4">
+              <QuestionsPanel
+                questions={questions}
+                answers={answers}
+                busy={busy}
+                onAnswer={(i, v) => setAnswers((p) => ({ ...p, [i]: v }))}
+                onApply={() => void applyAnswers()}
+              />
+              {quality && <QualityPanel report={quality} />}
+            </section>
+
+            <ResultPanel
+              markdown={result}
+              name={name}
+              mode={mode}
+              normalizations={normalizations}
+              refined={refined}
+              onEdit={setResult}
+              onDownload={download}
+              onRegenerateSection={regenerateSection}
+            />
+          </>
         )}
       </main>
     </>
@@ -342,14 +662,52 @@ const inputClass =
 function ResultPanel({
   markdown,
   name,
+  mode,
+  normalizations,
+  refined,
+  onEdit,
   onDownload,
+  onRegenerateSection,
 }: {
   markdown: string;
   name: string;
+  mode: Mode;
+  normalizations: string[];
+  refined: boolean;
+  onEdit: (next: string) => void;
   onDownload: () => void;
+  onRegenerateSection: (section: string, instruction: string) => Promise<void>;
 }) {
   const [marketBusy, setMarketBusy] = useState(false);
   const [market, setMarket] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [section, setSection] = useState('');
+  const [instruction, setInstruction] = useState('');
+  const [sectionBusy, setSectionBusy] = useState(false);
+
+  const sections = useMemo(() => regenerableSections(markdown), [markdown]);
+
+  async function copyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setMarket('Copy failed. Select the text and copy it manually.');
+    }
+  }
+
+  async function rewriteSection() {
+    if (!section) return;
+    setSectionBusy(true);
+    try {
+      await onRegenerateSection(section, instruction);
+      setInstruction('');
+    } finally {
+      setSectionBusy(false);
+    }
+  }
 
   async function publishToMarketplace() {
     setMarketBusy(true);
@@ -364,14 +722,16 @@ function ResultPanel({
         error?: string;
         skill?: { id: string; name: string };
       };
-      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Pubblicazione fallita');
+      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Publishing failed');
 
-      // Anche la copia locale ricorda di essere pubblicata.
-      const localName = readFrontmatterName(markdown) ?? name.trim() ?? 'Skill senza nome';
+      track('funnel_publish', { target: data.skill.id });
+
+      // The local copy also remembers it was published.
+      const localName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';
       markPublished(slugify(localName), data.skill.id);
-      setMarket(`Pubblicata sul marketplace come "${data.skill.name}".`);
+      setMarket(`Published to the marketplace as "${data.skill.name}".`);
     } catch (e) {
-      setMarket(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setMarket(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setMarketBusy(false);
     }
@@ -381,24 +741,67 @@ function ResultPanel({
     <section className="mt-14 animate-fade-up">
       <div className="mb-5 flex items-baseline justify-between">
         <h2 className="font-display text-2xl font-semibold text-[--ink]">
-          Skill generata
+          Generated skill
         </h2>
         <span className="font-mono text-xs text-[--ink-muted]">
-          {markdown.split(/\s+/).filter(Boolean).length} parole
+          {countWords(markdown)} words
         </span>
       </div>
 
-      <pre className="max-h-[520px] overflow-auto rounded-xl border border-[--line] bg-[oklch(20%_0.02_50)] p-5 font-mono text-[12.5px] leading-relaxed text-[oklch(91%_0.03_70)]">
-        {markdown}
-      </pre>
+      {(refined || normalizations.length > 0) && (
+        <details className="mb-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
+          <summary className="cursor-pointer select-none">
+            What the system fixed after the first draft
+          </summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {refined && (
+              <li>
+                A self-review pass rewrote the draft against a rubric (actionable
+                steps, no invented facts, concrete examples, no hedging).
+              </li>
+            )}
+            {normalizations.map((n) => (
+              <li key={n}>{n}.</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {editing ? (
+        <textarea
+          value={markdown}
+          onChange={(e) => onEdit(e.target.value)}
+          rows={26}
+          spellCheck={false}
+          className="w-full resize-y rounded-xl border border-[--accent] bg-[oklch(20%_0.02_50)] p-5 font-mono text-[12.5px] leading-relaxed text-[oklch(91%_0.03_70)] outline-none"
+        />
+      ) : (
+        <pre className="max-h-[520px] overflow-auto rounded-xl border border-[--line] bg-[oklch(20%_0.02_50)] p-5 font-mono text-[12.5px] leading-relaxed text-[oklch(91%_0.03_70)]">
+          {markdown}
+        </pre>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setEditing((v) => !v)}
+          className="rounded-xl border border-[--line] bg-[--surface-raised] px-5 py-3 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+        >
+          {editing ? 'Done editing' : 'Edit'}
+        </button>
+        <button
+          type="button"
+          onClick={() => void copyMarkdown()}
+          className="rounded-xl border border-[--line] bg-[--surface-raised] px-5 py-3 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+        >
+          {copied ? 'Copied' : 'Copy Markdown'}
+        </button>
         <button
           type="button"
           onClick={onDownload}
           className="rounded-xl bg-[--accent] px-5 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
-          Scarica il file .md
+          Download the .md file
         </button>
       </div>
 
@@ -409,16 +812,61 @@ function ResultPanel({
           onClick={() => void publishToMarketplace()}
           className="rounded-xl border border-[--accent] bg-[--accent-soft] px-5 py-3 text-sm font-medium text-[--accent] transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {marketBusy ? 'Pubblico...' : 'Pubblica sul marketplace'}
+          {marketBusy ? 'Publishing...' : 'Publish to the marketplace'}
         </button>
         <span className="text-xs text-[--ink-muted]">
-          Le altre persone potranno scaricarla e metterle una stella.
+          Other people will be able to download it and star it.
         </span>
       </div>
 
-      {market && (
-        <p className="mt-4 text-sm text-[--ink]">{market}</p>
-      )}
+      {/* Rewrite one section only: the rest of the document is preserved. */}
+      <div className="mt-8 rounded-xl border border-[--line] bg-[--surface-raised] p-5">
+        <h3 className="text-sm font-medium text-[--ink]">Rewrite one section</h3>
+        <p className="mt-1 text-xs text-[--ink-muted]">
+          Regenerates the chosen section and leaves everything else untouched.
+        </p>
+
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <select
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            className="rounded-xl border border-[--line] bg-[--surface-raised] px-3 py-2.5 text-sm text-[--ink] outline-none focus:border-[--accent]"
+          >
+            <option value="">Choose a section</option>
+            {sections.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <input
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            placeholder="Optional: how to change it"
+            className="flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-3 py-2.5 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
+          />
+          <button
+            type="button"
+            disabled={!section || sectionBusy}
+            onClick={() => void rewriteSection()}
+            className="rounded-xl bg-[--accent] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {sectionBusy ? 'Rewriting...' : 'Rewrite'}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
+        Do not upload proprietary code, customer data, passwords or confidential
+        documents. The material you submit is sent to the AI provider to generate
+        the skill.
+      </div>
+
+      {market && <p className="mt-4 text-sm text-[--ink]">{market}</p>}
+
+      <div className="mt-6">
+        <Feedback mode={mode} />
+      </div>
     </section>
   );
 }

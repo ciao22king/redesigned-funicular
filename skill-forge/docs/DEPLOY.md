@@ -1,127 +1,121 @@
-# Deploy automatico su Cloudflare Workers
+# Deploy to Cloudflare Workers
 
-Il workflow `.github/workflows/deploy.yml` pubblica il sito su Cloudflare Workers
-a ogni push su `main`. Nessun click, nessun token nel repository.
+The site is built and published by **Cloudflare Workers Builds**: Cloudflare
+connects to the GitHub repository, runs the build on every push and deploys the
+Worker. There is no deploy step in GitHub Actions, and no Cloudflare token in
+the repository.
 
-## Come funziona
+GitHub Actions keeps a **CI** workflow (`.github/workflows/ci.yml`) that only
+runs the tests and the build, so a broken commit is visible before Cloudflare
+deploys it. It does **not** deploy: if both it and Workers Builds deployed, every
+push would publish twice.
+
+## How it works
 
 ```
-push su main
-   ↓
-job "verify"   npm ci + next build            (fallisce qui se il codice è rotto)
-   ↓
-job "deploy"   opennextjs-cloudflare build && deploy
-   ↓
-Worker aggiornato
+push to main
+   |
+Workers Builds (Cloudflare)              CI (GitHub Actions, independent)
+   build command  npm run build             npm test
+   deploy command npm run deploy            npm run build
+   |
+Worker updated
 ```
 
-Se la build fallisce, il deploy **non parte**: il Worker in produzione resta
-all'ultima versione funzionante.
+If the build fails, the Worker stays on the last working version.
 
-Puoi anche lanciarlo a mano: **Actions → Deploy su Cloudflare Workers → Run
-workflow**. Lì c'è una casella `production`: se la togli, ottieni un upload di
-versione (preview) senza toccare la produzione.
+## One-time setup
 
-## Perché l'adapter OpenNext e non vinext
+### 1. Connect the repository to the Worker
 
-Cloudflare consiglia vinext per i nuovi progetti Next.js. Qui però l'app usa
-`next-auth` v4, che `vinext check` segnala come incompatibile perché si basa
-sugli interni delle API route di Next. L'[adapter OpenNext](https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/)
-è la via indicata da Cloudflare per questi casi: supporta `next-auth` e le API
-Node tramite il flag `nodejs_compat`, già attivo in `wrangler.jsonc`.
+The Worker `skill-forge` already exists, so connect it to the repository instead
+of creating a second one:
 
-## Setup, una volta sola
+**Workers & Pages -> skill-forge -> Settings -> Builds -> Connect to Git -> pick
+the repo**, and set the production branch to `main`.
 
-### 1. Lo script
+(If you were starting from nothing, it would be **Workers & Pages -> Create ->
+Import a repository**.)
 
-```bash
-bash scripts/setup-deploy.sh
-```
+### 2. Build settings
 
-Ti chiede tre token e fa tutto: crea il repo GitHub, carica i secret, stampa
-l'URL previsto del Worker. Ti serve `gh` autenticato (`gh auth login`).
+The app is in the `skill-forge/` subdirectory, not at the repository root, so the
+**Root directory** must be set. Without it the build runs at the root, finds no
+`package.json` and fails.
 
-### 2. Oppure a mano
-
-**a.** Prendi il tuo `Account ID`:
-```
-Cloudflare dashboard → Workers & Pages → Account details → Account ID
-```
-
-**b.** Crea un API token con permesso **Workers Scripts: Edit**:
-```
-My Profile → API Tokens → Create Token → template "Edit Cloudflare Workers"
-```
-
-**c.** Aggiungi i secret al repository GitHub:
-```
-Settings → Secrets and variables → Actions → New repository secret
-```
-
-| Secret | Valore |
+| Setting | Value |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | il token del punto b |
-| `CLOUDFLARE_ACCOUNT_ID` | l'ID del punto a |
+| **Root directory** | `skill-forge` |
+| **Build command** | `npm run build` |
+| **Deploy command** | `npm run deploy` |
+
+`npm run deploy` is `opennextjs-cloudflare build && opennextjs-cloudflare deploy`.
+The build command is not redundant: `opennextjs-cloudflare deploy` publishes the
+bundle that `opennextjs-cloudflare build` produced, and Workers Builds runs the
+deploy command in a separate step after the build command.
+
+### 3. Variables and secrets
+
+Set these in **Workers & Pages -> your Worker -> Settings -> Variables and
+Secrets** (and in the build variables, so the build can read them too). Mark
+`NEXTAUTH_SECRET`, `GITHUB_SECRET` and `OPENROUTER_API_KEY` as **secret**
+(encrypted).
+
+| Variable | Value |
+| --- | --- |
 | `NEXTAUTH_SECRET` | `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | `https://<worker>.<sottodominio>.workers.dev` |
-| `GH_OAUTH_ID` | Client ID della OAuth App GitHub |
-| `GH_OAUTH_SECRET` | Client Secret della OAuth App GitHub |
+| `NEXTAUTH_URL` | `https://skillforge.cc.cd` |
+| `GITHUB_ID` | GitHub OAuth App Client ID |
+| `GITHUB_SECRET` | GitHub OAuth App Client Secret |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `OPENROUTER_API_KEY` | chiave OpenRouter `sk-or-v1-...` |
-| `OPENROUTER_MODELS` | lista di modelli free, dal più potente al meno |
+| `OPENROUTER_API_KEY` | OpenRouter key `sk-or-v1-...` |
+| `OPENROUTER_MODELS` | list of free models, from most to least powerful |
 
-**d.** Push su `main`.
+The non-secret values already live in `wrangler.jsonc` under `vars` (`GITHUB_ID`,
+`UNLIMITED_LOGINS`, `ADMIN_LOGINS`, `FOUNDING_TESTERS`), and `keep_vars` is on so
+a CLI deploy does not clear what you set from the dashboard.
 
-## Variabili sul Worker
+### 4. Push to `main`.
 
-`wrangler.jsonc` non contiene variabili: quelle di runtime vanno impostate sul
-Worker, non nel repository. Due modi:
+## The GitHub OAuth App
 
-- Dashboard: **Workers & Pages → il tuo Worker → Settings → Variables and
-  Secrets**. Le variabili `NEXTAUTH_SECRET`, `GITHUB_SECRET` e
-  `OPENROUTER_API_KEY` vanno marcate come **secret** (cifrate).
-- CLI: `wrangler secret put NEXTAUTH_SECRET` per ognuna di quelle sensibili.
+The OAuth App must be created by hand once:
 
-## Perché i secret si chiamano `GH_OAUTH_ID` e non `GITHUB_ID`
+1. [github.com/settings/developers](https://github.com/settings/developers) -> **New OAuth App**
+2. **Homepage URL**: `https://skillforge.cc.cd`
+3. **Authorization callback URL**: `https://skillforge.cc.cd/api/auth/callback/github`
+4. Copy the Client ID and Secret into the `GITHUB_ID` / `GITHUB_SECRET` variables
 
-`GITHUB_*` è riservato da GitHub Actions e non può essere sovrascritto con un
-secret. Il workflow li rimappa:
-
-```yaml
-GITHUB_ID: ${{ secrets.GH_OAUTH_ID }}
-GITHUB_SECRET: ${{ secrets.GH_OAUTH_SECRET }}
-```
-
-## La OAuth App GitHub
-
-Anche con il deploy automatico, la OAuth App va creata a mano una volta:
-
-1. [github.com/settings/developers](https://github.com/settings/developers) → **New OAuth App**
-2. **Homepage URL**: `https://<worker>.<sottodominio>.workers.dev`
-3. **Authorization callback URL**: `https://<worker>.<sottodominio>.workers.dev/api/auth/callback/github`
-4. Copia Client ID e Secret nei secret `GH_OAUTH_ID` / `GH_OAUTH_SECRET`
-
-Se vuoi che funzioni anche in locale, crea una seconda OAuth App puntata a
+If you also want it to work locally, create a second OAuth App pointed at
 `http://localhost:3000`.
 
-## Alternativa: integrazione nativa Cloudflare
+## Why the OpenNext adapter and not vinext
 
-Cloudflare sa collegarsi a GitHub da solo, senza workflow:
+Cloudflare recommends vinext for new Next.js projects. Here, though, the app uses
+`next-auth` v4, which `vinext check` flags as incompatible because it relies on
+the internals of Next's route APIs. The [OpenNext adapter](https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/)
+is the path Cloudflare points to for these cases: it supports `next-auth` and the
+Node APIs through the `nodejs_compat` flag, already enabled in `wrangler.jsonc`.
 
-**Workers & Pages → Create → Import a repository → scegli il repo**
+## Deploy by hand
 
-Differenza pratica: con l'integrazione nativa il deploy parte da Cloudflare, e le
-variabili si gestiscono nella dashboard del Worker. Con il workflow hai in più il
-job `verify` prima del deploy e la possibilità di lanciare upload di versione
-manuali. Scegli uno dei due, non entrambi, per non deployare due volte a ogni push.
+When you would rather not wait for a push:
 
-## Se il deploy fallisce
+```bash
+npm i -g wrangler
+wrangler login
+wrangler secret put NEXTAUTH_SECRET   # once, for each secret
+npm run deploy
+```
 
-| Sintomo | Causa |
+## If the deploy fails
+
+| Symptom | Cause |
 | --- | --- |
-| `Authentication error` | `CLOUDFLARE_API_TOKEN` mancante, scaduto, o senza permesso Workers Scripts Edit |
-| `Account not found` | `CLOUDFLARE_ACCOUNT_ID` di un altro account |
-| Build verde, pagina bianca | manca `NEXTAUTH_URL` corretto |
-| Login GitHub 404 | callback URL della OAuth App non corrisponde al dominio del Worker |
-| Login funziona, publish fallisce | scope della OAuth App senza `repo` |
-| `NO_SECRET` nei log | `NEXTAUTH_SECRET` non impostata sul Worker (o non marcata come secret) |
+| `no such file or directory, open 'package.json'` | **Root directory** not set to `skill-forge` |
+| `Authentication error` | the Worker's API token is missing, expired, or without the Workers Scripts Edit permission |
+| `Account not found` | the account ID does not match the Worker |
+| Green build, blank page | wrong or missing `NEXTAUTH_URL` |
+| GitHub login 404 | the OAuth App callback URL does not match the Worker domain |
+| Login works, publish fails | the OAuth App scope lacks `repo` |
+| `NO_SECRET` in the logs | `NEXTAUTH_SECRET` not set on the Worker (or not marked as a secret) |

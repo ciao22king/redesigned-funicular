@@ -31,8 +31,11 @@ const nextConfig = {
               "default-src 'self'",
               "img-src 'self' https://avatars.githubusercontent.com data:",
               "style-src 'self' 'unsafe-inline'",
-              "script-src 'self' 'unsafe-inline'",
-              "connect-src 'self'",
+              // Cloudflare Web Analytics beacon: the script comes from
+              // cloudflareinsights.com and reports back to it, so both
+              // script-src and connect-src must allow that origin.
+              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+              "connect-src 'self' https://cloudflareinsights.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

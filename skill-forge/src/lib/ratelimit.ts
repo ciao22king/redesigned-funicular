@@ -1,40 +1,56 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { isFoundingTesterRole, isUnlimitedRole, type Role } from './roles';
 
 /**
- * Limite giornaliero di generazioni per utente, contato su Cloudflare KV.
+ * Daily generation limit per user, counted on Cloudflare KV.
  *
- * La chiave e' il login GitHub, quindi il limite segue la persona e non
- * l'indirizzo IP: cambiare rete o dispositivo non azzera la quota.
+ * The key is the GitHub login, so the limit follows the person and not the IP
+ * address: changing network or device does not reset the quota.
  *
- * La finestra e' il giorno UTC, non 24 ore scorrevoli: la chiave contiene la
- * data e scade a fine giornata, quindi la quota torna piena a mezzanotte UTC.
+ * The window is the UTC day, not a rolling 24 hours: the key contains the date
+ * and expires at the end of the day, so the quota is full again at midnight UTC.
  */
 
 export const DAILY_LIMIT = 3;
 
 /**
- * Login esenti dal limite (di norma il solo proprietario). Si configura con
- * UNLIMITED_LOGINS, id separati da virgola, senza toccare il codice.
+ * Daily limit for a founding tester: the badge perk. Higher than a normal
+ * member, but a real number, so the perk is concrete and can be shown.
  */
-const UNLIMITED_LOGINS = new Set(
-  (process.env.UNLIMITED_LOGINS ?? 'ciao22king')
-    .split(',')
-    .map((l) => l.trim().toLowerCase())
-    .filter(Boolean),
-);
+export const FOUNDING_DAILY_LIMIT = 5;
 
-/** Vero se il login e' esente dal limite giornaliero. */
-export function isUnlimited(login: string): boolean {
-  return UNLIMITED_LOGINS.has(login.toLowerCase());
+/**
+ * Daily limit for the anonymous demo, counted per IP address. It is stricter
+ * than the signed-in limit: the demo exists to show the output, not to be used
+ * as a free generator.
+ */
+export const DEMO_DAILY_LIMIT = 2;
+
+/**
+ * Logins exempt from the limit: the owner. The check takes the role the caller
+ * read from the user row, so the quota follows the stored role and not a config
+ * list that could disagree with it.
+ */
+export function isUnlimited(role: Role): boolean {
+  return isUnlimitedRole(role);
+}
+
+/**
+ * The daily generation limit for a role: unbounded for the owner, the founding
+ * tester perk for an early tester, the standard limit for everyone else. Kept
+ * next to `isUnlimited` so the number shown and the number enforced are one rule.
+ */
+export function dailyLimitFor(role: Role): number {
+  return isFoundingTesterRole(role) ? FOUNDING_DAILY_LIMIT : DAILY_LIMIT;
 }
 
 export interface Quota {
   used: number;
   remaining: number;
   limit: number;
-  /** ISO: quando il contatore scade e la quota torna piena. */
+  /** ISO: when the counter expires and the quota is full again. */
   resetsAt: string;
-  /** Vero quando l'utente non e' soggetto al limite. */
+  /** True when the user is not subject to the limit. */
   unlimited: boolean;
 }
 
@@ -42,7 +58,7 @@ interface Counter {
   count: number;
 }
 
-/** Chiave e scadenza del giorno UTC corrente. */
+/** Key and expiry of the current UTC day. */
 export function dayKey(date = new Date()): { key: string; resetsAt: string } {
   const start = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
   const next = start + 24 * 60 * 60 * 1000;
@@ -52,88 +68,454 @@ export function dayKey(date = new Date()): { key: string; resetsAt: string } {
   };
 }
 
+/**
+ * How long a single KV operation may take before it is abandoned.
+ *
+ * KV is normally fast, but when it is slow the request must not hang: a hung
+ * counter would hold the whole response open until the platform kills it, which
+ * the user sees as a page that never answers. A counter is not worth that. When
+ * the read times out the caller treats it as zero, and when the write times out
+ * the counter is simply not incremented — the request still succeeds.
+ */
+const KV_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), KV_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
+
+/**
+ * A KV namespace that never blocks longer than `KV_TIMEOUT_MS`.
+ *
+ * `get` resolves to null and `put`/`delete` resolve to nothing when KV is slow,
+ * so the caller degrades (a quota reads as unused) instead of hanging. This is
+ * the single place the timeout is applied, so every quota inherits it.
+ */
+function guarded(ns: KVNamespace): KVNamespace {
+  return {
+    get: ((key: string, type?: unknown) =>
+      withTimeout(
+        ns.get(key, type as never) as Promise<unknown>,
+        null,
+      )) as KVNamespace['get'],
+    put: ((key: string, value: string, options?: unknown) =>
+      withTimeout(ns.put(key, value, options as never), undefined)) as KVNamespace['put'],
+    delete: ((key: string) => withTimeout(ns.delete(key), undefined)) as KVNamespace['delete'],
+    list: ns.list.bind(ns),
+    getWithMetadata: ns.getWithMetadata.bind(ns),
+  } as unknown as KVNamespace;
+}
+
 async function store(): Promise<KVNamespace | undefined> {
   try {
     const { env } = await getCloudflareContext({ async: true });
-    return env.RATE_LIMIT;
+    return env.RATE_LIMIT ? guarded(env.RATE_LIMIT) : undefined;
   } catch {
-    // In `next dev` senza binding il limite non e' applicabile: non blocchiamo
-    // lo sviluppo locale, ma in produzione il binding c'e' sempre.
+    // In `next dev` without the binding the limit is not applicable: we do not
+    // block local development, but in production the binding is always there.
     return undefined;
   }
 }
 
-/** Legge la quota senza consumarla. */
-export async function readQuota(login: string, kv?: KVNamespace): Promise<Quota> {
+/** Reads the quota without consuming it. */
+export async function readQuota(login: string, role: Role, kv?: KVNamespace): Promise<Quota> {
   const { key, resetsAt } = dayKey();
 
-  // Un utente illimitato non ha un contatore: non serve leggere KV, e la UI
-  // non mostra un numero che non lo riguarda.
-  if (isUnlimited(login)) {
+  // An unlimited user has no counter: no need to read KV, and the UI does not
+  // show a number that does not concern them.
+  if (isUnlimited(role)) {
     return { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true };
   }
 
+  const limit = dailyLimitFor(role);
   const ns = kv ?? (await store());
   const used = ns ? Number((await ns.get<Counter>(`rl:${login}:${key}`, 'json'))?.count ?? 0) : 0;
   return {
     used,
-    remaining: Math.max(0, DAILY_LIMIT - used),
-    limit: DAILY_LIMIT,
+    remaining: Math.max(0, limit - used),
+    limit,
     resetsAt,
     unlimited: false,
   };
 }
 
 /**
- * Consuma una generazione se disponibile.
- * Restituisce `allowed: false` con la quota invariata quando il limite e' raggiunto.
+ * Consumes one generation if available.
+ * Returns `allowed: false` with the quota unchanged when the limit is reached.
  */
 export async function consumeQuota(
   login: string,
+  role: Role,
   kv?: KVNamespace,
 ): Promise<{ allowed: boolean; quota: Quota }> {
   const { key, resetsAt } = dayKey();
 
-  // Nessun contatore da toccare: l'esenzione non consuma ne' scrive su KV.
-  if (isUnlimited(login)) {
+  // No counter to touch: the exemption neither consumes nor writes to KV.
+  if (isUnlimited(role)) {
     return {
       allowed: true,
       quota: { used: 0, remaining: Infinity, limit: Infinity, resetsAt, unlimited: true },
     };
   }
 
+  const limit = dailyLimitFor(role);
   const ns = kv ?? (await store());
 
   if (!ns) {
     return {
       allowed: true,
-      quota: { used: 0, remaining: DAILY_LIMIT, limit: DAILY_LIMIT, resetsAt, unlimited: false },
+      quota: { used: 0, remaining: limit, limit, resetsAt, unlimited: false },
     };
   }
 
   const storageKey = `rl:${login}:${key}`;
   const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
 
-  if (current >= DAILY_LIMIT) {
+  if (current >= limit) {
     return {
       allowed: false,
-      quota: { used: current, remaining: 0, limit: DAILY_LIMIT, resetsAt, unlimited: false },
+      quota: { used: current, remaining: 0, limit, resetsAt, unlimited: false },
     };
   }
 
   const count = current + 1;
-  // TTL di 48 ore: copre sempre la giornata UTC in corso con margine, cosi' un
-  // contatore scritto poco prima di mezzanotte non scade in anticipo.
+  // 48-hour TTL: always covers the current UTC day with margin, so a counter
+  // written shortly before midnight does not expire early.
   await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
 
   return {
     allowed: true,
     quota: {
       used: count,
-      remaining: Math.max(0, DAILY_LIMIT - count),
-      limit: DAILY_LIMIT,
+      remaining: Math.max(0, limit - count),
+      limit,
       resetsAt,
       unlimited: false,
     },
   };
 }
+
+/**
+ * Daily limit for source fetching, counted per IP. Fetching a URL costs the
+ * server a request to a third party, so it has its own, separate budget: a
+ * visitor cannot spend their generation quota on fetching and then be blocked
+ * from the feature they actually wanted.
+ */
+export const INGEST_DAILY_LIMIT = 20;
+
+/**
+ * Consumes one source fetch for an anonymous visitor, counted on the IP.
+ * Namespaced like the demo counter, so the three budgets never share a slot.
+ */
+export async function consumeIngestQuota(
+  ip: string,
+  kv?: KVNamespace,
+): Promise<{ allowed: boolean; quota: Quota }> {
+  const { key, resetsAt } = dayKey();
+  const empty: Quota = {
+    used: 0,
+    remaining: INGEST_DAILY_LIMIT,
+    limit: INGEST_DAILY_LIMIT,
+    resetsAt,
+    unlimited: false,
+  };
+
+  const ns = kv ?? (await store());
+  if (!ns) return { allowed: true, quota: empty };
+
+  const storageKey = `ingest:${ip}:${key}`;
+  const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
+
+  if (current >= INGEST_DAILY_LIMIT) {
+    return { allowed: false, quota: { ...empty, used: current, remaining: 0 } };
+  }
+
+  const count = current + 1;
+  await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
+
+  return {
+    allowed: true,
+    quota: { ...empty, used: count, remaining: Math.max(0, INGEST_DAILY_LIMIT - count) },
+  };
+}
+
+/**
+ * Consumes one demo generation for an anonymous visitor, counted on the IP.
+ *
+ * The key is namespaced (`demo:`) so a visitor cannot collide with a GitHub login
+ * that happens to look like an address, and so the demo counter and the signed-in
+ * counter never share a slot.
+ */
+export async function consumeDemoQuota(
+  ip: string,
+  kv?: KVNamespace,
+): Promise<{ allowed: boolean; quota: Quota }> {
+  const { key, resetsAt } = dayKey();
+  const empty: Quota = {
+    used: 0,
+    remaining: DEMO_DAILY_LIMIT,
+    limit: DEMO_DAILY_LIMIT,
+    resetsAt,
+    unlimited: false,
+  };
+
+  const ns = kv ?? (await store());
+  if (!ns) return { allowed: true, quota: empty };
+
+  const storageKey = `demo:${ip}:${key}`;
+  const current = Number((await ns.get<Counter>(storageKey, 'json'))?.count ?? 0);
+
+  if (current >= DEMO_DAILY_LIMIT) {
+    return {
+      allowed: false,
+      quota: { ...empty, used: current, remaining: 0 },
+    };
+  }
+
+  const count = current + 1;
+  await ns.put(storageKey, JSON.stringify({ count }), { expirationTtl: 60 * 60 * 48 });
+
+  return {
+    allowed: true,
+    quota: { ...empty, used: count, remaining: Math.max(0, DEMO_DAILY_LIMIT - count) },
+  };
+}
+
+/**
+ * Daily limit for the anonymous metrics beacon, counted per IP. It is generous
+ * because a page sends several events per visit, but it stops a caller from
+ * looping the endpoint to skew the aggregate numbers.
+ */
+export const METRICS_DAILY_LIMIT = 200;
+
+/** A counter in the in-memory beacon store. */
+interface BeaconCounter {
+  count: number;
+  expiresAt: number;
+}
+
+/**
+ * Per-isolate counters for the metrics beacon.
+ *
+ * The beacon fires on every page view, so counting it in KV meant a read and a
+ * write per view — and KV's free tier allows 1,000 writes a day, which browsing
+ * alone exhausts. The beacon needs a flood stopper, not an exact count: a
+ * per-isolate counter costs nothing and, when an isolate is recycled, only
+ * forgets recent traffic. The exact quotas (generation, demo, login) stay on KV,
+ * where accuracy matters.
+ */
+const beaconStore = new Map<string, BeaconCounter>();
+
+/** Clears the beacon counters. Test seam: the store is process-wide. */
+export function resetBeaconStore(): void {
+  beaconStore.clear();
+}
+
+/** Drops expired entries, so the map cannot grow without bound. */
+function pruneBeacon(now: number): void {
+  if (beaconStore.size < 1_000) return;
+  for (const [key, value] of beaconStore) {
+    if (value.expiresAt <= now) beaconStore.delete(key);
+  }
+}
+
+/**
+ * Consumes one beacon request for an anonymous visitor, counted on the IP in
+ * memory. Namespaced like the other anonymous budgets, so they never share a
+ * slot. Never touches KV: see `beaconStore`.
+ */
+export async function consumeMetricsQuota(
+  ip: string,
+  store: Map<string, BeaconCounter> = beaconStore,
+  now = new Date(),
+): Promise<{ allowed: boolean; quota: Quota }> {
+  const { key, resetsAt } = dayKey(now);
+  const empty: Quota = {
+    used: 0,
+    remaining: METRICS_DAILY_LIMIT,
+    limit: METRICS_DAILY_LIMIT,
+    resetsAt,
+    unlimited: false,
+  };
+
+  pruneBeacon(now.getTime());
+  const storageKey = `metrics:${ip}:${key}`;
+  const entry = store.get(storageKey);
+  const used = entry && entry.expiresAt > now.getTime() ? entry.count : 0;
+
+  if (used >= METRICS_DAILY_LIMIT) {
+    return { allowed: false, quota: { ...empty, used, remaining: 0 } };
+  }
+
+  const count = used + 1;
+  store.set(storageKey, { count, expiresAt: Date.parse(resetsAt) });
+
+  return {
+    allowed: true,
+    quota: { ...empty, used: count, remaining: Math.max(0, METRICS_DAILY_LIMIT - count) },
+  };
+}
+
+/**
+ * Rate-limit headers for a response, so the limit is transparent instead of a
+ * surprise. A client can read exactly how much is left and when it comes back,
+ * which is also what the UI shows. An unlimited user gets no headers, because a
+ * limit that does not apply to them would only be noise.
+ *
+ * The names follow the common `X-RateLimit-*` convention and `Retry-After` is
+ * the standard header for the 429 case.
+ */
+export function rateLimitHeaders(quota: Quota): Record<string, string> {
+  if (quota.unlimited) return {};
+  const headers: Record<string, string> = {
+    'X-RateLimit-Limit': String(quota.limit),
+    'X-RateLimit-Remaining': String(quota.remaining),
+    'X-RateLimit-Reset': quota.resetsAt,
+  };
+  if (quota.remaining <= 0) {
+    headers['Retry-After'] = String(secondsUntilReset(quota));
+  }
+  return headers;
+}
+
+/** Seconds until the quota is full again, never negative. */
+export function secondsUntilReset(quota: Quota, now = Date.now()): number {
+  return Math.max(0, Math.ceil((Date.parse(quota.resetsAt) - now) / 1000));
+}
+
+// ---------------------------------------------------------------------------
+// Generic fixed-window limiter
+// ---------------------------------------------------------------------------
+
+/**
+ * A fixed-window limiter, for the actions that are not the daily generation
+ * quota: the admin sign-in and the admin actions.
+ *
+ * A fixed window is the honest choice here. A rolling window would need a list
+ * of timestamps per key; the operator area is low-traffic, so the coarse bucket
+ * is enough, and the bucket boundary is visible to the caller through
+ * `resetsAt`, so a refusal always says when to retry.
+ */
+export interface WindowQuota {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetsAt: string;
+}
+
+/** Start of the window `now` falls in, and when it ends, for a window size. */
+export function windowBounds(
+  windowSeconds: number,
+  now = new Date(),
+): { bucket: number; resetsAt: string } {
+  const size = Math.max(1, Math.floor(windowSeconds));
+  const bucket = Math.floor(now.getTime() / 1000 / size);
+  return { bucket, resetsAt: new Date((bucket + 1) * size * 1000).toISOString() };
+}
+
+/**
+ * Consumes one slot in a fixed window. `name` namespaces the counter so two
+ * features never share a budget, and `id` is the thing being limited (an IP for
+ * the sign-in, a login for the actions).
+ *
+ * A missing KV binding allows the action: in `next dev` the limiter is not
+ * applicable, and in production the binding is always present.
+ */
+export async function consumeWindow(
+  name: string,
+  id: string,
+  limit: number,
+  windowSeconds: number,
+  kv?: KVNamespace,
+  now = new Date(),
+): Promise<WindowQuota> {
+  const { bucket, resetsAt } = windowBounds(windowSeconds, now);
+  const base: WindowQuota = { allowed: true, limit, remaining: limit, resetsAt };
+
+  const ns = kv ?? (await store());
+  if (!ns) return base;
+
+  const key = `w:${name}:${id}:${bucket}`;
+  const current = Number((await ns.get<Counter>(key, 'json'))?.count ?? 0);
+  if (current >= limit) {
+    return { ...base, allowed: false, remaining: 0 };
+  }
+
+  const count = current + 1;
+  // Two windows of TTL: always covers the current bucket with margin, so a
+  // counter written near the boundary is not evicted early.
+  await ns.put(key, JSON.stringify({ count }), {
+    expirationTtl: Math.max(60, windowSeconds * 2),
+  });
+  return { ...base, remaining: Math.max(0, limit - count) };
+}
+
+/** Sign-in attempts per address: generous for a human, tight for a script. */
+export const ADMIN_LOGIN_LIMIT = 8;
+export const ADMIN_LOGIN_WINDOW_SECONDS = 15 * 60;
+
+/** Sign-in attempts per address, for the public login callback. */
+export const LOGIN_LIMIT = 12;
+export const LOGIN_WINDOW_SECONDS = 15 * 60;
+
+export function consumeLogin(ip: string, kv?: KVNamespace): Promise<WindowQuota> {
+  return consumeWindow('login', ip || 'unknown', LOGIN_LIMIT, LOGIN_WINDOW_SECONDS, kv);
+}
+
+/** Sensitive admin actions per operator, so a mistake cannot be repeated fast. */
+export const ADMIN_ACTION_LIMIT = 60;
+export const ADMIN_ACTION_WINDOW_SECONDS = 60 * 60;
+
+export function consumeAdminLogin(
+  ip: string,
+  kv?: KVNamespace,
+): Promise<WindowQuota> {
+  return consumeWindow('admin-login', ip || 'unknown', ADMIN_LOGIN_LIMIT, ADMIN_LOGIN_WINDOW_SECONDS, kv);
+}
+
+export function consumeAdminAction(
+  login: string,
+  kv?: KVNamespace,
+): Promise<WindowQuota> {
+  return consumeWindow('admin-action', login, ADMIN_ACTION_LIMIT, ADMIN_ACTION_WINDOW_SECONDS, kv);
+}
+
+/** Rate-limit headers for a windowed quota, matching the daily ones. */
+export function windowHeaders(quota: WindowQuota): Record<string, string> {
+  const headers: Record<string, string> = {
+    'X-RateLimit-Limit': String(quota.limit),
+    'X-RateLimit-Remaining': String(quota.remaining),
+    'X-RateLimit-Reset': quota.resetsAt,
+  };
+  if (!quota.allowed) {
+    headers['Retry-After'] = String(
+      Math.max(0, Math.ceil((Date.parse(quota.resetsAt) - Date.now()) / 1000)),
+    );
+  }
+  return headers;
+}
+
+/**
+ * A useful, actionable message for a spent quota.
+ *
+ * It says what happened, when it resets (in both UTC and the reader's clock),
+ * and what to do next, instead of a bare "too many requests".
+ */
+export function quotaMessage(quota: Quota, what = 'generations'): string {
+  const reset = new Date(quota.resetsAt);
+  const utc = reset.toLocaleString('en-US', { timeZone: 'UTC', hour12: false });
+  const local = reset.toLocaleString(undefined, { hour12: false });
+  return `You have used all ${quota.limit} ${what} for today. The limit resets at ${utc} UTC (${local} your time). Sign in with GitHub for a larger daily allowance, or come back after the reset.`;
+}
+

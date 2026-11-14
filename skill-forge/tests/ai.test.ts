@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTEMPT_TIMEOUT_MS, MODELS, SYSTEM_PROMPT } from '../src/lib/ai';
+import { ATTEMPT_TIMEOUT_MS, MODELS, REASONING_EFFORT, SYSTEM_PROMPT } from '../src/lib/ai';
 
 test('la scala dei modelli non e vuota', () => {
   assert.ok(MODELS.length > 0);
@@ -16,6 +16,12 @@ test('il modello piu grande resta come ultima spiaggia', () => {
 
 test('nessun modello e ripetuto', () => {
   assert.equal(new Set(MODELS).size, MODELS.length);
+});
+
+test('l effort di ragionamento non e mai "none", che alcuni modelli rifiutano', () => {
+  // liquid/lfm-2.5-2.6b and recursive/flint-v1.0 declare reasoning as mandatory
+  // and reject effort "none": the request would fail for them.
+  assert.notEqual(REASONING_EFFORT, 'none');
 });
 
 test('il timeout per tentativo e positivo e sotto il budget della funzione', () => {
