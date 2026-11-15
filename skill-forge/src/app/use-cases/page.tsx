@@ -7,7 +7,7 @@ import { USE_CASES, useCasePath } from '@/lib/usecases';
 export const metadata: Metadata = {
   title: 'Use cases · Skill Forge',
   description:
-    'Five concrete cases: code review, incident postmortem, onboarding, customer support and DevOps runbooks. The material you start from, and the skill it becomes.',
+    'Ten concrete cases: code review, incident postmortem, onboarding, customer support, DevOps runbooks, documentation, test coverage, legacy refactoring, API integration and release notes. The material you start from, and the skill it becomes.',
   alternates: { canonical: '/use-cases' },
 };
 
@@ -27,7 +27,7 @@ export default function UseCasesPage() {
           Use cases
         </p>
         <h1 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight text-[--ink]">
-          Five things people turn into skills
+          Ten things people turn into skills
         </h1>
         <p className="mt-5 max-w-prose text-[17px] text-[--ink-muted]">
           Each case below starts from material you already have and ends with a

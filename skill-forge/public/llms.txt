@@ -19,11 +19,15 @@ requires signing in with GitHub.
 - [Marketplace](https://skillforge.cc.cd/marketplace): browse, search and sort
   the published skills.
 - [Tags](https://skillforge.cc.cd/tags): the skills grouped by topic.
-- [Use cases](https://skillforge.cc.cd/use-cases): five concrete cases (code
-  review, incident postmortem, onboarding, customer support, DevOps runbooks),
-  each with the material you start from and the skill it becomes. Each case also
-  has its own page, for example
+- [Use cases](https://skillforge.cc.cd/use-cases): ten concrete cases (code
+  review, incident postmortem, onboarding, customer support, DevOps runbooks,
+  documentation, test coverage, legacy refactoring, API integration, release
+  notes), each with the material you start from and the skill it becomes. Each
+  case also has its own page, for example
   [Code review](https://skillforge.cc.cd/use-cases/code-review).
+- [FAQ](https://skillforge.cc.cd/faq): what a skill is, how generation works,
+  what it costs, where your material goes, and how the marketplace and the CLI
+  fit in.
 - [CLI](https://skillforge.cc.cd/cli): install the command-line client from npm
   (`npm install -g @ciao223/skill-forge-cli`), sign in with GitHub and generate,
   publish or pull skills from the terminal.

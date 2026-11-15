@@ -118,6 +118,96 @@ export const USE_CASES: UseCase[] = [
       'Note the steps that require a second person.',
     ],
   },
+  {
+    slug: 'writing-docs',
+    title: 'Documentation',
+    audience: 'A maintainer whose docs lag two versions behind the code and who is the only one who notices.',
+    situation:
+      'The README describes an API that no longer exists, the good documentation is scattered across issue threads, and "update the docs" has been on the backlog for a quarter because nobody knows where to start.',
+    input:
+      'The current README, the doc comments in the recently changed files, and the questions people actually asked in the support channel last month.',
+    outcome:
+      'A skill that rewrites the documentation around the questions people really ask, anchors every command to the version it applies to, and refuses to publish a page that contradicts the code it just read.',
+    steps: [
+      'Collect the real questions first; they define the sections.',
+      'Read the code for every claim before writing it.',
+      'Mark each command with the version it applies to.',
+      'Delete the sections that answer questions nobody asks.',
+      'End each page with a runnable verification step.',
+    ],
+  },
+  {
+    slug: 'test-generation',
+    title: 'Test coverage',
+    audience: 'A developer who inherited a codebase whose only tests were written by an abandoned tool.',
+    situation:
+      'Coverage says twelve percent, the happy paths are verified by hand before every release, and every regression reaches production before anyone notices it.',
+    input:
+      'The untested module, the bug reports from the last two months, and the manual checklist the team runs before a release.',
+    outcome:
+      'A skill that turns each bug report into a failing regression test first, covers the manual checklist with real integration tests, and refuses to write assertions that mirror the implementation instead of the contract.',
+    steps: [
+      'Write the regression test for a reported bug before touching the fix.',
+      'Convert every manual checklist item into an automated test.',
+      'Assert the contract, not the private internals.',
+      'Name each test after the behaviour it protects.',
+      'Flag the paths that still have no test and say why.',
+    ],
+  },
+  {
+    slug: 'legacy-refactoring',
+    title: 'Legacy refactoring',
+    audience: 'A developer asked to change a module nobody has touched in three years.',
+    situation:
+      'The file is two thousand lines, the comments contradict the code, and every change risks the one customer who depends on the undocumented behaviour.',
+    input:
+      'The legacy module, whatever tests exist, the commit history of the recent changes, and the support tickets filed against it.',
+    outcome:
+      'A skill that maps the actual behaviour first — including the undocumented cases the tickets reveal — then plans the refactor as steps that each keep the observable behaviour identical, with a verification after every move.',
+    steps: [
+      'Record the current behaviour, including the edge cases from tickets.',
+      'Pin it down with characterisation tests before editing anything.',
+      'Plan the refactor as steps, each of which compiles and passes.',
+      'Verify the observable behaviour is unchanged after every step.',
+      'Document the behaviour that surprised you, so the next person reads it.',
+    ],
+  },
+  {
+    slug: 'api-onboarding',
+    title: 'API integration',
+    audience: 'A developer integrating a third-party API whose docs assume context they do not have.',
+    situation:
+      'The quickstart works until the first real request, the auth errors are vague, and the rate limits live in a changelog post from two years ago.',
+    input:
+      'The API quickstart, the auth errors from your first attempts, and the notes from whoever used the API before you.',
+    outcome:
+      'A skill that builds a verified request sequence: auth first, then one endpoint at a time with the expected response shape written before the call. It records the rate limits and retry policy it could actually confirm, and flags everything it could not.',
+    steps: [
+      'Authenticate first and record what a valid token looks like.',
+      'Call one endpoint at a time; write the expected shape before the call.',
+      'Confirm the rate limits from responses, not from memory.',
+      'Record the retry policy for each error code you actually saw.',
+      'List the behaviours you could not verify as open questions.',
+    ],
+  },
+  {
+    slug: 'release-notes',
+    title: 'Release notes',
+    audience: 'A release manager writing notes from a month of merged pull requests.',
+    situation:
+      'Thirty merges, three of them reverted, and the notes alternate between "various fixes" and a changelog nobody reads because everything is marked as minor.',
+    input:
+      'The merged pull requests since the last release, the draft changelog entries, and the issues each pull request claims to close.',
+    outcome:
+      'A skill that groups the changes by what a user actually notices, writes each entry from the diff instead of the pull request title, and marks the entries that require user action. Reverted work disappears; security fixes get their own section.',
+    steps: [
+      'Group by user-visible effect, not by component.',
+      'Write each entry from the diff, not from the PR title.',
+      'Mark the entries that require the user to act.',
+      'Drop the reverted work entirely.',
+      'Give security fixes their own section at the top.',
+    ],
+  },
 ];
 
 /** Looks up a use case by its slug. */

@@ -11,6 +11,7 @@ const legalLinks = [
 const exploreLinks = [
   { href: '/marketplace', label: 'Marketplace' },
   { href: '/use-cases', label: 'Use cases' },
+  { href: '/faq', label: 'FAQ' },
   { href: '/cli', label: 'CLI' },
   { href: '/pre-program', label: 'Early access' },
   { href: '/changelog', label: 'Changelog' },

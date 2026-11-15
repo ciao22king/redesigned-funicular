@@ -22,6 +22,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-15',
+    kind: 'new',
+    title: 'Ten use cases, and an FAQ',
+    body: 'Five new use-case pages — documentation, test coverage, legacy refactoring, API integration and release notes — join the first five, each with the material you start from and the skill it becomes. A new FAQ answers what a skill is, what it costs and where your material goes; both the FAQ and every use case are listed in the sitemap.',
+  },
+  {
     date: '2026-11-13',
     kind: 'new',
     title: 'The CLI is on npm',
