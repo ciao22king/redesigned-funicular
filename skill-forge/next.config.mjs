@@ -34,8 +34,17 @@ const nextConfig = {
               // Cloudflare Web Analytics beacon: the script comes from
               // cloudflareinsights.com and reports back to it, so both
               // script-src and connect-src must allow that origin.
-              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
-              "connect-src 'self' https://cloudflareinsights.com",
+              //
+              // `wasm-unsafe-eval` is what lets the browser compile the WebLLM
+              // kernel: without it the CSP blocks WebAssembly compilation and
+              // the engine fails with an opaque error.
+              "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com",
+              // WebLLM (the on-device model behind /skiller) fetches its weights
+              // from huggingface.co and its compiled kernel from GitHub, so
+              // connect-src must allow those origins too, or the model loads and
+              // then dies silently.
+              "connect-src 'self' https://cloudflareinsights.com https://huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://raw.githubusercontent.com",
+              "worker-src 'self' blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

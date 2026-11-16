@@ -31,6 +31,9 @@ requires signing in with GitHub.
 - [CLI](https://skillforge.cc.cd/cli): install the command-line client from npm
   (`npm install -g @ciao223/skill-forge-cli`), sign in with GitHub and generate,
   publish or pull skills from the terminal.
+- [Skiller](https://skillforge.cc.cd/skiller): a small assistant that runs in the
+  browser, on the visitor's own device, with no server and no cost. It helps
+  shape a skill and stays on that job.
 - [Changelog](https://skillforge.cc.cd/changelog): what changed, newest first.
 - [Create from material](https://skillforge.cc.cd/create/from-skills): merge up
   to 20 files or pasted text into one skill.

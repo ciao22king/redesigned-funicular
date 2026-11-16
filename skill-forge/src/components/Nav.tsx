@@ -62,6 +62,12 @@ export function Nav() {
             CLI
           </Link>
           <Link
+            href="/skiller"
+            className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+          >
+            Skiller
+          </Link>
+          <Link
             href="/pre-program"
             className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
           >
@@ -232,6 +238,13 @@ export function Nav() {
               className="rounded-lg px-3 py-3 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken]"
             >
               CLI
+            </Link>
+            <Link
+              href="/skiller"
+              onClick={() => setMobile(false)}
+              className="rounded-lg px-3 py-3 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken]"
+            >
+              Skiller
             </Link>
             {status === 'authenticated' ? (
               <>
