@@ -65,8 +65,10 @@ export function Footer() {
         </nav>
         <div className="hairline my-5" />
         <p className="mb-4 max-w-prose text-xs text-[--ink-muted]">
-          Material you submit is sent to our AI provider to generate the skill and
-          is not stored on our servers afterwards. Full detail in the{' '}
+          The model can run in your browser, in which case nothing leaves your
+          device. If it runs on our servers, your material is sent to our AI
+          provider to generate the skill and is not stored afterwards. Full
+          detail in the{' '}
           <Link href="/privacy" className="underline underline-offset-2 hover:text-[--ink]">
             privacy policy
           </Link>

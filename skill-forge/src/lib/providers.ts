@@ -127,8 +127,21 @@ export const PROVIDERS: Provider[] = [
   },
 ];
 
-/** The providers that have a key, in ladder order. */
+/**
+ * The providers that have a key, in ladder order.
+ *
+ * `HOSTED_PROVIDERS` is the switch. The site runs on the on-device model, so
+ * the hosted providers are off by default: their keys may still be set, but the
+ * ladder ignores them. Set `HOSTED_PROVIDERS=on` (a Worker variable, no code
+ * change) and they come back exactly as they were. Off is not the same as
+ * removed: nothing here is deleted, so restoring them is one variable.
+ */
+export function hostedProvidersEnabled(): boolean {
+  return (process.env.HOSTED_PROVIDERS ?? '').trim().toLowerCase() === 'on';
+}
+
 export function activeProviders(): Provider[] {
+  if (!hostedProvidersEnabled()) return [];
   return PROVIDERS.filter((p) => (p.apiKey() ?? '').trim().length > 0);
 }
 

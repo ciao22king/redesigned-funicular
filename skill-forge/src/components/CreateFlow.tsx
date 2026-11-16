@@ -25,6 +25,8 @@ import { track } from '@/lib/track';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { fetchSkillForDownload, SignInRequiredError } from '@/lib/skill-download';
 import { Feedback } from '@/components/Feedback';
+import { ModelPicker, type ModelChoice } from '@/components/ModelPicker';
+import { generateOnDevice } from '@/lib/skiller-generate';
 
 type Mode = 'from-skills' | 'from-scratch';
 
@@ -64,6 +66,26 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   const [quality, setQuality] = useState<QualityReport | null>(null);
   const [normalizations, setNormalizations] = useState<string[]>([]);
   const [refined, setRefined] = useState(false);
+
+  // Which model generates. The device is the default: free and private. The
+  // hosted option is only offered when the server says it is switched on, so
+  // the choice never leads to a request that cannot be served.
+  const [model, setModel] = useState<ModelChoice>('device');
+  const [hostedAvailable, setHostedAvailable] = useState(false);
+  const [deviceProgress, setDeviceProgress] = useState('');
+
+  useEffect(() => {
+    fetch('/api/model-config')
+      .then((r) => (r.ok ? (r.json() as Promise<{ hosted: boolean }>) : null))
+      .then((d) => {
+        if (!d) return;
+        setHostedAvailable(d.hosted);
+        // When the hosted providers are off, "on our servers" is not a real
+        // option, so the device model stays selected whatever the default was.
+        if (!d.hosted) setModel('device');
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/generate')
@@ -230,47 +252,86 @@ export default function CreatePage({ mode }: { mode: Mode }) {
 
     const startedAt = Date.now();
     try {
-      const res = await fetchWithTimeout('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          mode === 'from-skills'
-            ? { mode, sourceMaterial: material, audience, register }
-            : { mode, name, domain, goal, tone, constraints, examples, audience, register },
-        ),
-      });
-      const data = (await res.json()) as GenerateResponse;
-      if (data.quota) setQuota(data.quota);
-      if (!res.ok) throw new Error(data.error ?? 'Generation failed');
-
-      const markdown = data.markdown as string;
-      setResult(markdown);
-      setQuestions(data.questions ?? []);
-      setQuality(data.quality ?? null);
-      setNormalizations(data.normalizations ?? []);
-      setRefined(Boolean(data.refined));
-      setPlan(null);
-
+      if (model === 'device') {
+        await generateWithDevice();
+      } else {
+        await generateWithServer();
+      }
       // Funnel: a skill arrived, and how long the wait took. The duration is
       // sent as a value, so the server accumulates an average and nothing
       // per-request is stored. The `generate` outcome is recorded server-side.
       track('generation_ms', { value: Date.now() - startedAt });
       track('funnel_result');
-
-      // Every generated skill enters the local archive right away: it stays
-      // findable even if it is not downloaded or committed.
-      const skillName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';
-      saveLocalSkill({
-        markdown,
-        name: skillName,
-        description: readFrontmatterDescription(markdown) ?? '',
-        source: mode,
-      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
     }
+  }
+
+  /** The body both models receive: the wizard fields, or the material. */
+  function requestBody() {
+    return mode === 'from-skills'
+      ? { mode, sourceMaterial: material, audience, register }
+      : { mode, name, domain, goal, tone, constraints, examples, audience, register };
+  }
+
+  /**
+   * Runs the pipeline in the browser. No quota is consumed and nothing is
+   * uploaded; the wait is the model's own download on first use, which the
+   * progress line reports.
+   */
+  async function generateWithDevice() {
+    setDeviceProgress('Preparing the model…');
+    const out = await generateOnDevice(requestBody(), (t) => setDeviceProgress(t));
+    setDeviceProgress('');
+    if ('error' in out) throw new Error(out.error);
+
+    setResult(out.markdown);
+    setNormalizations(out.normalizations);
+    // The device path has no quota, no clarifying questions and no self-review:
+    // those are server features, so the panels that show them stay empty.
+    setQuestions([]);
+    setQuality(null);
+    setRefined(false);
+    setPlan(null);
+    saveResultLocally(out.markdown);
+  }
+
+  /** The existing path: the request goes to the server, which runs the ladder. */
+  async function generateWithServer() {
+    const res = await fetchWithTimeout('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody()),
+    });
+    const data = (await res.json()) as GenerateResponse;
+    if (data.quota) setQuota(data.quota);
+    if (!res.ok) throw new Error(data.error ?? 'Generation failed');
+
+    const markdown = data.markdown as string;
+    setResult(markdown);
+    setQuestions(data.questions ?? []);
+    setQuality(data.quality ?? null);
+    setNormalizations(data.normalizations ?? []);
+    setRefined(Boolean(data.refined));
+    setPlan(null);
+    saveResultLocally(markdown);
+  }
+
+  /**
+   * Every generated skill enters the local archive right away: it stays findable
+   * even if it is not downloaded or committed. Shared by both models so the
+   * archive does not depend on which one ran.
+   */
+  function saveResultLocally(markdown: string) {
+    const skillName = readFrontmatterName(markdown) ?? name.trim() ?? 'Untitled skill';
+    saveLocalSkill({
+      markdown,
+      name: skillName,
+      description: readFrontmatterDescription(markdown) ?? '',
+      source: mode,
+    });
   }
 
   /**
@@ -345,7 +406,9 @@ export default function CreatePage({ mode }: { mode: Mode }) {
       ? files.length > 0 || sources.length > 0 || pasted.trim().length > 60
       : Boolean(name.trim() && domain.trim() && goal.trim());
 
-  const outOfQuota = !!quota && !quota.unlimited && quota.remaining === 0;
+  // The quota is a server resource: the on-device model does not consume it, so
+  // running out must not block a device generation.
+  const outOfQuota = model === 'hosted' && !!quota && !quota.unlimited && quota.remaining === 0;
 
   return (
     <>
@@ -385,6 +448,12 @@ export default function CreatePage({ mode }: { mode: Mode }) {
         <div className="space-y-7">
           <AudiencePicker value={audience} onChange={setAudience} />
           <TonePicker value={register} onChange={setRegister} />
+          <ModelPicker
+            value={model}
+            onChange={setModel}
+            hostedAvailable={hostedAvailable}
+            disabled={busy}
+          />
         </div>
 
         <div className="hairline my-10" />
@@ -573,7 +642,13 @@ export default function CreatePage({ mode }: { mode: Mode }) {
                 {busy ? 'Generating...' : 'Review and generate'}
               </button>
 
-              {quota && (
+              {deviceProgress && (
+                <p className="mt-3 text-center font-mono text-xs text-[--ink-muted]">
+                  {deviceProgress}
+                </p>
+              )}
+
+              {model === 'hosted' && quota && (
                 <p
                   className={`mt-3 text-center text-sm ${
                     outOfQuota ? 'text-[oklch(45%_0.14_28)]' : 'text-[--ink-muted]'

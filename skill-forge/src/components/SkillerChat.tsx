@@ -8,7 +8,8 @@ import {
   SKILLER_MODEL_ID,
   SKILLER_SYSTEM_PROMPT,
 } from '@/lib/skiller';
-import { skillerEngineConfig, skillerModelRecord } from '@/lib/skiller-webllm';
+import { skillerEngineConfig } from '@/lib/skiller-webllm';
+import { getEngine } from '@/lib/skiller-engine';
 
 /**
  * Skiller in the browser.
@@ -17,6 +18,9 @@ import { skillerEngineConfig, skillerModelRecord } from '@/lib/skiller-webllm';
  * cost per token. The trade is the download — a few hundred megabytes the first
  * time, cached afterwards — so the engine is only imported when the user asks
  * for it, never on page load.
+ *
+ * The engine itself is the shared singleton from `skiller-engine`, so opening
+ * this page after generating a skill reuses the model already in memory.
  *
  * The guardrails from `lib/skiller` run here, in the page: the input is checked
  * before the model sees it, the reply before it is shown. A small model can be
@@ -30,47 +34,20 @@ interface Turn {
   content: string;
 }
 
-/** The shape of the engine we use, kept minimal on purpose: the package is a
- * dynamic import and we do not want its full types in the bundle graph. */
-interface Engine {
-  chat: {
-    completions: {
-      create: (req: {
-        messages: { role: string; content: string }[];
-        temperature?: number;
-        top_p?: number;
-        repetition_penalty?: number;
-        max_tokens?: number;
-      }) => Promise<{ choices: { message: { content: string } }[] }>;
-    };
-  };
-}
-
 export function SkillerChat() {
   const [status, setStatus] = useState<Status>('idle');
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
-  const engineRef = useRef<Engine | null>(null);
+  const readyRef = useRef(false);
 
   const load = useCallback(async () => {
     setStatus('loading');
     setError(null);
     try {
-      // Dynamic import: WebLLM is large and must not be in the initial bundle.
-      const webllm = await import('@mlc-ai/web-llm');
-      // The first argument is the model id; our card travels in `appConfig`,
-      // which is how WebLLM is told about a model outside its own catalogue.
-      const engine = await webllm.CreateMLCEngine(
-        SKILLER_MODEL_ID,
-        {
-          appConfig: { model_list: [skillerModelRecord()] },
-          initProgressCallback: (p) => setProgress(p.text ?? ''),
-        },
-        skillerEngineConfig(),
-      );
-      engineRef.current = engine as unknown as Engine;
+      await getEngine((text) => setProgress(text));
+      readyRef.current = true;
       setStatus('ready');
     } catch (err) {
       setStatus('error');
@@ -83,8 +60,7 @@ export function SkillerChat() {
   }, []);
 
   const send = useCallback(async () => {
-    const engine = engineRef.current;
-    if (!engine) return;
+    if (!readyRef.current) return;
 
     const verdict = checkInput(input);
     if (!verdict.ok) {
@@ -100,6 +76,7 @@ export function SkillerChat() {
     setInput('');
 
     try {
+      const engine = await getEngine();
       const cfg = skillerEngineConfig();
       const reply = await engine.chat.completions.create({
         messages: [

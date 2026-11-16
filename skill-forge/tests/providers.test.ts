@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activeProviders, allModels, groqModels, openrouterModels, PROVIDERS } from '../src/lib/providers';
+import { activeProviders, allModels, groqModels, hostedProvidersEnabled, openrouterModels, PROVIDERS } from '../src/lib/providers';
 
 /**
  * The provider table decides which models the fallback may use. These tests fix
  * the rule that matters: a provider is in the ladder only when its key is set,
- * and Groq is tried before OpenRouter.
+ * Groq is tried before OpenRouter, and the whole ladder is off unless
+ * `HOSTED_PROVIDERS=on`.
  */
 function withKeys(keys: Record<string, string | undefined>, run: () => void) {
   const saved = { ...process.env };
@@ -21,15 +22,18 @@ function withKeys(keys: Record<string, string | undefined>, run: () => void) {
   }
 }
 
+/** The ladder only exists when the switch is on: most tests need it on. */
+const ON = { HOSTED_PROVIDERS: 'on' };
+
 test('senza chiavi non c e nessun provider attivo', () => {
-  withKeys({ GROQ_API_KEY: undefined, OPENROUTER_API_KEY: undefined }, () => {
+  withKeys({ ...ON, GROQ_API_KEY: undefined, OPENROUTER_API_KEY: undefined }, () => {
     assert.equal(activeProviders().length, 0);
     assert.deepEqual(allModels(), []);
   });
 });
 
 test('con la sola chiave Groq la scala e solo Groq', () => {
-  withKeys({ GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY: undefined }, () => {
+  withKeys({ ...ON, GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY: undefined }, () => {
     const ladder = allModels();
     assert.ok(ladder.length > 0);
     assert.ok(ladder.every((m) => m.provider.id === 'groq'));
@@ -41,7 +45,7 @@ test('con la sola chiave Groq la scala e solo Groq', () => {
 });
 
 test('con entrambe le chiavi Groq viene prima di OpenRouter', () => {
-  withKeys({ GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY: 'sk-or-test' }, () => {
+  withKeys({ ...ON, GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY: 'sk-or-test' }, () => {
     const ids = allModels().map((m) => m.provider.id);
     assert.equal(ids[0], 'groq');
     assert.ok(ids.includes('openrouter'));
@@ -51,8 +55,38 @@ test('con entrambe le chiavi Groq viene prima di OpenRouter', () => {
 });
 
 test('una chiave vuota o di soli spazi non attiva il provider', () => {
-  withKeys({ GROQ_API_KEY: '   ', OPENROUTER_API_KEY: undefined }, () => {
+  withKeys({ ...ON, GROQ_API_KEY: '   ', OPENROUTER_API_KEY: undefined }, () => {
     assert.equal(activeProviders().length, 0);
+  });
+});
+
+test('senza HOSTED_PROVIDERS la scala e vuota anche con le chiavi', () => {
+  withKeys({ HOSTED_PROVIDERS: undefined, GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY: 'sk-or-test' }, () => {
+    assert.equal(hostedProvidersEnabled(), false);
+    assert.equal(activeProviders().length, 0);
+    assert.deepEqual(allModels(), []);
+  });
+});
+
+test('HOSTED_PROVIDERS accetta solo "on" (case e spazi indifferenti)', () => {
+  for (const value of ['on', 'ON', ' On ', 'on\n']) {
+    withKeys({ HOSTED_PROVIDERS: value }, () => {
+      assert.equal(hostedProvidersEnabled(), true, `doveva accettare: ${JSON.stringify(value)}`);
+    });
+  }
+  for (const value of ['off', 'true', '1', 'yes', '', undefined]) {
+    withKeys({ HOSTED_PROVIDERS: value }, () => {
+      assert.equal(hostedProvidersEnabled(), false, `non doveva accettare: ${JSON.stringify(value)}`);
+    });
+  }
+});
+
+test('i provider restano definiti anche quando sono spenti (non rimossi)', () => {
+  withKeys({ HOSTED_PROVIDERS: undefined, GROQ_API_KEY: 'gsk_test' }, () => {
+    // La tabella c'e' ancora: si riaccende con una variabile, non con il codice.
+    assert.equal(PROVIDERS.length, 2);
+    assert.ok(PROVIDERS.some((p) => p.id === 'groq'));
+    assert.ok(PROVIDERS.some((p) => p.id === 'openrouter'));
   });
 });
 

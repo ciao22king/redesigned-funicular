@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { Nav } from '@/components/Nav';
@@ -13,6 +13,7 @@ import { DEFAULT_AUDIENCE, DEFAULT_TONE, type AudienceId, type ToneId } from '@/
 import type { QualityReport } from '@/lib/quality';
 import { track } from '@/lib/track';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { generateOnDevice } from '@/lib/skiller-generate';
 import { Feedback } from '@/components/Feedback';
 
 /**
@@ -28,6 +29,15 @@ export default function DemoPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [quality, setQuality] = useState<QualityReport | null>(null);
+  const [progress, setProgress] = useState('');
+  const [hostedAvailable, setHostedAvailable] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/model-config')
+      .then((r) => (r.ok ? (r.json() as Promise<{ hosted: boolean }>) : null))
+      .then((d) => d && setHostedAvailable(d.hosted))
+      .catch(() => {});
+  }, []);
 
   async function generate() {
     setBusy(true);
@@ -37,22 +47,37 @@ export default function DemoPage() {
     track('funnel_submit');
     const startedAt = Date.now();
     try {
-      const res = await fetchWithTimeout('/api/demo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'from-skills', sourceMaterial: material, audience, register }),
-      });
-      const data = (await res.json()) as {
-        markdown?: string;
-        error?: string;
-        quality?: QualityReport;
-      };
-      if (!res.ok) throw new Error(data.error ?? 'Generation failed');
-      setResult(data.markdown as string);
-      setQuality(data.quality ?? null);
+      if (hostedAvailable) {
+        const res = await fetchWithTimeout('/api/demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'from-skills', sourceMaterial: material, audience, register }),
+        });
+        const data = (await res.json()) as {
+          markdown?: string;
+          error?: string;
+          quality?: QualityReport;
+        };
+        if (!res.ok) throw new Error(data.error ?? 'Generation failed');
+        setResult(data.markdown as string);
+        setQuality(data.quality ?? null);
+      } else {
+        // No server provider is configured, so the preview runs on the device.
+        // Same pipeline, same validation: the visitor still sees a real skill.
+        setProgress('Preparing the model…');
+        const out = await generateOnDevice(
+          { mode: 'from-skills', sourceMaterial: material, audience, register },
+          (t) => setProgress(t),
+        );
+        setProgress('');
+        if ('error' in out) throw new Error(out.error);
+        setResult(out.markdown);
+        setQuality(null);
+      }
       track('generation_ms', { value: Date.now() - startedAt });
       track('funnel_result');
     } catch (e) {
+      setProgress('');
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
@@ -111,7 +136,9 @@ export default function DemoPage() {
         </label>
 
         <p className="mt-2 text-xs text-[--ink-muted]">
-          Up to 4,000 characters in the demo. Sign in for longer material.
+          {hostedAvailable
+            ? 'Up to 4,000 characters in the demo. Sign in for longer material.'
+            : 'Runs on your device: nothing is uploaded. Sign in for longer material and editing.'}
         </p>
 
         <div className="mt-6 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">
@@ -129,6 +156,10 @@ export default function DemoPage() {
             {busy ? 'Generating...' : 'Generate a preview'}
           </button>
         </div>
+
+        {progress && (
+          <p className="mt-3 font-mono text-xs text-[--ink-muted]">{progress}</p>
+        )}
 
         {error && (
           <div className="mt-6 rounded-xl border border-[oklch(70%_0.14_28)] bg-[oklch(95%_0.04_30)] px-4 py-3 text-sm text-[oklch(38%_0.13_28)]">
