@@ -10,6 +10,10 @@ import {
   removeLocalSkill,
   type LocalSkill,
 } from '@/lib/localstore';
+import { PrivacySettings } from '@/components/PrivacySettings';
+import { CreatorStats } from '@/components/CreatorStats';
+import { ProfileEditor } from '@/components/ProfileEditor';
+import { RoleBadge } from '@/components/RoleBadge';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -17,12 +21,12 @@ export default function Dashboard() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // L'archivio locale vive nel browser: si legge solo dopo il montaggio.
+  // The local archive lives in the browser: it is read only after mount.
   useEffect(() => {
     setCreations(readLocalSkills());
   }, []);
 
-  const owner = session?.user?.login ?? 'il tuo account';
+  const owner = session?.user?.login ?? 'your account';
 
   async function publish(skill: LocalSkill) {
     setBusyId(skill.id);
@@ -38,11 +42,11 @@ export default function Dashboard() {
         }),
       });
       const data = (await res.json()) as { error?: string; skill?: { id: string } };
-      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Pubblicazione fallita');
+      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Publishing failed');
       setCreations(markPublished(skill.id, data.skill.id));
-      setNotice(`"${skill.name}" pubblicata sul marketplace.`);
+      setNotice(`"${skill.name}" published to the marketplace.`);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setNotice(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusyId(null);
     }
@@ -60,15 +64,15 @@ export default function Dashboard() {
 
   function remove(skill: LocalSkill) {
     setCreations(removeLocalSkill(skill.id));
-    setNotice(`"${skill.name}" rimossa dall'archivio locale.`);
+    setNotice(`"${skill.name}" removed from the local archive.`);
   }
 
   if (status === 'loading') {
     return (
       <>
         <Nav />
-        <main id="contenuto" className="mx-auto max-w-3xl px-6 py-24">
-          <p className="text-[--ink-muted]">Caricamento...</p>
+        <main id="content" className="mx-auto max-w-3xl px-6 py-24">
+          <p className="text-[--ink-muted]">Loading...</p>
         </main>
       </>
     );
@@ -78,13 +82,13 @@ export default function Dashboard() {
     return (
       <>
         <Nav />
-        <main id="contenuto" className="mx-auto max-w-3xl px-6 py-24">
+        <main id="content" className="mx-auto max-w-3xl px-6 py-24">
           <h1 className="font-display text-3xl font-semibold text-[--ink]">
-            Accedi per vedere le tue skill
+            Sign in to see your skills
           </h1>
           <p className="mt-4 max-w-prose text-[--ink-muted]">
-            Le skill generate restano nel browser, ma per pubblicarle sul
-            marketplace serve l&apos;accesso con GitHub.
+            Generated skills stay in your browser, but publishing them to the
+            marketplace requires signing in with GitHub.
           </p>
         </main>
       </>
@@ -94,18 +98,27 @@ export default function Dashboard() {
   return (
     <>
       <Nav />
-      <main id="contenuto" className="mx-auto max-w-3xl px-6 py-14">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-[--ink]">
-          Le mie creazioni
+      <main id="content" className="mx-auto max-w-3xl px-6 py-14">
+        <h1 className="flex flex-wrap items-center gap-3 font-display text-4xl font-semibold tracking-tight text-[--ink]">
+          My creations
+          <RoleBadge role={session?.user?.role} className="translate-y-1" />
         </h1>
 
+        {session?.user?.role === 'founding_tester' && (
+          <p className="mt-4 rounded-xl border border-[--accent] bg-[--accent-soft] px-4 py-3 text-sm text-[--ink]">
+            You are a founding tester. Thank you for trying Skill Forge early: your
+            account keeps a raised daily generation limit of 5, and the Founding
+            tester badge.
+          </p>
+        )}
+
         <p className="mt-6 max-w-prose text-[17px] text-[--ink-muted]">
-          Ogni skill che generi resta salvata in questo browser, anche se non la
-          scarichi e non la pubblichi. Da qui puoi pubblicarla sul{' '}
+          Every skill you generate is saved in this browser, even if you do not
+          download or publish it. From here you can publish it to the{' '}
           <Link href="/marketplace" className="text-[--accent] underline underline-offset-2">
             marketplace
           </Link>
-          , dove chiunque può scaricarla e metterle una stella. L&apos;autore è{' '}
+          , where anyone can download it and star it. The author is{' '}
           <strong className="text-[--ink]">@{owner}</strong>.
         </p>
 
@@ -114,13 +127,13 @@ export default function Dashboard() {
             href="/create/from-skills"
             className="rounded-xl bg-[--accent] px-5 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
           >
-            Nuova skill da materiale
+            New skill from material
           </Link>
           <Link
             href="/create/from-scratch"
             className="rounded-xl border border-[--line] bg-[--surface-raised] px-5 py-3 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken]"
           >
-            Nuova skill da zero
+            New skill from scratch
           </Link>
         </div>
 
@@ -132,19 +145,29 @@ export default function Dashboard() {
 
         <div className="hairline my-10" />
 
+        <CreatorStats />
+
+        <div className="hairline my-10" />
+
+        <ProfileEditor />
+
+        <div className="hairline my-10" />
+
+        <PrivacySettings />
+
         {creations.length === 0 ? (
           <div className="rounded-2xl border border-[--line] bg-[--surface-raised] p-8 text-center">
             <p className="font-display text-lg font-semibold text-[--ink]">
-              Nessuna creazione salvata
+              No saved creations
             </p>
             <p className="mt-2 text-sm text-[--ink-muted]">
-              Le skill che generi compaiono qui automaticamente.
+              Skills you generate appear here automatically.
             </p>
           </div>
         ) : (
           <>
             <h2 className="font-display text-xl font-semibold text-[--ink]">
-              Salvate in questo browser
+              Saved in this browser
             </h2>
             <ul className="mt-4 space-y-3">
               {creations.map((skill) => (
@@ -161,12 +184,12 @@ export default function Dashboard() {
                       )}
                       <p className="mt-2 text-xs text-[--ink-muted]">
                         {skill.publishedId ? (
-                          <span className="text-[--accent]">Sul marketplace</span>
+                          <span className="text-[--accent]">On the marketplace</span>
                         ) : (
-                          'Solo in locale'
+                          'Local only'
                         )}
                         {' · '}
-                        {new Date(skill.updatedAt).toLocaleDateString('it-IT')}
+                        {new Date(skill.updatedAt).toLocaleDateString('en-US')}
                       </p>
                     </div>
 
@@ -178,10 +201,10 @@ export default function Dashboard() {
                         className="rounded-lg border border-[--accent] bg-[--accent-soft] px-3.5 py-2 text-sm font-medium text-[--accent] transition-opacity hover:opacity-90 disabled:opacity-50"
                       >
                         {busyId === skill.id
-                          ? 'Pubblico...'
+                          ? 'Publishing...'
                           : skill.publishedId
-                            ? 'Aggiorna'
-                            : 'Pubblica'}
+                            ? 'Update'
+                            : 'Publish'}
                       </button>
                       <div className="flex gap-2">
                         <button
@@ -189,14 +212,14 @@ export default function Dashboard() {
                           onClick={() => download(skill)}
                           className="rounded-lg border border-[--line] px-3 py-1.5 text-xs text-[--ink-muted] transition-colors hover:text-[--ink]"
                         >
-                          Scarica
+                          Download
                         </button>
                         <button
                           type="button"
                           onClick={() => remove(skill)}
                           className="rounded-lg border border-[--line] px-3 py-1.5 text-xs text-[--ink-muted] transition-colors hover:text-[oklch(45%_0.14_28)]"
                         >
-                          Elimina
+                          Delete
                         </button>
                       </div>
                     </div>

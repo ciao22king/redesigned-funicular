@@ -2,7 +2,7 @@ import { Client } from '../api.js';
 import { loadConfig } from '../config.js';
 import type { Context } from './types.js';
 
-/** Config effettiva: file su disco, con override dei flag globali. */
+/** Effective config: file on disk, with the global flag overrides. */
 export function loadConfigFor(ctx: Context) {
   const config = loadConfig();
   return {
@@ -12,7 +12,7 @@ export function loadConfigFor(ctx: Context) {
   };
 }
 
-/** Client pronto all'uso, o errore se manca il token. */
+/** Ready-to-use client, or an error if the token is missing. */
 export function requireClient(ctx: Context): Client {
   const config = loadConfigFor(ctx);
   return Client.fromConfig(config);

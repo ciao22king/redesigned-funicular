@@ -10,7 +10,7 @@ import {
   type StorageLike,
 } from '../src/lib/localstore';
 
-/** Storage in memoria: la logica e' pura, quindi non serve un browser. */
+/** In-memory storage: the logic is pure, so no browser is needed. */
 function fakeStorage(initial: Record<string, string> = {}): StorageLike {
   const map = new Map(Object.entries(initial));
   return {
@@ -69,8 +69,8 @@ test('le skill piu\' recenti stanno in cima', () => {
 test('un nome assente non fa cadere il salvataggio', () => {
   const store = fakeStorage();
   const { skill } = saveLocalSkill({ markdown: '# A' }, store);
-  assert.equal(skill.name, 'Skill senza nome');
-  assert.equal(skill.id, 'skill-senza-nome');
+  assert.equal(skill.name, 'Untitled skill');
+  assert.equal(skill.id, 'untitled-skill');
 });
 
 test('markPublished registra l\'id sul marketplace', () => {

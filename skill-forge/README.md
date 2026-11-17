@@ -1,100 +1,148 @@
 # Skill Forge
 
-Trasforma note sparse, documenti o una semplice idea in una skill completa e
-dettagliata per agenti AI. Poi la scarichi come `.md` o la pubblichi direttamente
-su GitHub.
+Turn scattered notes, documents or a simple idea into a complete, detailed skill
+for AI agents. Then download it as `.md` or publish it straight to the
+marketplace.
 
-## Cosa fa
+## What it does
 
-| Modalità | Input | Output |
+| Mode | Input | Output |
 | --- | --- | --- |
-| **A. Da materiale esistente** | Fino a 20 file (`.md`, `.txt`, `.json`, codice) oppure testo incollato | Una skill unica che fonde tutto il materiale, colma i buchi e conserva i dettagli tecnici |
-| **B. Da zero** | Wizard a 6 campi (nome, dominio, obiettivo, tono, vincoli, esempi) | Skill completa con procedura numerata, esempi, errori comuni, checklist |
+| **A. From existing material** | Up to 20 files (`.md`, `.txt`, `.json`, `.pdf`, code, SRT/VTT transcripts) or pasted text | One skill that merges all the material, identifies missing information and asks targeted questions, and keeps the technical details |
+| **B. From scratch** | 6-field wizard (name, domain, goal, tone, constraints, examples) | A complete skill with a numbered procedure, examples, common mistakes, checklist |
 
-Ogni skill generata ha questa struttura:
+Every generated skill has this structure:
 
 ```
-frontmatter YAML (name, description)
-Quando usarla / Quando NON usarla
-Prerequisiti
-Procedura
-Regole e vincoli
-Esempi (input + output atteso)
-Errori comuni
-Checklist finale
+YAML frontmatter (name, description)
+When to use it / When NOT to use it
+Prerequisites
+Procedure
+Rules and constraints
+Examples (input + expected output)
+Common mistakes
+Final checklist
 ```
+
+## Why the output is better than a one-shot chat
+
+The same model, asked in a chat window, returns a plausible answer. Here it goes
+through three deterministic layers that a chat prompt does not have:
+
+1. **Pre-processing** (`lib/preprocess.ts`). A transcript is converted from SRT
+   or VTT into prose, with consecutive turns from one speaker merged and the cue
+   numbers and timestamps removed. Messy notes are tidied: BOM, decorative
+   separator lines and page markers are dropped. The model then spends its
+   budget on the procedure, not on re-formatting the input.
+2. **A self-review pass** (`runRefine` in `lib/generate.ts`). After the draft,
+   the model critiques and rewrites it against a rubric (each step one action, no
+   invented facts, concrete examples, no hedging). Best-effort and on a fixed
+   slice of the budget: if it fails, the draft stands.
+3. **Deterministic normalisation** (`lib/normalize.ts`). Whatever the model
+   returns, the result is guaranteed to have canonical frontmatter, the required
+   sections in the required order, no em dashes, and a final checklist
+   synthesised from the procedure when the model forgot one. The pass is
+   idempotent, so it can run after both the draft and the review without drift.
+
+A draft that is still missing the sections that carry the content (When to use
+it, Procedure, Examples) is rejected and the model ladder moves on, rather than
+shipping a document that reads well and executes nothing.
+
+## Real-world input
+
+Beyond plain text and code, two input shapes are handled exactly rather than by
+asking the model to guess:
+
+- **PDF** (`lib/pdf.ts`): the text is extracted from the content streams, with
+  FlateDecode inflated through the platform's own `DecompressionStream`. No
+  dependency, and it works in the Worker runtime. A scan or an exotic font CMap
+  is reported as unreadable instead of producing noise.
+- **Transcripts** (`.srt`, `.vtt`): converted to prose before generation.
 
 ## Stack
 
 - **Next.js 16** (App Router, TypeScript)
-- **NextAuth 4** con provider GitHub (solo lettura del profilo)
-- **OpenRouter** come gateway AI, OpenAI-compatibile, con fallback tra i modelli free
-- **Tailwind CSS 3** con palette calda in OKLCH
-- Deploy su **Cloudflare Workers** tramite l'adapter `@opennextjs/cloudflare`
+- **NextAuth 4** with the GitHub provider (profile read only)
+- **OpenRouter** as the AI gateway, OpenAI-compatible, with fallback across free models
+- **Tailwind CSS 3** with a warm OKLCH palette
+- Deploy on **Cloudflare Workers** through the `@opennextjs/cloudflare` adapter
 
 ## CLI
 
-Il servizio si usa anche da terminale. La CLI vive in [`cli/`](cli/) ed è un
-pacchetto Node a sé, senza dipendenze a runtime:
+You can also use the service from the terminal. The CLI lives in [`cli/`](cli/)
+and is a separate Node package with no runtime dependencies:
 
 ```bash
-cd cli && npm install && npm run build && npm link
+npm install -g @ciao223/skill-forge-cli
 skill-forge login
 cat note.md | skill-forge generate --quiet | skill-forge publish --tags docker
 ```
 
-Genera, pubblica, cerca e scarica skill. Dettagli in [`cli/README.md`](cli/README.md).
+Generate, publish, search and download skills. Details in
+[`cli/README.md`](cli/README.md).
 
-## Avvio in locale
+Browsing the marketplace and reading any skill page needs no account. Taking
+the `.md` file does: the download route requires a GitHub sign-in, so the
+traffic stays tied to real people instead of anonymous scrapers. Copy and fork
+stay open.
+
+## Run locally
 
 ```bash
 npm install
 cp .env.example .env.local
-# compila .env.local (vedi sotto)
+# fill in .env.local (see below)
 npm run dev
 ```
 
-Apri `http://localhost:3000`.
+Open `http://localhost:3000`.
 
-## Variabili d'ambiente
+## Environment variables
 
-| Variabile | Dove trovarla |
+| Variable | Where to find it |
 | --- | --- |
 | `GITHUB_ID` | [GitHub → Settings → Developer settings → OAuth Apps](https://github.com/settings/developers) |
-| `GITHUB_SECRET` | Stessa pagina, dopo aver creato l'app |
+| `GITHUB_SECRET` | Same page, after creating the app |
 | `NEXTAUTH_SECRET` | `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | `http://localhost:3000` in locale, l'URL del Worker in produzione |
+| `NEXTAUTH_URL` | `http://localhost:3000` locally, the Worker URL in production |
+| `GROQ_API_KEY` | [console.groq.com/keys](https://console.groq.com/keys), key `gsk_...` |
+| `GROQ_MODELS` | Optional. Comma-separated Groq model ids, fastest first |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys), chiave `sk-or-v1-...` |
-| `OPENROUTER_MODELS` | Lista di modelli free in ordine di potenza (vedi `.env.example`) |
+| `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys), key `sk-or-v1-...` |
+| `OPENROUTER_MODELS` | Optional. Comma-separated model ids, fastest first |
 
-### Creare la GitHub OAuth App
+Both providers speak the OpenAI protocol and are driven by the same client. The
+ladder tries Groq first, then OpenRouter, and skips any provider whose key is
+unset: **one key is enough**, and setting both means a Groq outage still answers
+through OpenRouter. See `src/lib/providers.ts` for the default model ladders.
 
-1. Vai su [github.com/settings/developers](https://github.com/settings/developers)
+### Create the GitHub OAuth App
+
+1. Go to [github.com/settings/developers](https://github.com/settings/developers)
 2. **New OAuth App**
 3. **Homepage URL**: `http://localhost:3000`
 4. **Authorization callback URL**: `http://localhost:3000/api/auth/callback/github`
-5. Copia `Client ID` e `Client Secret` in `.env.local`
+5. Copy `Client ID` and `Client Secret` into `.env.local`
 
-Per la produzione crea una **seconda** OAuth App (o aggiorna la callback) con:
+For production, create a **second** OAuth App (or update the callback) with:
 
 ```
-https://<tuo-worker>.<sottodominio>.workers.dev/api/auth/callback/github
+https://<your-worker>.<subdomain>.workers.dev/api/auth/callback/github
 ```
 
-## Deploy su Cloudflare Workers
+## Deploy on Cloudflare Workers
 
-Il progetto usa l'[adapter OpenNext per Cloudflare](https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/),
-perché `next-auth` v4 richiede le API Node (`nodejs_compat`) che l'adapter
-abilita nel Worker.
+The project uses the [OpenNext adapter for Cloudflare](https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/),
+because `next-auth` v4 needs the Node APIs (`nodejs_compat`) that the adapter
+enables in the Worker.
 
-### Via Git (consigliato)
+### Via Git (recommended)
 
-1. Pusha il progetto su GitHub
+1. Push the project to GitHub
 2. Cloudflare → **Workers & Pages** → **Create** → **Import a repository**
-3. Scegli il repo. Cloudflare legge `wrangler.jsonc` da solo
-4. In **Settings → Variables and Secrets** aggiungi tutte le variabili della
-   tabella sopra, con `NEXTAUTH_URL` impostato all'URL finale
+3. Pick the repo. Cloudflare reads `wrangler.jsonc` on its own
+4. In **Settings → Variables and Secrets** add all the variables from the table
+   above, with `NEXTAUTH_URL` set to the final URL
 5. Deploy
 
 ### Via CLI
@@ -106,78 +154,143 @@ wrangler secret put NEXTAUTH_SECRET
 wrangler secret put GITHUB_ID
 wrangler secret put GITHUB_SECRET
 wrangler secret put OPENROUTER_API_KEY
+wrangler secret put GROQ_API_KEY
 npm run deploy
 ```
 
-### Sviluppo nel runtime Workers
+### Development in the Workers runtime
 
 ```bash
-# .dev.vars con le stesse variabili di .env.local
-npm run preview   # build + preview nel runtime workerd
+# .dev.vars with the same variables as .env.local
+npm run preview   # build + preview in the workerd runtime
 ```
 
-## Deploy automatico
+## Deploy on Cloudflare Workers
 
-Ogni push su `main` compila il progetto e pubblica su Cloudflare Workers tramite
-`.github/workflows/deploy.yml`. Setup una volta sola:
+The site is built and published by **Cloudflare Workers Builds**, connected to
+this repository. On every push to `main` Cloudflare runs the build and deploys
+the Worker. There is no Cloudflare token in the repository and no deploy step in
+GitHub Actions.
 
-```bash
-bash scripts/setup-deploy.sh
+GitHub Actions keeps a **CI** workflow (`.github/workflows/ci.yml`) that runs the
+tests and the build only, so a broken commit is visible before Cloudflare deploys
+it. It does not deploy, to avoid publishing twice on every push.
+
+One-time setup (Cloudflare dashboard):
+
+1. **Workers & Pages -> skill-forge -> Settings -> Builds -> Connect to Git**
+   (the Worker already exists; do not create a second one)
+2. **Root directory**: `skill-forge` (the app is in a subdirectory; without this
+   the build finds no `package.json` and fails)
+3. **Build command**: `npm run build`  -  **Deploy command**: `npm run deploy`
+4. Add the variables and secrets from the table above in the Worker settings
+
+Full details are in [docs/DEPLOY.md](docs/DEPLOY.md).
+
+## Structure
+
 ```
-
-Lo script crea il repo GitHub, carica i secret del repository e stampa l'URL
-previsto del Worker. Dettagli completi, inclusi i secret da impostare a mano, in
-[docs/DEPLOY.md](docs/DEPLOY.md).
-
-Flusso del workflow:
-
-```
-push su main  ->  job verify (npm ci + next build)  ->  job deploy (opennextjs-cloudflare deploy)
-```
-
-Se la build fallisce, il deploy non parte e la produzione resta all'ultima
-versione funzionante. Dal tab Actions puoi lanciarlo a mano in modalità preview.
-
-## Struttura
-
-```
-.github/workflows/deploy.yml   verifica e deploy su Cloudflare Workers
-docs/DEPLOY.md                 guida completa al deploy automatico
-scripts/setup-deploy.sh        onboarding: repo, worker, secret
-scripts/check-env.mjs          controllo variabili prima del push
-wrangler.jsonc                 configurazione del Worker
-open-next.config.ts            configurazione dell'adapter OpenNext
+../.github/workflows/ci.yml     tests and build on every push (no deploy)
+docs/DEPLOY.md                 full guide to the Cloudflare Workers Builds setup
+scripts/check-env.mjs          variable check before push
+wrangler.jsonc                 Worker configuration
+open-next.config.ts            OpenNext adapter configuration
 src/
 ├── app/
-│   ├── page.tsx                     Landing con le due modalità
-│   ├── create/from-skills/page.tsx  Modalità A
-│   ├── create/from-scratch/page.tsx Modalità B
-│   ├── dashboard/page.tsx           Dove finiscono le skill
+│   ├── page.tsx                     Landing page with the two modes
+│   ├── create/from-skills/page.tsx  Mode A
+│   ├── create/from-scratch/page.tsx Mode B
+│   ├── dashboard/page.tsx           Where the skills end up
+│   ├── marketplace/page.tsx         Storefront: search, sort, stars
+│   ├── tags/page.tsx                Tag index (most used first)
+│   ├── tags/[tag]/page.tsx          Skills carrying one tag
+│   ├── u/[owner]/page.tsx           All skills of one author
+│   ├── s/[owner]/[slug]/page.tsx    Public page of a single skill
+│   ├── feed.xml/route.ts            RSS feed of the newest skills
 │   └── api/
 │       ├── auth/[...nextauth]/      NextAuth
-│       ├── generate/                Chiamata al modello
-│       └── publish/                 Commit su GitHub
+│       ├── generate/                Model call
+│       └── marketplace/             List, detail, publish, star
 ├── components/
-│   ├── Nav.tsx                      Header con login e menu utente
-│   ├── CreateFlow.tsx               Form, risultato, download, publish
+│   ├── Nav.tsx                      Header with login and user menu
+│   ├── CreateFlow.tsx               Form, result, download, publish
+│   ├── SkillGrid.tsx                Server-rendered grid for tag/author pages
 │   └── Providers.tsx                SessionProvider
 └── lib/
-    ├── ai.ts                        Client OpenRouter, scala di modelli e system prompt
-    ├── auth.ts                      Configurazione NextAuth
-    ├── github.ts                    Wrapper API GitHub
+    ├── ai.ts                        OpenRouter client, model ladder and system prompt
+    ├── auth.ts                      NextAuth configuration
+    ├── feed.ts                      RSS building and XML escaping
+    ├── generate.ts                  Prompt building, model fallback, self-review pass
+    ├── guardrails.ts                Output validation (frontmatter, real procedure)
+    ├── normalize.ts                 Deterministic shape of the output
+    ├── pdf.ts                       PDF text extraction, no dependency
+    ├── preprocess.ts                Transcript and messy-notes clean-up
+    ├── quality.ts                   Post-generation quality check
+    ├── feedback.ts                  Feedback and rating model (pure)
+    ├── feedback-db.ts               D1 access for feedback
+    ├── marketplace.ts               Pure marketplace logic (tags, sorting, validation)
+    ├── marketplace-db.ts            D1 access for the marketplace
+    ├── messages.ts                  User-facing sentences shared by server and client
+    ├── providers.ts                 LLM providers (Groq, OpenRouter) and their model ladders
+    ├── fetch-with-timeout.ts        Client fetch with a deadline and a retry message
+    ├── skill-download.ts            Download a skill's markdown, with the sign-in rule
     └── skill.ts                     Slug, fences, frontmatter
 ```
 
-## Estensioni ovvie
+## Feedback and ratings
 
-- **Elenco skill in dashboard**: aggiungi `listFiles()` in `lib/github.ts` e una
-  rotta `GET /api/skills` che legge `contents/skills` del repository
-- **Streaming della generazione**: passa `stream: true` al modello e usa
-  `ReadableStream` nel route handler
-- **Versioning**: aggiorna le skill esistenti sfruttando lo SHA già gestito da
-  `commitFile`
-- **Template predefiniti**: catalogo di domini con prompt già compilati
+Right after a skill is generated the user is asked two things, both optional and
+independent: a verdict (useful, partly, missed the point) and a 1 to 5 rating.
+The verdict answers "was it useful?", the rating answers "how good was it?", and
+keeping both means the numbers mean something on their own. No sign-in is
+required and nothing identifying is stored, because the answer is about the
+skill, not the person (migration `0008_feedback_rating.sql`).
 
-## Licenza
+The owner dashboard at `/stats` shows the verdict counters, the useful share, the
+average rating and its distribution. Aggregation is pure (`summarizeFeedback`),
+so it is testable without D1.
 
-Uso personale. Aggiungi una licenza se lo pubblichi.
+## Discovery
+
+Beyond the searchable marketplace, skills are reachable by tag and by author,
+which also gives each one a stable, indexable URL:
+
+| Route | What it shows |
+| --- | --- |
+| `/tags` | Every tag used, with how many skills carry it |
+| `/tags/[tag]` | Skills with one tag, ranked by trending |
+| `/u/[owner]` | Everything one author has published |
+| `/feed.xml` | RSS 2.0 feed of the newest published skills |
+
+Tags are stored as a comma-separated string, so `tagClause` wraps both the
+column and the term in commas to match a whole element (a plain `LIKE '%git%'`
+would also match `github`). The tag index and the sitemap both aggregate that
+column in JS, over a bounded number of rows.
+
+## Registered users
+
+Signing in with GitHub is the registration. The `users` table (migration
+`0002_users.sql`) stores one row per login, with the first and last sign-in
+dates; the landing page shows the count, read server-side so it is in the HTML.
+Only the username is stored, no email and no token.
+
+- The `signIn` callback in `lib/auth.ts` records the login. It never blocks the
+  login: if D1 is unreachable the person still gets in.
+- The migration backfills people who already used the site, from the authors and
+  star-givers the marketplace already knows.
+- The count is hidden (not shown as zero) when D1 is missing, so local
+  development and a broken binding do not claim a wrong number.
+
+## Obvious extensions
+
+- **Streaming the generation**: pass `stream: true` to the model and use a
+  `ReadableStream` in the route handler
+- **Tag filtering in the search box**: accept `?tag=` on `/api/marketplace` and
+  reuse `tagClause`, instead of only the dedicated tag pages
+- **Following an author**: store `(follower, owner)` rows and let `/u/[owner]`
+  show a follow button
+- **Default templates**: a catalog of domains with pre-filled prompts
+
+## License
+
+MIT.

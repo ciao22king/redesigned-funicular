@@ -5,7 +5,7 @@ import type { Command } from './types.js';
 export const whoamiCommand: Command = {
   name: 'whoami',
   usage: 'whoami',
-  summary: "Mostra l'utente autenticato e la quota residua",
+  summary: 'Show the authenticated user and remaining quota',
   needsAuth: true,
   async run(_args, ctx) {
     const client = requireClient(ctx);
@@ -17,13 +17,13 @@ export const whoamiCommand: Command = {
       }
       info(`${color.bold(me.login)}`);
       if (me.quota.unlimited) {
-        info(color.dim('Generazioni: illimitate'));
+        info(color.dim('Generations: unlimited'));
       } else {
-        info(color.dim(`Generazioni oggi: ${me.quota.used}/${me.quota.limit}`));
+        info(color.dim(`Generations today: ${me.quota.used}/${me.quota.limit}`));
       }
       return 0;
     } catch (err) {
-      error(err instanceof Error ? err.message : 'richiesta fallita');
+      error(err instanceof Error ? err.message : 'request failed');
       return 1;
     }
   },

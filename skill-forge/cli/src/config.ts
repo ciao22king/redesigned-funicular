@@ -3,18 +3,18 @@ import { join } from 'node:path';
 import { mkdirSync, readFileSync, writeFileSync, rmSync, chmodSync, existsSync } from 'node:fs';
 
 /**
- * Configurazione della CLI, in `~/.config/skill-forge/config.json`.
+ * CLI configuration, in `~/.config/skill-forge/config.json`.
  *
- * Contiene il token GitHub dell'utente e l'URL del servizio. Il file e' scritto
- * con permessi 600 (solo il proprietario): il token e' una credenziale, non deve
- * essere leggibile da altri utenti della macchina.
+ * Holds the user's GitHub token and the service URL. The file is written with
+ * mode 600 (owner only): the token is a credential, it must not be readable by
+ * other users of the machine.
  *
- * L'URL si puo' forzare con SKILL_FORGE_URL (utile per puntare a un worker di
- * prova) e il token con SKILL_FORGE_TOKEN (utile in CI, dove non c'e' un file
- * di config).
+ * The URL can be forced with SKILL_FORGE_URL (useful to point at a test worker)
+ * and the token with SKILL_FORGE_TOKEN (useful in CI, where there is no config
+ * file).
  */
 
-export const DEFAULT_URL = 'https://skill-forge.ciao22king.workers.dev';
+export const DEFAULT_URL = 'https://skillforge.cc.cd';
 
 export interface Config {
   url: string;
@@ -33,7 +33,7 @@ export function configPath(): string {
   return join(configDir(), 'config.json');
 }
 
-/** Legge la config dal disco, fondendola con le variabili d'ambiente. */
+/** Reads the config from disk, merging it with the environment variables. */
 export function loadConfig(): Config {
   let stored: Partial<Config> = {};
   const path = configPath();
@@ -41,7 +41,7 @@ export function loadConfig(): Config {
     try {
       stored = JSON.parse(readFileSync(path, 'utf8')) as Partial<Config>;
     } catch {
-      // File corrotto: si riparte dai valori di default invece di bloccarsi.
+      // Corrupt file: start over from the defaults instead of getting stuck.
       stored = {};
     }
   }
@@ -53,18 +53,18 @@ export function loadConfig(): Config {
   };
 }
 
-/** Scrive la config su disco con permessi ristretti. */
+/** Writes the config to disk with restricted permissions. */
 export function saveConfig(config: Config): void {
   const dir = configDir();
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const path = configPath();
   writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
-  // `writeFileSync` non cambia i permessi di un file esistente: li forziamo,
-  // cosi' un file creato in precedenza piu' permissivo viene corretto.
+  // `writeFileSync` does not change the permissions of an existing file: we
+  // force them, so a previously created, more permissive file is corrected.
   chmodSync(path, 0o600);
 }
 
-/** Rimuove la config (logout). Non fallisce se non esiste. */
+/** Removes the config (logout). Does not fail if it does not exist. */
 export function clearConfig(): void {
   rmSync(configPath(), { force: true });
 }

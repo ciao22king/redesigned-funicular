@@ -5,10 +5,10 @@ import { info, error, success, color } from '../output.js';
 import type { Command } from './types.js';
 
 /**
- * `publish` — carica una skill sul marketplace.
+ * `publish` — uploads a skill to the marketplace.
  *
- * Il file puo' arrivare da -f, da stdin, o dalla pipe di `generate`. Nome,
- * descrizione e tag si leggono dal frontmatter se non passati a mano.
+ * The file can come from -f, from stdin, or from the pipe of `generate`. Name,
+ * description and tags are read from the frontmatter if not passed by hand.
  */
 
 interface Flags {
@@ -39,7 +39,7 @@ function parsePublishArgs(args: string[]): Flags {
         flags.description = next();
         break;
       default:
-        if (a.startsWith('-')) throw new Error(`Opzione sconosciuta: ${a}`);
+        if (a.startsWith('-')) throw new Error(`Unknown option: ${a}`);
         if (!flags.file) flags.file = a;
     }
   }
@@ -55,7 +55,7 @@ async function readStdin(): Promise<string> {
 export const publishCommand: Command = {
   name: 'publish',
   usage: 'publish [-f <file>] [--tags a,b] [--name ...] [--description ...]',
-  summary: 'Pubblica una skill sul marketplace',
+  summary: 'Publish a skill to the marketplace',
   needsAuth: true,
   async run(args, ctx) {
     const flags = parsePublishArgs(args);
@@ -66,13 +66,13 @@ export const publishCommand: Command = {
     } else if (!process.stdin.isTTY) {
       markdown = await readStdin();
     } else {
-      error('Serve una skill: passa -f <file> oppure inviala da stdin.');
+      error('A skill is required: pass -f <file> or send it on stdin.');
       return 1;
     }
 
     markdown = stripFences(markdown);
     if (!markdown.trim()) {
-      error('La skill e\' vuota.');
+      error('The skill is empty.');
       return 1;
     }
 
@@ -89,12 +89,12 @@ export const publishCommand: Command = {
         info(JSON.stringify(skill, null, 2));
         return 0;
       }
-      success(`Pubblicata: ${color.bold(skill.name)}`);
+      success(`Published: ${color.bold(skill.name)}`);
       info(`  id:  ${color.cyan(skill.id)}`);
       info(`  url: ${client.baseUrl}/marketplace`);
       return 0;
     } catch (err) {
-      error(err instanceof Error ? err.message : 'pubblicazione fallita');
+      error(err instanceof Error ? err.message : 'publishing failed');
       return 1;
     }
   },

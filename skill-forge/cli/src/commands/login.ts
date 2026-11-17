@@ -7,16 +7,16 @@ import { loadConfigFor } from './helpers.js';
 import type { Command } from './types.js';
 
 /**
- * `login` — ottiene un token GitHub e lo salva.
+ * `login` — gets a GitHub token and saves it.
  *
- * Percorso normale: Device Flow. L'utente vede un codice, lo digita su
- * github.com/login/device, autorizza. Niente da incollare.
+ * Normal path: Device Flow. The user sees a code, types it at
+ * github.com/login/device, authorizes. Nothing to paste.
  *
- * Se non c'e' un terminale interattivo (CI, pipe) il Device Flow non ha senso,
- * quindi si accettano `--token`, `$SKILL_FORGE_TOKEN` o `gh auth token`.
+ * If there is no interactive terminal (CI, pipe) the Device Flow makes no sense,
+ * so `--token`, `$SKILL_FORGE_TOKEN` or `gh auth token` are accepted.
  */
 
-/** Token da `gh auth token`, se la GitHub CLI e' installata e autenticata. */
+/** Token from `gh auth token`, if the GitHub CLI is installed and authenticated. */
 function tokenFromGh(): string | undefined {
   try {
     const out = execFileSync('gh', ['auth', 'token'], {
@@ -29,24 +29,24 @@ function tokenFromGh(): string | undefined {
   }
 }
 
-/** Verifica il token contro il servizio e restituisce il login. */
+/** Verifies the token against the service and returns the login. */
 async function verify(url: string, token: string): Promise<string> {
   const client = new Client({ url, token });
   const me = await client.me();
   return me.login;
 }
 
-/** Verifica il token e, se valido, lo salva. */
+/** Verifies the token and, if valid, saves it. */
 async function finish(url: string, token: string): Promise<number> {
   try {
     const login = await verify(url, token);
     saveConfig({ ...loadConfig(), url, token, login });
-    success(`Autenticato come ${color.bold(login)}.`);
-    info(color.dim('Config salvata in ~/.config/skill-forge/config.json (permessi 600).'));
+    success(`Authenticated as ${color.bold(login)}.`);
+    info(color.dim('Config saved to ~/.config/skill-forge/config.json (mode 600).'));
     return 0;
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'verifica fallita';
-    error(`Accesso non riuscito: ${message}`);
+    const message = err instanceof Error ? err.message : 'verification failed';
+    error(`Sign-in failed: ${message}`);
     return 1;
   }
 }
@@ -54,7 +54,7 @@ async function finish(url: string, token: string): Promise<number> {
 export const loginCommand: Command = {
   name: 'login',
   usage: 'login [--token <token>] [--no-device-flow]',
-  summary: 'Autentica con GitHub (Device Flow) e salva il token',
+  summary: 'Authenticate with GitHub (Device Flow) and save the token',
   async run(args, ctx) {
     const i = args.indexOf('--token');
     const explicit = i !== -1 ? args[i + 1] : ctx.token;
@@ -64,12 +64,12 @@ export const loginCommand: Command = {
     const provided = explicit?.trim() || process.env.SKILL_FORGE_TOKEN?.trim();
     if (provided) return finish(config.url, provided);
 
-    // 2. In un contesto non interattivo proviamo `gh`, poi ci fermiamo.
+    // 2. In a non-interactive context we try `gh`, then stop.
     const interactive = process.stdin.isTTY === true && process.stdout.isTTY === true;
     if (!interactive) {
       const gh = tokenFromGh();
       if (gh) return finish(config.url, gh);
-      error('Nessun terminale interattivo: passa un token con --token o $SKILL_FORGE_TOKEN.');
+      error('No interactive terminal: pass a token with --token or $SKILL_FORGE_TOKEN.');
       return 1;
     }
 
@@ -77,7 +77,7 @@ export const loginCommand: Command = {
     if (args.includes('--no-device-flow')) {
       const gh = tokenFromGh();
       if (gh) return finish(config.url, gh);
-      error('Device Flow disattivato e nessun token disponibile.');
+      error('Device Flow disabled and no token available.');
       return 1;
     }
 
@@ -85,15 +85,15 @@ export const loginCommand: Command = {
       const token = await deviceFlowLogin({
         onPrompt: ({ userCode, verificationUri }) => {
           info('');
-          info(`  1. Apri ${color.cyan(verificationUri)}`);
-          info(`  2. Inserisci il codice: ${color.bold(userCode)}`);
+          info(`  1. Open ${color.cyan(verificationUri)}`);
+          info(`  2. Enter the code: ${color.bold(userCode)}`);
           info('');
-          info(color.dim('In attesa che autorizzi… (Ctrl+C per annullare)'));
+          info(color.dim('Waiting for authorization... (Ctrl+C to cancel)'));
         },
       });
       return finish(config.url, token);
     } catch (err) {
-      error(err instanceof Error ? err.message : 'accesso non riuscito');
+      error(err instanceof Error ? err.message : 'sign-in failed');
       return 1;
     }
   },
@@ -102,10 +102,10 @@ export const loginCommand: Command = {
 export const logoutCommand: Command = {
   name: 'logout',
   usage: 'logout',
-  summary: 'Rimuove il token salvato',
+  summary: 'Remove the saved token',
   async run() {
     clearConfig();
-    success("Disconnesso. Il token e' stato rimosso.");
+    success("Signed out. The token has been removed.");
     return 0;
   },
 };

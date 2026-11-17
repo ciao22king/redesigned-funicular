@@ -1,0 +1,4 @@
+# Agent working notes: local only, never published. They have held live
+# credentials (Cloudflare API tokens) and operational details (account IDs,
+# email) that must not sit in a public repository.
+.openhands/memory/

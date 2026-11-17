@@ -1,47 +1,43 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Nav } from '@/components/Nav';
+import { SkillCard } from '@/components/SkillCard';
 import { saveLocalSkill } from '@/lib/localstore';
+import { fetchSkillForDownload, saveMarkdownFile, SignInRequiredError } from '@/lib/skill-download';
+import type { SkillCardData } from '@/lib/skill-cards';
 
-interface SkillSummary {
-  id: string;
-  owner: string;
-  name: string;
-  description: string;
-  tags: string[];
-  stars: number;
+interface CardItem extends SkillCardData {
   starred: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface ListResponse {
-  skills?: SkillSummary[];
+  skills?: CardItem[];
   total?: number;
   pages?: number;
   page?: number;
   error?: string;
 }
 
-type Sort = 'recent' | 'stars' | 'name';
+type Sort = 'recent' | 'trending' | 'stars' | 'name';
 
 const SORTS: { key: Sort; label: string }[] = [
-  { key: 'recent', label: 'Recenti' },
-  { key: 'stars', label: 'Più stellati' },
-  { key: 'name', label: 'Nome' },
+  { key: 'trending', label: 'Trending' },
+  { key: 'recent', label: 'New' },
+  { key: 'stars', label: 'Most starred' },
+  { key: 'name', label: 'Name' },
 ];
 
 export default function MarketplacePage() {
   const { data: session, status } = useSession();
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  const [skills, setSkills] = useState<CardItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<Sort>('recent');
+  const [sort, setSort] = useState<Sort>('trending');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -56,13 +52,13 @@ export default function MarketplacePage() {
         if (opts.q.trim()) params.set('q', opts.q.trim());
         const res = await fetch(`/api/marketplace?${params.toString()}`);
         const data = (await res.json()) as ListResponse;
-        if (!res.ok) throw new Error(data.error ?? 'Caricamento fallito');
+        if (!res.ok) throw new Error(data.error ?? 'Loading failed');
         setSkills(data.skills ?? []);
         setTotal(data.total ?? 0);
         setPages(data.pages ?? 1);
         setPage(data.page ?? 1);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Errore sconosciuto');
+        setError(e instanceof Error ? e.message : 'Unknown error');
       } finally {
         setLoading(false);
       }
@@ -71,16 +67,16 @@ export default function MarketplacePage() {
   );
 
   useEffect(() => {
-    // La ricerca parte quando l'utente smette di scrivere.
+    // The search starts when the user stops typing.
     const timer = setTimeout(() => void load({ q: query, sort, page: 1 }), 250);
     return () => clearTimeout(timer);
-    // `page` volutamente escluso: il cambio pagina si gestisce a mano.
+    // `page` deliberately excluded: page changes are handled by hand.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, sort, load]);
 
-  async function toggleStar(skill: SkillSummary) {
+  async function toggleStar(skill: CardItem) {
     if (status !== 'authenticated') {
-      setNotice('Accedi con GitHub per mettere una stella.');
+      setNotice('Sign in with GitHub to star a skill.');
       return;
     }
     setBusyId(skill.id);
@@ -92,48 +88,43 @@ export default function MarketplacePage() {
         body: JSON.stringify({ id: skill.id }),
       });
       const data = (await res.json()) as { error?: string; starred?: boolean; stars?: number };
-      if (!res.ok) throw new Error(data.error ?? 'Operazione fallita');
+      if (!res.ok) throw new Error(data.error ?? 'Operation failed');
       setSkills((prev) =>
         prev.map((s) =>
           s.id === skill.id ? { ...s, starred: !!data.starred, stars: data.stars ?? s.stars } : s,
         ),
       );
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Errore sconosciuto');
+      setNotice(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusyId(null);
     }
   }
 
-  async function download(skill: SkillSummary) {
+  async function download(skill: CardItem) {
     setBusyId(skill.id);
     setNotice(null);
     try {
-      const res = await fetch(`/api/marketplace/detail?id=${encodeURIComponent(skill.id)}`);
-      const data = (await res.json()) as {
-        skill?: { markdown: string; name: string; description: string };
-        error?: string;
-      };
-      if (!res.ok || !data.skill) throw new Error(data.error ?? 'Download fallito');
+      const data = await fetchSkillForDownload(skill.id);
+      const markdown = data.markdown;
 
-      // La skill scaricata entra anche nell'archivio locale.
+      // The downloaded skill also enters the local archive.
       saveLocalSkill({
-        markdown: data.skill.markdown,
-        name: data.skill.name,
-        description: data.skill.description,
+        markdown,
+        name: data.name,
+        description: data.description,
         source: 'imported',
       });
 
-      const blob = new Blob([data.skill.markdown], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${skill.id.split('/')[1]}.md`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setNotice(`"${skill.name}" scaricata e salvata in locale.`);
+      saveMarkdownFile(skill.id.split('/')[1] ?? 'skill', markdown);
+      setNotice(`"${skill.name}" downloaded and saved locally.`);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Errore sconosciuto');
+      if (e instanceof SignInRequiredError) {
+        setNotice('Sign in with GitHub to download a skill.');
+        void signIn('github');
+      } else {
+        setNotice(e instanceof Error ? e.message : 'Unknown error');
+      }
     } finally {
       setBusyId(null);
     }
@@ -142,17 +133,17 @@ export default function MarketplacePage() {
   return (
     <>
       <Nav />
-      <main id="contenuto" className="mx-auto max-w-5xl px-6 py-14">
+      <main id="content" className="mx-auto max-w-5xl px-6 py-14">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <h1 className="font-display text-4xl font-semibold tracking-tight text-[--ink]">
               Marketplace
             </h1>
             <p className="mt-3 max-w-prose text-[15px] text-[--ink-muted]">
-              Skill pubblicate dalla community. Scaricale, metti una stella, o
-              pubblica le tue da{' '}
+              Skills published by the community. Download them, star them, or
+              publish your own from{' '}
               <Link href="/dashboard" className="text-[--accent] underline underline-offset-2">
-                Le mie creazioni
+                My creations
               </Link>
               .
             </p>
@@ -162,26 +153,32 @@ export default function MarketplacePage() {
               href="/create/from-skills"
               className="rounded-xl bg-[--accent] px-5 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
             >
-              Crea una skill
+              Create a skill
             </Link>
           )}
         </header>
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca per nome, descrizione, tag o autore..."
-            aria-label="Cerca nel marketplace"
-            className="min-w-[240px] flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
+            placeholder="Search by name, description, tag or author..."
+            aria-label="Search the marketplace"
+            className="w-full min-w-0 flex-1 rounded-xl border border-[--line] bg-[--surface-raised] px-4 py-3 text-sm text-[--ink] outline-none transition-colors placeholder:text-[--ink-muted]/60 focus:border-[--accent]"
           />
-          <div className="flex items-center gap-1 rounded-xl border border-[--line] bg-[--surface-raised] p-1">
+          <div
+            role="tablist"
+            aria-label="Sort skills"
+            className="-mx-6 flex items-center gap-1 overflow-x-auto px-6 pb-1 sm:mx-0 sm:shrink-0 sm:rounded-xl sm:border sm:border-[--line] sm:bg-[--surface-raised] sm:p-1"
+          >
             {SORTS.map((s) => (
               <button
                 key={s.key}
                 type="button"
+                role="tab"
+                aria-selected={sort === s.key}
                 onClick={() => setSort(s.key)}
-                className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`shrink-0 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm transition-colors ${
                   sort === s.key
                     ? 'bg-[--accent] text-white'
                     : 'text-[--ink-muted] hover:text-[--ink]'
@@ -193,6 +190,13 @@ export default function MarketplacePage() {
           </div>
         </div>
 
+        {sort === 'trending' && (
+          <p className="mt-3 text-xs text-[--ink-muted]">
+            Trending ranks skills by stars gained recently, not only by the total,
+            so new and rising skills surface first.
+          </p>
+        )}
+
         {notice && (
           <p className="mt-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink]">
             {notice}
@@ -202,16 +206,16 @@ export default function MarketplacePage() {
         {error && <p className="mt-5 text-sm text-[oklch(45%_0.14_28)]">{error}</p>}
 
         {loading ? (
-          <p className="mt-12 text-[--ink-muted]">Caricamento...</p>
+          <p className="mt-12 text-[--ink-muted]">Loading...</p>
         ) : skills.length === 0 ? (
           <div className="mt-12 rounded-2xl border border-[--line] bg-[--surface-raised] p-8 text-center">
             <p className="font-display text-lg font-semibold text-[--ink]">
-              {query ? 'Nessun risultato' : 'Il marketplace è ancora vuoto'}
+              {query ? 'No results' : 'The marketplace is still empty'}
             </p>
             <p className="mt-2 text-sm text-[--ink-muted]">
               {query
-                ? 'Prova con un altro termine.'
-                : 'Pubblica la prima skill dalla tua dashboard.'}
+                ? 'Try another term.'
+                : 'Publish the first skill from your dashboard.'}
             </p>
           </div>
         ) : (
@@ -221,18 +225,17 @@ export default function MarketplacePage() {
             </p>
             <ul className="mt-4 grid gap-4 sm:grid-cols-2">
               {skills.map((skill) => (
-                <li key={skill.id} className="surface-card flex flex-col p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="font-display text-lg font-semibold leading-snug text-[--ink]">
-                      {skill.name}
-                    </h2>
+                <SkillCard
+                  key={skill.id}
+                  skill={skill}
+                  starControl={
                     <button
                       type="button"
                       disabled={busyId === skill.id}
                       onClick={() => void toggleStar(skill)}
                       aria-pressed={skill.starred}
-                      aria-label={skill.starred ? 'Togli la stella' : 'Metti la stella'}
-                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
+                      aria-label={skill.starred ? 'Remove star' : 'Add star'}
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
                         skill.starred
                           ? 'border-[--accent] bg-[--accent-soft] text-[--accent]'
                           : 'border-[--line] text-[--ink-muted] hover:text-[--ink]'
@@ -241,39 +244,18 @@ export default function MarketplacePage() {
                       <Star filled={skill.starred} />
                       {skill.stars}
                     </button>
-                  </div>
-
-                  {skill.description && (
-                    <p className="mt-3 flex-1 text-sm leading-relaxed text-[--ink-muted]">
-                      {skill.description}
-                    </p>
-                  )}
-
-                  {skill.tags.length > 0 && (
-                    <ul className="mt-4 flex flex-wrap gap-1.5">
-                      {skill.tags.map((tag) => (
-                        <li
-                          key={tag}
-                          className="rounded-full bg-[--surface-sunken] px-2.5 py-1 font-mono text-[11px] text-[--ink-muted]"
-                        >
-                          {tag}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  <div className="mt-5 flex items-center justify-between gap-3">
-                    <span className="truncate text-xs text-[--ink-muted]">@{skill.owner}</span>
+                  }
+                  actions={
                     <button
                       type="button"
                       disabled={busyId === skill.id}
                       onClick={() => void download(skill)}
-                      className="shrink-0 rounded-lg border border-[--line] bg-[--surface-raised] px-3.5 py-2 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-50"
+                      className="rounded-lg border border-[--line] bg-[--surface-raised] px-3.5 py-2 text-sm font-medium text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-50"
                     >
-                      Scarica .md
+                      Download .md
                     </button>
-                  </div>
-                </li>
+                  }
+                />
               ))}
             </ul>
 
@@ -285,7 +267,7 @@ export default function MarketplacePage() {
                   onClick={() => void load({ q: query, sort, page: page - 1 })}
                   className="rounded-lg border border-[--line] px-4 py-2 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-40"
                 >
-                  Precedente
+                  Previous
                 </button>
                 <span className="text-sm text-[--ink-muted]">
                   {page} / {pages}
@@ -296,7 +278,7 @@ export default function MarketplacePage() {
                   onClick={() => void load({ q: query, sort, page: page + 1 })}
                   className="rounded-lg border border-[--line] px-4 py-2 text-sm text-[--ink] transition-colors hover:bg-[--surface-sunken] disabled:opacity-40"
                 >
-                  Successiva
+                  Next
                 </button>
               </div>
             )}

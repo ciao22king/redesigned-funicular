@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 /**
- * Verifica rapida prima di un push: controlla che le variabili
- * d'ambiente che il build non può ricavare da sé siano presenti.
+ * Quick check before a push: verify that the environment variables the
+ * build cannot derive on its own are present.
  *
  *   node scripts/check-env.mjs
  *
- * Non blocca nulla, avvisa soltanto.
+ * It blocks nothing, it only warns.
  */
 import { readFileSync, existsSync } from 'node:fs';
 
 const required = [
-  ['GITHUB_ID', 'Client ID della OAuth App GitHub'],
-  ['GITHUB_SECRET', 'Client Secret della OAuth App GitHub'],
+  ['GITHUB_ID', 'GitHub OAuth App Client ID'],
+  ['GITHUB_SECRET', 'GitHub OAuth App Client Secret'],
   ['NEXTAUTH_SECRET', 'openssl rand -base64 32'],
-  ['NEXTAUTH_URL', 'http://localhost:3000 oppure l\'URL del Worker'],
-  ['OPENROUTER_API_KEY', 'Chiave OpenRouter sk-or-v1-...'],
+  ['NEXTAUTH_URL', 'http://localhost:3000 or the Worker URL'],
+  // Either key is enough: the ladder drops the provider whose key is unset.
+  ['GROQ_API_KEY', 'Groq key gsk_... (optional if OpenRouter is set)'],
+  ['OPENROUTER_API_KEY', 'OpenRouter key sk-or-v1-... (optional if Groq is set)'],
 ];
 
 let env = { ...process.env };
@@ -31,14 +33,14 @@ for (const [key, hint] of required) {
   if (env[key]) {
     console.log(`  ok    ${key}`);
   } else {
-    console.log(`  manca ${key}  ->  ${hint}`);
+    console.log(`  missing ${key}  ->  ${hint}`);
     missing++;
   }
 }
 
 if (missing > 0) {
-  console.log(`\n${missing} variabili mancanti. In locale usa .env.local, in produzione i secret GitHub.`);
+  console.log(`\n${missing} variables missing. Locally use .env.local, in production the GitHub secrets.`);
   process.exit(1);
 }
 
-console.log('\nTutte le variabili sono presenti.');
+console.log('\nAll variables are present.');

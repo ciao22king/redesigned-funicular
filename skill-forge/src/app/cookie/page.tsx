@@ -3,96 +3,110 @@ import { LegalShell } from '@/components/LegalShell';
 
 export const metadata: Metadata = {
   title: 'Cookie policy · Skill Forge',
-  description: 'Quali cookie usa Skill Forge e perché.',
+  description: 'Which cookies Skill Forge uses and why.',
 };
 
 export default function CookiePage() {
   return (
-    <LegalShell title="Cookie policy" updated="5 novembre 2026">
+    <LegalShell title="Cookie policy" updated="November 5, 2026">
       <section>
-        <h2>1. In breve</h2>
+        <h2>1. In short</h2>
         <p>
-          Skill Forge usa <strong>un solo cookie</strong>, tecnico e necessario: serve a
-          tenerti connesso dopo il login con GitHub. Non usiamo cookie di profilazione, di
-          pubblicità né di tracciamento. Per questo <strong>non mostriamo un banner
-          cookie</strong>: non c’è nulla da acconsentire.
+          Skill Forge uses <strong>a single cookie</strong>, technical and
+          necessary: it keeps you signed in after the GitHub login. We do not use
+          profiling, advertising or tracking cookies. That is why{' '}
+          <strong>we do not show a cookie banner</strong>: there is nothing to
+          consent to.
         </p>
       </section>
 
       <section>
-        <h2>2. Il cookie che usiamo</h2>
+        <h2>2. The cookie we use</h2>
         <div className="overflow-x-auto">
           <table>
             <thead>
               <tr>
-                <th>Nome</th>
-                <th>Tipo</th>
-                <th>Scopo</th>
-                <th>Durata</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Purpose</th>
+                <th>Duration</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td><code>next-auth.session-token</code></td>
-                <td>Tecnico, necessario</td>
-                <td>Mantiene la sessione dopo il login GitHub</td>
-                <td>Fino a 30 giorni, o al logout</td>
+                <td>Technical, necessary</td>
+                <td>Keeps the session after the GitHub login</td>
+                <td>Up to 30 days, or until sign-out</td>
               </tr>
               <tr>
                 <td><code>next-auth.csrf-token</code></td>
-                <td>Tecnico, necessario</td>
-                <td>Protegge i moduli da richieste falsificate (CSRF)</td>
-                <td>Sessione</td>
+                <td>Technical, necessary</td>
+                <td>Protects forms from forged requests (CSRF)</td>
+                <td>Session</td>
               </tr>
               <tr>
                 <td><code>next-auth.callback-url</code></td>
-                <td>Tecnico, necessario</td>
-                <td>Ricorda dove tornare dopo il login</td>
-                <td>Sessione</td>
+                <td>Technical, necessary</td>
+                <td>Remembers where to return after login</td>
+                <td>Session</td>
               </tr>
             </tbody>
           </table>
         </div>
         <p>
-          Il cookie di sessione è firmato e cifrato; contiene il token GitHub che ci permette
-          di leggere il tuo profilo.
+          The session cookie is signed and encrypted; it contains the GitHub
+          token that lets us read your profile.
         </p>
       </section>
 
       <section>
-        <h2>3. Perché nessun banner</h2>
+        <h2>3. Why no banner</h2>
         <p>
-          La normativa (direttiva ePrivacy e linee guida del Garante) richiede il consenso
-          solo per cookie diversi da quelli tecnici necessari. Dato che l’unico cookie che
-          impostiamo è strettamente necessario al funzionamento, non serve alcun consenso
-          preventivo.
+          The rules (ePrivacy directive and the Italian Data Protection
+          Authority&apos;s guidelines) require consent only for cookies other than
+          the necessary technical ones. Since the only cookie we set is strictly
+          necessary for the service to work, no prior consent is needed.
         </p>
       </section>
 
       <section>
-        <h2>4. Cosa non facciamo</h2>
+        <h2>4. What we do not do</h2>
         <ul>
-          <li>Nessun cookie di terze parti per pubblicità o analytics.</li>
-          <li>Nessun tracciamento tra siti diversi.</li>
-          <li>Nessuna profilazione.</li>
+          <li>No third-party cookies for advertising or analytics.</li>
+          <li>No tracking across different sites.</li>
+          <li>No profiling.</li>
         </ul>
-      </section>
-
-      <section>
-        <h2>5. Come gestirli</h2>
         <p>
-          Puoi cancellare o bloccare i cookie dalle impostazioni del browser. Se blocchi il
-          cookie di sessione, però, non potrai restare connesso e il servizio non funzionerà
-          correttamente.
+          For aggregate traffic figures we use <strong>Cloudflare Web
+          Analytics</strong>, which is cookieless: it sets no cookie and does not
+          fingerprint the visitor, so no consent banner is required. It records
+          only aggregate page views and referrers, never your identity.
+        </p>
+        <p>
+          Our own usage counters follow the same rule. The visit beacon sets no
+          cookie and sends no identifier: whether you are a returning visitor is
+          decided in your browser, from a date in <code>localStorage</code>, and
+          only the resulting yes or no leaves your device. The counters are stored
+          as one row per day and per event, with no address and no per-visit row.
         </p>
       </section>
 
       <section>
-        <h2>6. Contatti</h2>
+        <h2>5. How to manage them</h2>
         <p>
-          Per domande sui cookie scrivi a{' '}
-          <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>. Vedi anche
-          l’<a href="/privacy">informativa privacy</a>.
+          You can delete or block cookies from your browser settings. If you
+          block the session cookie, however, you will not be able to stay signed
+          in and the service will not work correctly.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Contact</h2>
+        <p>
+          For questions about cookies, write to{' '}
+          <a href="mailto:ciao22king@gmail.com">ciao22king@gmail.com</a>. See also
+          the <a href="/privacy">privacy policy</a>.
         </p>
       </section>
     </LegalShell>

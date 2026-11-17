@@ -1,112 +1,140 @@
 # skill-forge CLI
 
-Genera, pubblica e scarica skill per agenti AI direttamente dal terminale.
+Generate, publish and pull skills for AI agents straight from the terminal.
 
-Parla con lo stesso servizio dell'interfaccia web
-(`https://skill-forge.ciao22king.workers.dev`) tramite l'API pubblica. Non tocca
-il database e non ha dipendenze a runtime: solo Node 18 o superiore.
+It talks to the same service as the web interface
+(`https://skillforge.cc.cd`) through the public API. It does
+not touch the database and has no runtime dependencies: just Node 18 or later.
 
-## Installazione
+## Install
+
+From npm:
+
+```bash
+npm install -g @ciao223/skill-forge-cli
+skill-forge login
+```
+
+From source:
 
 ```bash
 cd cli
 npm install
 npm run build
-npm link        # rende disponibili i comandi `skill-forge` e `sf`
+npm link        # makes the `skill-forge` and `sf` commands available
 ```
 
-Senza `npm link`, si usa direttamente:
+Without `npm link`, run it directly:
 
 ```bash
 node dist/index.js help
 ```
 
-## Autenticazione
+## Authentication
 
 ```bash
-skill-forge login          # Device Flow: mostra un codice, lo digiti nel browser
-skill-forge login --token ghp_xxx   # token esplicito
-skill-forge logout         # rimuove la config
+skill-forge login          # Device Flow: shows a code, you type it in the browser
+skill-forge login --token ghp_xxx   # explicit token
+skill-forge logout         # removes the config
 ```
 
-`login` apre il **Device Flow** di GitHub: stampa un codice, tu apri
-`github.com/login/device`, lo inserisci e autorizzi. La CLI resta in attesa e
-salva il token appena arriva. Niente da copiare e incollare.
+`login` starts GitHub's **Device Flow**: it prints a code, you open
+`github.com/login/device`, enter it and authorize. The CLI waits and saves the
+token as soon as it arrives. Nothing to copy and paste.
 
-Il token finisce in `~/.config/skill-forge/config.json` con permessi `600`.
+The token ends up in `~/.config/skill-forge/config.json` with mode `600`.
 
-Fonti del token, in ordine di priorità:
+Token sources, in order of priority:
 
 1. `--token <token>`
-2. la variabile `SKILL_FORGE_TOKEN`
-3. `gh auth token`, se la GitHub CLI è installata e autenticata
-4. Device Flow (solo con terminale interattivo)
+2. the `SKILL_FORGE_TOKEN` variable
+3. `gh auth token`, if the GitHub CLI is installed and authenticated
+4. Device Flow (interactive terminal only)
 
-In un contesto non interattivo (CI, pipe) il Device Flow non ha senso, quindi la
-CLI usa `--token`, `$SKILL_FORGE_TOKEN` o `gh auth token`. Con `--no-device-flow`
-si salta il flusso interattivo anche da terminale.
+In a non-interactive context (CI, pipe) the Device Flow makes no sense, so the
+CLI uses `--token`, `$SKILL_FORGE_TOKEN` or `gh auth token`. With
+`--no-device-flow` you skip the interactive flow even at a terminal.
 
-Il token serve solo ai comandi che scrivono (`generate`, `publish`, `star`,
-`delete`, `whoami`). `list`, `search`, `show` e `pull` funzionano senza.
+The token is only needed by the commands that write (`generate`, `publish`,
+`star`, `delete`, `whoami`). `list`, `search`, `show` and `pull` work without it.
 
-## Comandi
+## Commands
 
-| Comando | Cosa fa |
+| Command | What it does |
 | --- | --- |
-| `login [--token <t>]` | Autentica via Device Flow e salva il token |
-| `logout` | Rimuove il token |
-| `whoami` | Utente autenticato e quota residua |
-| `generate` | Genera una skill (da file o da zero) |
-| `publish` | Pubblica una skill sul marketplace |
-| `list` / `search` | Cerca e sfoglia il marketplace |
-| `show <id>` | Dettaglio di una skill, markdown incluso |
-| `pull <id>` | Scarica una skill come file `.md` |
-| `star <id>` | Mette o toglie la stella |
-| `delete <id>` | Cancella una tua skill |
+| `login [--token <t>]` | Authenticate via Device Flow and save the token |
+| `logout` | Remove the token |
+| `whoami` | Authenticated user and remaining quota |
+| `generate` | Generate a skill (from files or from scratch) |
+| `publish` | Publish a skill to the marketplace |
+| `browse` / `ui` | Browse the marketplace interactively, with the mouse |
+| `list` / `search` | Search and browse the marketplace |
+| `show <id>` | Detail of a skill, markdown included |
+| `pull <id>` | Download a skill as a `.md` file |
+| `star <id>` | Star or unstar a skill |
+| `delete <id>` | Delete one of your skills |
 
-### Opzioni globali
+## Interactive browser
 
-| Opzione | Effetto |
+`skill-forge browse` opens the marketplace in a full-screen view you drive with
+the keyboard or the mouse. It is for reading, not scripting: `list` and `pull`
+stay the commands to use in a pipe.
+
+- Arrow keys or `j`/`k` move, `PgUp`/`PgDn`, `Home`/`End` jump.
+- `Enter` opens the selected skill, or toggles the section under the cursor.
+- Click a row to open it; click a section title to open or close that section.
+- The wheel scrolls the list and the document.
+- `/` searches, `Esc` goes back, `?` shows the help, `q` quits.
+
+Inside a skill the document is cut at its `##` headings: each section is one
+clickable line, open or closed on demand, so a long skill stays navigable.
+
+The view needs a real terminal. In a pipe it stops with a message pointing at
+`list` instead of waiting for keys that will never arrive.
+
+### Global options
+
+| Option | Effect |
 | --- | --- |
-| `--json` | Output in JSON, per scripting |
-| `--url <url>` | URL del servizio (default: il worker pubblico) |
-| `--token <token>` | Token GitHub per questa invocazione |
+| `--json` | JSON output, for scripting |
+| `--url <url>` | Service URL (default: the public worker) |
+| `--token <token>` | GitHub token for this invocation |
 
-## Esempi
+## Examples
 
 ```bash
-# Genera da un file e salva il risultato
+# Generate from a file and save the result
 skill-forge generate -f note.md -o skill.md
 
-# Genera da testo incollato, in pipe
-cat appunti.txt | skill-forge generate > skill.md
+# Generate from pasted text, in a pipe
+cat notes.txt | skill-forge generate > skill.md
 
-# Genera da zero, con i campi del wizard
+# Generate from scratch, with the wizard fields
 skill-forge generate --name "Docker Deploy" \
-  --domain "DevOps" --goal "Automatizzare il rilascio" \
+  --domain "DevOps" --goal "Automate the release" \
   -o docker.md
 
-# Genera e pubblica in un colpo solo
+# Generate and publish in one shot
 cat note.md | skill-forge generate --quiet | skill-forge publish --tags docker,deploy
 
-# Cerca, guarda, scarica
+# Search, view, download
 skill-forge list -q docker -s stars
 skill-forge show ciao22king/docker-deploy
 skill-forge pull ciao22king/docker-deploy -o skill.md
 
-# Stella e cancellazione
+# Star and delete
 skill-forge star ciao22king/docker-deploy
 skill-forge delete ciao22king/docker-deploy --yes
 ```
 
-## Sviluppo
+## Development
 
 ```bash
-npm test        # test (node:test + tsx), nessuna rete reale
-npm run build   # compila in dist/
-npm run dev     # compilazione in watch
+npm test        # tests (node:test + tsx), no real network
+npm run build   # compile into dist/
+npm run dev     # watch build
 ```
 
-I test coprono config (compresi i permessi del file), il client HTTP (con
-`fetch` finto), i helper sulle skill, la formattazione e un percorso
-end-to-end contro un server HTTP locale vero.
+The tests cover the config (including the file permissions), the HTTP client
+(with a fake `fetch`), the skill helpers, the formatting and an end-to-end path
+against a real local HTTP server.

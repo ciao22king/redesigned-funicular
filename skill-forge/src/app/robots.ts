@@ -8,8 +8,16 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: '*',
         allow: '/',
-        // Le aree personali e le API non hanno senso per i motori di ricerca.
-        disallow: ['/api/', '/dashboard', '/create/'],
+        // Personal areas and the API make no sense for search engines.
+        disallow: ['/api/', '/dashboard', '/create/', '/admin'],
+      },
+      // AI crawlers are explicitly welcome: the site is public content and the
+      // goal is to be found, quoted and linked by assistants. `llms.txt` is the
+      // map they read.
+      {
+        userAgent: ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'anthropic-ai', 'PerplexityBot', 'Google-Extended', 'CCBot', 'Applebot-Extended'],
+        allow: '/',
+        disallow: ['/api/', '/dashboard', '/create/', '/admin'],
       },
     ],
     sitemap: `${base}/sitemap.xml`,
