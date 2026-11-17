@@ -13,6 +13,7 @@
     "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.50",
     "@opennextjs/cloudflare": "^1.20.16",
     "next": "^16.4.5",
     "next-auth": "^4.24.7",

@@ -28,6 +28,12 @@ export function Nav() {
           >
             Marketplace
           </Link>
+          <Link
+            href="/chat"
+            className="rounded-lg px-3 py-2 text-sm text-[--ink-muted] transition-colors hover:bg-[--surface-sunken] hover:text-[--ink]"
+          >
+            Chat
+          </Link>
           {status === 'authenticated' ? (
             <>
               <Link
