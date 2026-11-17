@@ -12,11 +12,11 @@
  * from the published build — the compiled WebGPU kernels are the same.
  *
  * The weights live in this repository, on the `models` branch, under
- * `resolve/main/`. The path is deliberate: WebLLM builds every artefact URL by
- * appending `resolve/main/` to `model` (its `cleanModelUrl`), the Hugging Face
- * layout. Serving them from GitHub's raw host keeps that layout and gets
- * `Access-Control-Allow-Origin: *` for free; a release asset, by contrast, sends
- * no CORS header and would not load in the page.
+ * `resolve/main/`. That path is not written here because WebLLM appends it on
+ * its own (`cleanModelUrl` adds `resolve/main/` to `model`, the Hugging Face
+ * layout), so the base must stop at the branch name. Serving them from GitHub's
+ * raw host keeps the layout and gets `Access-Control-Allow-Origin: *` for free;
+ * a release asset, by contrast, sends no CORS header and would not load.
  *
  * The `.wasm` is upstream, not ours: a compiled model library depends only on
  * the architecture and the quantization, not on the weight values, so the
@@ -36,7 +36,7 @@ const MODEL_LIB_VERSION = 'v0_2_87/base';
 
 /** Our fine-tuned weights, served from the `models` branch of this repository. */
 const BASE_MODEL_URL =
-  'https://raw.githubusercontent.com/ciao22king/redesigned-funicular/models/resolve/main';
+  'https://raw.githubusercontent.com/ciao22king/redesigned-funicular/models';
 
 /**
  * The context we ask for, shared with the generator so the input cap it derives

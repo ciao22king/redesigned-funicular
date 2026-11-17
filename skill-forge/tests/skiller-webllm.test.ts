@@ -11,14 +11,13 @@ test('la card usa il nostro id, non quello di Qwen', () => {
 
 test('i pesi sono i nostri, sul branch models del repo', () => {
   const rec = skillerModelRecord();
-  // Il percorso `resolve/main/` non è decorativo: WebLLM lo appende da sé
-  // (`cleanModelUrl`), quindi la base deve fermarsi prima. Se cambia, il
-  // browser chiede URL inesistenti.
+  // WebLLM appende `resolve/main/` da sé (`cleanModelUrl`): se lo mettessimo
+  // qui, l'URL finale lo conterrebbe due volte e il browser scaricherebbe 404.
   assert.equal(
     rec.model,
-    'https://raw.githubusercontent.com/ciao22king/redesigned-funicular/models/resolve/main',
+    'https://raw.githubusercontent.com/ciao22king/redesigned-funicular/models',
   );
-  assert.ok(!rec.model.endsWith('/resolve/main/'));
+  assert.ok(!rec.model.includes('/resolve/'));
 });
 
 test('il kernel wasm e\u2019 quello compilato per WebGPU', () => {
