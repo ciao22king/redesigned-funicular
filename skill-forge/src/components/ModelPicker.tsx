@@ -28,7 +28,7 @@ export function ModelPicker({
     {
       id: 'device',
       title: 'On your device',
-      note: 'Runs in this browser. Free, private, nothing is uploaded. Smaller model.',
+      note: 'Runs in this browser. Free, private, nothing is uploaded. A 1.5B model, downloaded once.',
     },
     {
       id: 'hosted',

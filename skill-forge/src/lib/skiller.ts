@@ -27,16 +27,54 @@ export const MAX_REPLY_CHARS = 4_000;
  * The identity of the model, kept in one place so the config, the UI and the
  * tests cannot drift. WebLLM reuses the weights of the upstream MLC build: only
  * the prompt and the generation settings are ours.
+ *
+ * The size in the id is real: it is the model that actually runs. It went from
+ * 0.5B to 1.5B because the smaller one produced short, generic documents, which
+ * is the exact failure the product exists to avoid. The cost is the download
+ * (about 1 GB against 280 MB), so the UI states it before the first load.
  */
-export const SKILLER_MODEL_ID = 'skillforge-skiller-0.5B';
-export const SKILLER_BASE_MODEL = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+export const SKILLER_MODEL_ID = 'skillforge-skiller-1.5B';
+export const SKILLER_BASE_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 
-/** Settings for the browser engine: small, deterministic, skill-focused. */
+/**
+ * Settings for the browser engine.
+ *
+ * A small model loops and drifts, so the sampling is deliberately tight:
+ * a low temperature keeps the document structure stable, and the two penalties
+ * stop it from repeating a sentence until the token budget runs out. The
+ * repetition penalty is above the model's own 1.1 because a loop here costs the
+ * whole reply, not a word.
+ */
 export const SKILLER_GENERATION = {
-  temperature: 0.4,
+  temperature: 0.3,
   top_p: 0.9,
-  repetition_penalty: 1.1,
+  repetition_penalty: 1.15,
+  frequency_penalty: 0.3,
+  presence_penalty: 0,
 } as const;
+
+/**
+ * The context window we ask WebLLM for, in tokens.
+ *
+ * The base model declares 32768, but a phone has far less VRAM: WebLLM's own
+ * entry for this model overrides it to 4096, and we follow that, because a
+ * request the device cannot hold fails outright.
+ *
+ * This is the number that bounds everything else. The server accepts 20000
+ * characters of material, which is about 5000 tokens: with a 4096-token window
+ * that material does not fit alongside the prompt and the reply, and the device
+ * would silently generate from a truncated source. The generator derives its own
+ * input cap from this value, so the two cannot disagree.
+ */
+export const SKILLER_CONTEXT_WINDOW = 4096;
+
+/**
+ * Tokens reserved for the reply, inside the context window. A complete skill
+ * needs roughly 1500 to 2000 visible tokens; the rest is headroom for a model
+ * that pads. It is a reserve, not a promise: the reply is truncated by
+ * `checkOutput` if it overruns.
+ */
+export const SKILLER_REPLY_TOKENS = 2000;
 
 /**
  * The system prompt. It is the guardrail that travels with the model, so it

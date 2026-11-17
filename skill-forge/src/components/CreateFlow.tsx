@@ -73,6 +73,12 @@ export default function CreatePage({ mode }: { mode: Mode }) {
   const [model, setModel] = useState<ModelChoice>('device');
   const [hostedAvailable, setHostedAvailable] = useState(false);
   const [deviceProgress, setDeviceProgress] = useState('');
+  /**
+   * Set when the device model had to cut the material to fit its context
+   * window. Surfaced, not swallowed: silently generating from a truncated
+   * source is how a user ends up trusting a document the model never read.
+   */
+  const [deviceTruncated, setDeviceTruncated] = useState(false);
 
   useEffect(() => {
     fetch('/api/model-config')
@@ -283,12 +289,14 @@ export default function CreatePage({ mode }: { mode: Mode }) {
    */
   async function generateWithDevice() {
     setDeviceProgress('Preparing the model…');
+    setDeviceTruncated(false);
     const out = await generateOnDevice(requestBody(), (t) => setDeviceProgress(t));
     setDeviceProgress('');
     if ('error' in out) throw new Error(out.error);
 
     setResult(out.markdown);
     setNormalizations(out.normalizations);
+    setDeviceTruncated(out.truncated);
     // The device path has no quota, no clarifying questions and no self-review:
     // those are server features, so the panels that show them stay empty.
     setQuestions([]);
@@ -700,6 +708,7 @@ export default function CreatePage({ mode }: { mode: Mode }) {
               mode={mode}
               normalizations={normalizations}
               refined={refined}
+              truncated={deviceTruncated}
               onEdit={setResult}
               onDownload={download}
               onRegenerateSection={regenerateSection}
@@ -740,6 +749,7 @@ function ResultPanel({
   mode,
   normalizations,
   refined,
+  truncated,
   onEdit,
   onDownload,
   onRegenerateSection,
@@ -749,6 +759,7 @@ function ResultPanel({
   mode: Mode;
   normalizations: string[];
   refined: boolean;
+  truncated: boolean;
   onEdit: (next: string) => void;
   onDownload: () => void;
   onRegenerateSection: (section: string, instruction: string) => Promise<void>;
@@ -822,6 +833,17 @@ function ResultPanel({
           {countWords(markdown)} words
         </span>
       </div>
+
+      {truncated && (
+        <p
+          role="status"
+          className="mb-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]"
+        >
+          Your material was longer than the device model can read at once, so the
+          start was dropped and the skill was built from the end. Switch to the
+          server model for the full document, or split the material.
+        </p>
+      )}
 
       {(refined || normalizations.length > 0) && (
         <details className="mb-5 rounded-xl border border-[--line] bg-[--surface-sunken] px-4 py-3 text-sm text-[--ink-muted]">

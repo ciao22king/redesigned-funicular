@@ -21,6 +21,8 @@ export interface SkillerEngine {
         temperature?: number;
         top_p?: number;
         repetition_penalty?: number;
+        frequency_penalty?: number;
+        presence_penalty?: number;
         max_tokens?: number;
       }) => Promise<{ choices: { message: { content: string } }[] }>;
     };

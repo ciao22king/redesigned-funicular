@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateOnDevice } from '../src/lib/skiller-generate';
+import { generateOnDevice, fitToWindow, SKILLER_MAX_INPUT_CHARS, SKILLER_OUTPUT_TOKENS } from '../src/lib/skiller-generate';
+import { SKILLER_CONTEXT_WINDOW } from '../src/lib/skiller';
 import type { SkillerEngine } from '../src/lib/skiller-engine';
 
 /**
@@ -78,7 +79,7 @@ test('genera una skill valida dal modello on-device', async () => {
   assert.ok('markdown' in out, `atteso successo, ottenuto: ${JSON.stringify(out)}`);
   if ('markdown' in out) {
     assert.match(out.markdown, /# Demo skill/);
-    assert.equal(out.model, 'skillforge-skiller-0.5B');
+    assert.equal(out.model, 'skillforge-skiller-1.5B');
     assert.ok(Array.isArray(out.normalizations));
   }
 });
@@ -106,4 +107,52 @@ test('un errore del motore si propaga al chiamante', async () => {
       }),
     /no GPU/,
   );
+});
+
+test('il budget di input entra davvero nella finestra di contesto', () => {
+  // The regression this pins: the input cap was inherited from the server
+  // (20000 chars) while the window is 4096 tokens, so a long paste overflowed
+  // and the reply came from material the model never saw.
+  const budgetChars = SKILLER_MAX_INPUT_CHARS;
+  const inputTokens = Math.ceil(budgetChars / 4);
+  assert.ok(inputTokens < SKILLER_CONTEXT_WINDOW, 'input must fit in the window');
+  assert.ok(
+    inputTokens + SKILLER_OUTPUT_TOKENS < SKILLER_CONTEXT_WINDOW,
+    'input plus reply must fit in the window',
+  );
+});
+
+test('il materiale corto passa intatto', () => {
+  const short = 'a few notes';
+  const { body, truncated } = fitToWindow({ ...BODY, mode: 'from-skills', sourceMaterial: short });
+  assert.equal(truncated, false);
+  assert.equal(body.sourceMaterial, short);
+});
+
+test('il materiale lungo viene tagliato, e la coda e\u2019 quella che resta', () => {
+  const head = 'HEAD '.repeat(3000);
+  const tail = 'TAIL-ACTION-ITEM';
+  const long = head + tail;
+  const { body, truncated } = fitToWindow({ ...BODY, mode: 'from-skills', sourceMaterial: long });
+  assert.equal(truncated, true);
+  assert.equal(body.sourceMaterial!.length, SKILLER_MAX_INPUT_CHARS);
+  // The conclusion and the action items are at the end of pasted notes, so the
+  // tail is the part worth keeping.
+  assert.ok(body.sourceMaterial!.endsWith(tail));
+});
+
+test('la modalita\u2019 from-scratch non viene toccata', () => {
+  const { body, truncated } = fitToWindow(BODY);
+  assert.equal(truncated, false);
+  assert.equal(body, BODY);
+});
+
+test('la generazione segnala il troncamento all\u2019interfaccia', async () => {
+  const out = await generateOnDevice(
+    { ...BODY, mode: 'from-skills', sourceMaterial: 'x'.repeat(SKILLER_MAX_INPUT_CHARS + 500) },
+    undefined,
+    async () => fakeEngine(VALID_SKILL),
+  );
+  assert.ok('markdown' in out);
+  if ('markdown' in out) assert.equal(out.truncated, true);
 });

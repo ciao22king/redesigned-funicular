@@ -15,7 +15,7 @@ import { getEngine } from '@/lib/skiller-engine';
  * Skiller in the browser.
  *
  * The model runs on the device's GPU through WebLLM: no server, no API key, no
- * cost per token. The trade is the download — a few hundred megabytes the first
+ * cost per token. The trade is the download — about a gigabyte the first
  * time, cached afterwards — so the engine is only imported when the user asks
  * for it, never on page load.
  *
