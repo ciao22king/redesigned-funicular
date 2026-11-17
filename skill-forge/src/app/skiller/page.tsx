@@ -53,10 +53,11 @@ export default function SkillerPage() {
             Honest limits
           </h2>
           <p className="mt-3 max-w-prose text-sm text-[--ink-muted]">
-            It is a 1.5-billion-parameter model. It is private and runs without a server, but it is
-            not a frontier model: for a long or subtle document, the full generator on the server is
-            better. The first load downloads the weights, about 1 GB, so give it a moment and a
-            decent connection. After that it is cached.
+            It is a half-billion-parameter model, fine-tuned on the skills this product produces. It
+            is private and runs without a server, but it is not a frontier model: for a long or
+            subtle document, the full generator on the server is better. The first load downloads the
+            weights, about 280 MB, so give it a moment and a decent connection. After that it is
+            cached.
           </p>
           <p className="mt-3 text-sm">
             <Link href="/demo" className="text-[--accent] underline underline-offset-2">

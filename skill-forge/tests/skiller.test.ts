@@ -91,5 +91,5 @@ test('una risposta troppo lunga viene troncata ma resta valida', () => {
 });
 
 test('l\'id del modello e il base sono coerenti con la richiesta', () => {
-  assert.equal(SKILLER_MODEL_ID, 'skillforge-skiller-1.5B');
+  assert.equal(SKILLER_MODEL_ID, 'skillforge-skiller-0.5B');
 });

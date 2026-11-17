@@ -6,19 +6,25 @@ import { SKILLER_CONTEXT_WINDOW, SKILLER_MODEL_ID } from '../src/lib/skiller';
 test('la card usa il nostro id, non quello di Qwen', () => {
   const rec = skillerModelRecord();
   assert.equal(rec.model_id, SKILLER_MODEL_ID);
-  assert.equal(rec.model_id, 'skillforge-skiller-1.5B');
+  assert.equal(rec.model_id, 'skillforge-skiller-0.5B');
 });
 
-test('i pesi puntano al build MLC upstream (nessun binario nel repo)', () => {
+test('i pesi sono i nostri, sul branch models del repo', () => {
   const rec = skillerModelRecord();
-  assert.match(rec.model, /^https:\/\/huggingface\.co\/mlc-ai\//);
-  assert.ok(rec.model.endsWith('Qwen2.5-1.5B-Instruct-q4f16_1-MLC'));
+  // Il percorso `resolve/main/` non è decorativo: WebLLM lo appende da sé
+  // (`cleanModelUrl`), quindi la base deve fermarsi prima. Se cambia, il
+  // browser chiede URL inesistenti.
+  assert.equal(
+    rec.model,
+    'https://raw.githubusercontent.com/ciao22king/redesigned-funicular/models/resolve/main',
+  );
+  assert.ok(!rec.model.endsWith('/resolve/main/'));
 });
 
 test('il kernel wasm e\u2019 quello compilato per WebGPU', () => {
   const rec = skillerModelRecord();
   assert.match(rec.model_lib, /binary-mlc-llm-libs/);
-  assert.ok(rec.model_lib.endsWith('Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm'));
+  assert.ok(rec.model_lib.endsWith('Qwen2-0.5B-Instruct-q4f16_1_cs1k-webgpu.wasm'));
 });
 
 test('il contesto e\u2019 ridotto per il telefono', () => {

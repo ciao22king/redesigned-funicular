@@ -25,16 +25,18 @@ export const MAX_REPLY_CHARS = 4_000;
 
 /**
  * The identity of the model, kept in one place so the config, the UI and the
- * tests cannot drift. WebLLM reuses the weights of the upstream MLC build: only
- * the prompt and the generation settings are ours.
+ * tests cannot drift.
  *
- * The size in the id is real: it is the model that actually runs. It went from
- * 0.5B to 1.5B because the smaller one produced short, generic documents, which
- * is the exact failure the product exists to avoid. The cost is the download
- * (about 1 GB against 280 MB), so the UI states it before the first load.
+ * The weights are ours: Qwen2.5-0.5B-Instruct, fine-tuned on the product's own
+ * (material -> skill) pairs and converted to MLC's q4f16_1 format by
+ * `skiller-training/mlc_export.py`. That converter reproduces MLC's quantizer
+ * byte-for-byte (checked against the published MLC build of the same model), so
+ * the browser runs the same kernels and only the weights differ.
+ *
+ * The size in the id is real: it is the model that actually runs on the phone.
  */
-export const SKILLER_MODEL_ID = 'skillforge-skiller-1.5B';
-export const SKILLER_BASE_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
+export const SKILLER_MODEL_ID = 'skillforge-skiller-0.5B';
+export const SKILLER_BASE_MODEL = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
 
 /**
  * Settings for the browser engine.

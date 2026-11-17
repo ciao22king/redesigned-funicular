@@ -79,7 +79,7 @@ test('genera una skill valida dal modello on-device', async () => {
   assert.ok('markdown' in out, `atteso successo, ottenuto: ${JSON.stringify(out)}`);
   if ('markdown' in out) {
     assert.match(out.markdown, /# Demo skill/);
-    assert.equal(out.model, 'skillforge-skiller-1.5B');
+    assert.equal(out.model, 'skillforge-skiller-0.5B');
     assert.ok(Array.isArray(out.normalizations));
   }
 });

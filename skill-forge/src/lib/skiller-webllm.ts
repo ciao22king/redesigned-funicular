@@ -1,21 +1,26 @@
 /**
- * The WebLLM model card for `skillforge-skiller-1.5B`.
+ * The WebLLM model card for `skillforge-skiller-0.5B`.
  *
  * WebLLM runs the model in the browser, on the phone's GPU: no server, no API
  * key, no per-token cost. It ships a catalogue of ready models; this module adds
  * ours to it.
  *
- * What "our model" means here, stated plainly: the weights are the upstream MLC
- * build of Qwen2.5-1.5B-Instruct (quantized q4f16_1). Those weights are already
- * compiled for WebGPU and cannot be retrained in place — no GPU, no MLC
- * toolchain. What we own, and what this file defines, is everything around them:
- * the identity, the system prompt (the guardrails), the generation settings and
- * the context budget. That is the part that changes behaviour, and it is the
- * part that ships.
+ * What "our model" means here: the weights are Qwen2.5-0.5B-Instruct fine-tuned
+ * on the product's own (material -> skill) pairs, then quantized to MLC's
+ * q4f16_1 format. The conversion is done by `skiller-training/mlc_export.py`,
+ * which reproduces MLC's quantizer byte-for-byte, so only the weights differ
+ * from the published build — the compiled WebGPU kernels are the same.
  *
- * Reusing the upstream weights is also what keeps this practical: the browser
- * downloads them from Hugging Face directly, so the repository stores no
- * hundreds of megabytes of binary.
+ * The weights live in this repository, on the `models` branch, under
+ * `resolve/main/`. The path is deliberate: WebLLM builds every artefact URL by
+ * appending `resolve/main/` to `model` (its `cleanModelUrl`), the Hugging Face
+ * layout. Serving them from GitHub's raw host keeps that layout and gets
+ * `Access-Control-Allow-Origin: *` for free; a release asset, by contrast, sends
+ * no CORS header and would not load in the page.
+ *
+ * The `.wasm` is upstream, not ours: a compiled model library depends only on
+ * the architecture and the quantization, not on the weight values, so the
+ * prebuilt Qwen2-0.5B library runs our fine-tuned weights unchanged.
  */
 import {
   SKILLER_CONTEXT_WINDOW,
@@ -29,8 +34,9 @@ const MODEL_LIB_PREFIX =
   'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/';
 const MODEL_LIB_VERSION = 'v0_2_87/base';
 
-/** The upstream MLC weights, as published by mlc-ai. */
-const BASE_MODEL_URL = 'https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
+/** Our fine-tuned weights, served from the `models` branch of this repository. */
+const BASE_MODEL_URL =
+  'https://raw.githubusercontent.com/ciao22king/redesigned-funicular/models/resolve/main';
 
 /**
  * The context we ask for, shared with the generator so the input cap it derives
@@ -56,9 +62,10 @@ export function skillerModelRecord(): SkillerModelRecord {
   return {
     model_id: SKILLER_MODEL_ID,
     model: BASE_MODEL_URL,
-    model_lib: `${MODEL_LIB_PREFIX}${MODEL_LIB_VERSION}/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm`,
-    // The upstream figure for the 1.5B weights plus the KV cache at 4k.
-    vram_required_MB: 1629.75,
+    model_lib: `${MODEL_LIB_PREFIX}${MODEL_LIB_VERSION}/Qwen2-0.5B-Instruct-q4f16_1_cs1k-webgpu.wasm`,
+    // The upstream figure for the 0.5B weights plus the KV cache at 4k. Ours is
+    // the same: the fine-tune does not change the architecture.
+    vram_required_MB: 944.62,
     // Signals WebLLM to keep the prefill chunk small: the phone is the target.
     low_resource_required: true,
     overrides: { context_window_size: CONTEXT_WINDOW_SIZE },
